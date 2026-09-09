@@ -1,0 +1,46 @@
+# ---------------------------------------------------------------------------
+# PATIENT DATA — never commit. This is a legal obligation under the DPDP Act,
+# not a preference. The database, the WAL sidecar files, the backups and any
+# consultation audio all contain identifiable health information.
+# ---------------------------------------------------------------------------
+clinicos-app/data/
+**/data/*.db
+**/data/*.db-shm
+**/data/*.db-wal
+**/data/*.db-journal
+**/data/audio/
+**/data/backups/
+*.db
+*.db-shm
+*.db-wal
+
+# Real clinic identity and any API keys
+.env
+.env.local
+clinicos-app/.env
+
+# Dependencies and build output
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# Python sidecar: virtualenv and the downloaded Whisper weights (~230 MB)
+asr/.venv/
+asr/models/
+**/__pycache__/
+*.pyc
+
+# Logs and runtime scratch
+logs/
+*.log
+*.pid
+
+# Local archives and superseded working copies
+_to_delete/
+*.zip
+
+# macOS
+.DS_Store
+.AppleDouble

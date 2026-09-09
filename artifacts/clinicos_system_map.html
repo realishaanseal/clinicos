@@ -1,0 +1,560 @@
+<title>ClinicOS System Map</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  :root {
+    --paper: #f7f5f0;
+    --paper-raised: #fdfcf9;
+    --ink: #1a2420;
+    --ink-soft: #4d564f;
+    --ink-faint: #8a9088;
+    --accent: #2d6a4f;
+    --accent-deep: #1e4a37;
+    --accent-soft: #d3e3d9;
+    --accent-wash: #eaf1ec;
+    --flag: #b5542c;
+    --flag-soft: #f1ddd2;
+    --flag-wash: #faf2ed;
+    --line: #cfc9ba;
+    --line-soft: #e4e0d5;
+    --shadow: 220 20% 10%;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #141815;
+      --paper-raised: #1b201c;
+      --ink: #eae7de;
+      --ink-soft: #b6bcb3;
+      --ink-faint: #71776e;
+      --accent: #6fb894;
+      --accent-deep: #8fd0ac;
+      --accent-soft: #24382e;
+      --accent-wash: #1c2a22;
+      --flag: #dd8d67;
+      --flag-soft: #3c2a20;
+      --flag-wash: #271d18;
+      --line: #3a3f39;
+      --line-soft: #262b25;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper: #141815;
+    --paper-raised: #1b201c;
+    --ink: #eae7de;
+    --ink-soft: #b6bcb3;
+    --ink-faint: #71776e;
+    --accent: #6fb894;
+    --accent-deep: #8fd0ac;
+    --accent-soft: #24382e;
+    --accent-wash: #1c2a22;
+    --flag: #dd8d67;
+    --flag-soft: #3c2a20;
+    --flag-wash: #271d18;
+    --line: #3a3f39;
+    --line-soft: #262b25;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    line-height: 1.5;
+  }
+
+  .page {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 3.5rem 2rem 5rem;
+  }
+
+  header.masthead {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 2rem;
+    border-bottom: 1.5px solid var(--ink);
+    padding-bottom: 1.25rem;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .masthead-left .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+  }
+
+  h1 {
+    font-family: "Newsreader", Georgia, serif;
+    font-weight: 600;
+    font-size: clamp(1.8rem, 3.4vw, 2.6rem);
+    margin: 0;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+
+  .masthead-right {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    text-align: right;
+    line-height: 1.6;
+  }
+
+  .dek {
+    font-size: 1.02rem;
+    color: var(--ink-soft);
+    max-width: 62ch;
+    margin: 1.1rem 0 2.75rem;
+  }
+
+  .dek strong { color: var(--ink); font-weight: 600; }
+
+  /* ---- legend ---- */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.72rem;
+    color: var(--ink-soft);
+    border: 1px solid var(--line);
+    background: var(--paper-raised);
+    padding: 0.85rem 1.1rem;
+    border-radius: 3px;
+    margin-bottom: 2.75rem;
+  }
+  .legend-item { display: flex; align-items: center; gap: 0.5rem; white-space: nowrap; }
+  .swatch { width: 13px; height: 13px; border-radius: 2px; flex-shrink: 0; }
+  .swatch.product { background: var(--accent); }
+  .swatch.gate { background: var(--ink); }
+  .swatch.flag { background: var(--flag); }
+  .swatch.link { border: 1.5px dashed var(--ink-faint); background: transparent; width: 18px; height: 0; }
+
+  /* ---- diagram section ---- */
+  figure.diagram {
+    margin: 0 0 3rem;
+    padding: 0;
+  }
+
+  figure.diagram svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-width: 100%;
+  }
+
+  figcaption {
+    font-size: 0.85rem;
+    color: var(--ink-faint);
+    margin-top: 0.9rem;
+    max-width: 72ch;
+    font-family: "IBM Plex Sans", sans-serif;
+  }
+
+  .diagram-frame {
+    border: 1px solid var(--line);
+    background: var(--paper-raised);
+    border-radius: 4px;
+    padding: 1.5rem 1rem;
+    overflow-x: auto;
+  }
+
+  /* ---- lane labels outside svg (kept in HTML for accessibility/zoom) ---- */
+  .lane-title {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 2.4rem 0 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .lane-title::before {
+    content: "";
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .lane-title.research::before { background: var(--ink); }
+
+  /* ---- narrative / detail sections below the diagram ---- */
+  section.detail {
+    margin-top: 3.5rem;
+  }
+
+  h2 {
+    font-family: "Newsreader", Georgia, serif;
+    font-weight: 600;
+    font-size: 1.4rem;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 0.6rem;
+    margin: 0 0 1.2rem;
+  }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .card {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1.25rem 1.4rem;
+  }
+
+  .card h3 {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 0.7rem;
+  }
+
+  .card p { margin: 0; font-size: 0.92rem; color: var(--ink-soft); }
+  .card p + p { margin-top: 0.6rem; }
+
+  .card.flagged {
+    border-color: var(--flag-soft);
+    background: var(--flag-wash);
+  }
+  .card.flagged h3 { color: var(--flag); }
+
+  table.gates {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  table.gates th, table.gates td {
+    text-align: left;
+    padding: 0.7rem 0.9rem;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  table.gates th {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 500;
+  }
+  table.gates td.num {
+    font-family: "IBM Plex Mono", monospace;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  table.gates tr:last-child td { border-bottom: none; }
+
+  footer.meta {
+    margin-top: 3.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--line);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.72rem;
+    color: var(--ink-faint);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  @media (max-width: 640px) {
+    .masthead-right { text-align: left; }
+  }
+</style>
+
+<div class="page">
+
+  <header class="masthead">
+    <div class="masthead-left">
+      <div class="eyebrow">ClinicOS &middot; System &amp; Validation Map</div>
+      <h1>How the product works, and how we're proving it should exist</h1>
+    </div>
+    <div class="masthead-right">
+      Krishnanagar, Nadia, West Bengal<br>
+      Updated 25 Aug 2026
+    </div>
+  </header>
+
+  <p class="dek">
+    Two pipelines running on the same clock. The <strong>product lane</strong> is what a doctor's
+    consultation turns into, step by step. The <strong>validation lane</strong> is the evidence program
+    that decides, at three fixed checkpoints, whether to keep building it. They meet at two points:
+    pilot data feeds the real cost model, and the monitoring phase is the point the product crosses
+    into regulated territory.
+  </p>
+
+  <div class="legend">
+    <div class="legend-item"><span class="swatch product"></span> Product / data pipeline step</div>
+    <div class="legend-item"><span class="swatch gate"></span> Validation checkpoint</div>
+    <div class="legend-item"><span class="swatch flag"></span> Regulatory or economic risk flag</div>
+    <div class="legend-item"><span class="swatch link"></span> Cross-lane dependency</div>
+  </div>
+
+  <!-- ================= DIAGRAM ================= -->
+  <figure class="diagram">
+    <div class="diagram-frame">
+      <svg viewBox="0 0 1200 1080" role="img" aria-label="Flowchart showing the ClinicOS product pipeline from audio capture through AI scribe, structured note, patient timeline, chronic monitoring and referral routing, with a regulatory boundary marked before the monitoring stage; below it, a linked validation program lane running doctor discovery through three gated checkpoints at week 4, week 8 and week 16, ending in either a paying-clinic launch or a pivot to the patient-facing wedge; the two lanes are connected by dependency lines at the pilot-data and regulatory-flag points.">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+          <marker id="arrowFaint" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--ink-faint)"/>
+          </marker>
+        </defs>
+
+        <!-- ============ LANE LABELS ============ -->
+        <text x="20" y="34" font-family="IBM Plex Mono, monospace" font-size="12" letter-spacing="1.5" fill="var(--ink-faint)">PRODUCT / DATA PIPELINE</text>
+        <text x="20" y="612" font-family="IBM Plex Mono, monospace" font-size="12" letter-spacing="1.5" fill="var(--ink-faint)">VALIDATION PROGRAM</text>
+
+        <!-- ============ TOP LANE: PRODUCT PIPELINE ============ -->
+        <!-- baseline y for boxes: 60-150 -->
+
+        <!-- Step 1: Consultation audio -->
+        <rect x="20" y="60" width="150" height="86" rx="4" fill="var(--paper-raised)" stroke="var(--accent)" stroke-width="1.5"/>
+        <text x="95" y="94" text-anchor="middle" font-family="IBM Plex Sans" font-size="13" font-weight="600" fill="var(--ink)">Consultation</text>
+        <text x="95" y="112" text-anchor="middle" font-family="IBM Plex Sans" font-size="11.5" fill="var(--ink-soft)">Bengali / Hindi /</text>
+        <text x="95" y="127" text-anchor="middle" font-family="IBM Plex Sans" font-size="11.5" fill="var(--ink-soft)">English audio</text>
+
+        <line x1="170" y1="103" x2="204" y2="103" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+        <!-- Step 2: AI Scribe -->
+        <rect x="206" y="60" width="150" height="86" rx="4" fill="var(--accent-wash)" stroke="var(--accent)" stroke-width="1.5"/>
+        <text x="281" y="94" text-anchor="middle" font-family="IBM Plex Sans" font-size="13" font-weight="600" fill="var(--ink)">AI Scribe</text>
+        <text x="281" y="112" text-anchor="middle" font-family="IBM Plex Sans" font-size="11.5" fill="var(--ink-soft)">transcribe +</text>
+        <text x="281" y="127" text-anchor="middle" font-family="IBM Plex Sans" font-size="11.5" fill="var(--ink-soft)">structure</text>
+
+        <line x1="356" y1="103" x2="390" y2="103" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+        <!-- Step 3: Structured note -->
+        <rect x="392" y="60" width="150" height="86" rx="4" fill="var(--paper-raised)" stroke="var(--accent)" stroke-width="1.5"/>
+        <text x="467" y="94" text-anchor="middle" font-family="IBM Plex Sans" font-size="13" font-weight="600" fill="var(--ink)">Structured Note</text>
+        <text x="467" y="112" text-anchor="middle" font-family="IBM Plex Sans" font-size="11.5" fill="var(--ink-soft)">doctor reviews</text>
+        <text x="467" y="127" text-anchor="middle" font-family="IBM Plex Sans" font-size="11.5" fill="var(--ink-soft)">+ signs</text>
+
+        <!-- audio deletion branch, downward -->
+        <line x1="467" y1="146" x2="467" y2="178" stroke="var(--flag)" stroke-width="1.5" stroke-dasharray="3,3" marker-end="url(#arrow)"/>
+        <rect x="374" y="180" width="186" height="46" rx="4" fill="var(--flag-wash)" stroke="var(--flag)" stroke-width="1.3"/>
+        <text x="467" y="199" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--flag)">RAW AUDIO DELETED</text>
+        <text x="467" y="214" text-anchor="middle" font-family="IBM Plex Sans" font-size="10.5" fill="var(--ink-soft)">on doctor sign-off</text>
+
+        <line x1="542" y1="103" x2="576" y2="103" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+        <!-- Step 4: Prescription + Timeline -->
+        <rect x="578" y="60" width="160" height="86" rx="4" fill="var(--paper-raised)" stroke="var(--accent)" stroke-width="1.5"/>
+        <text x="658" y="94" text-anchor="middle" font-family="IBM Plex Sans" font-size="13" font-weight="600" fill="var(--ink)">Prescription +</text>
+        <text x="658" y="110" text-anchor="middle" font-family="IBM Plex Sans" font-size="13" font-weight="600" fill="var(--ink)">Patient Timeline</text>
+        <text x="658" y="127" text-anchor="middle" font-family="IBM Plex Sans" font-size="11.5" fill="var(--ink-soft)">printable + stored</text>
+
+        <line x1="738" y1="103" x2="772" y2="103" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+        <!-- Regulatory boundary line -->
+        <line x1="790" y1="20" x2="790" y2="240" stroke="var(--flag)" stroke-width="1.5" stroke-dasharray="6,4"/>
+        <text x="798" y="34" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--flag)">CDSCO SaMD</text>
+        <text x="798" y="47" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--flag)">boundary</text>
+        <text x="710" y="235" text-anchor="middle" font-family="IBM Plex Sans" font-size="10" fill="var(--ink-faint)">exempt: transfer / storage / formatting</text>
+        <text x="900" y="235" text-anchor="middle" font-family="IBM Plex Sans" font-size="10" fill="var(--flag)">likely regulated: quantifies + alerts</text>
+
+        <!-- Step 5: Chronic monitoring -->
+        <rect x="812" y="60" width="170" height="86" rx="4" fill="var(--flag-wash)" stroke="var(--flag)" stroke-width="1.5"/>
+        <text x="897" y="94" text-anchor="middle" font-family="IBM Plex Sans" font-size="13" font-weight="600" fill="var(--ink)">Chronic Monitoring</text>
+        <text x="897" y="112" text-anchor="middle" font-family="IBM Plex Sans" font-size="11.5" fill="var(--ink-soft)">home-reading intake</text>
+        <text x="897" y="127" text-anchor="middle" font-family="IBM Plex Sans" font-size="11.5" fill="var(--ink-soft)">+ risk alerts</text>
+
+        <line x1="982" y1="103" x2="1016" y2="103" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+        <!-- Step 6: Referral routing -->
+        <rect x="1018" y="60" width="162" height="86" rx="4" fill="var(--paper-raised)" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="4,3"/>
+        <text x="1099" y="94" text-anchor="middle" font-family="IBM Plex Sans" font-size="13" font-weight="600" fill="var(--ink)">Referral Routing</text>
+        <text x="1099" y="112" text-anchor="middle" font-family="IBM Plex Sans" font-size="11.5" fill="var(--ink-soft)">not yet built</text>
+        <text x="1099" y="127" text-anchor="middle" font-family="IBM Plex Sans" font-size="11.5" fill="var(--ink-soft)">full platform</text>
+
+        <!-- moat caveat -->
+        <text x="1099" y="270" text-anchor="middle" font-family="IBM Plex Sans" font-size="10" fill="var(--ink-faint)">network moat asserted, not shown —</text>
+        <text x="1099" y="284" text-anchor="middle" font-family="IBM Plex Sans" font-size="10" fill="var(--ink-faint)">first ~200 clinics get zero network value</text>
+        <line x1="1099" y1="146" x2="1099" y2="252" stroke="var(--ink-faint)" stroke-width="1" stroke-dasharray="2,3"/>
+
+        <!-- ============ CONNECTORS DOWN TO RESEARCH LANE ============ -->
+        <!-- Connector A: pilot tracker -> cost model (from note/prescription area down to gate row) -->
+        <line x1="658" y1="146" x2="658" y2="330" stroke="var(--ink-faint)" stroke-width="1.3" stroke-dasharray="2,4"/>
+        <line x1="658" y1="330" x2="500" y2="330" stroke="var(--ink-faint)" stroke-width="1.3" stroke-dasharray="2,4" marker-end="url(#arrowFaint)"/>
+        <rect x="380" y="304" width="200" height="46" rx="4" fill="var(--paper-raised)" stroke="var(--ink-faint)" stroke-width="1"/>
+        <text x="480" y="323" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink-soft)">real cost / consult</text>
+        <text x="480" y="337" text-anchor="middle" font-family="IBM Plex Sans" font-size="10" fill="var(--ink-faint)">measured wk 4, not assumed</text>
+
+        <!-- Connector B: monitoring -> regulatory flag in research lane -->
+        <line x1="897" y1="146" x2="897" y2="330" stroke="var(--flag)" stroke-width="1.3" stroke-dasharray="2,4" marker-end="url(#arrow)"/>
+        <rect x="812" y="304" width="170" height="46" rx="4" fill="var(--flag-wash)" stroke="var(--flag)" stroke-width="1"/>
+        <text x="897" y="323" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--flag)">incorporation trigger</text>
+        <text x="897" y="337" text-anchor="middle" font-family="IBM Plex Sans" font-size="10" fill="var(--ink-soft)">SaMD path opens here</text>
+
+        <!-- ============ BOTTOM LANE: VALIDATION PROGRAM ============ -->
+        <!-- row starts y=380 -->
+
+        <!-- Discovery -->
+        <rect x="20" y="400" width="160" height="90" rx="4" fill="var(--paper-raised)" stroke="var(--ink)" stroke-width="1.5"/>
+        <text x="100" y="428" text-anchor="middle" font-family="IBM Plex Sans" font-size="13" font-weight="600" fill="var(--ink)">Doctor Discovery</text>
+        <text x="100" y="446" text-anchor="middle" font-family="IBM Plex Sans" font-size="11" fill="var(--ink-soft)">20 structured</text>
+        <text x="100" y="460" text-anchor="middle" font-family="IBM Plex Sans" font-size="11" fill="var(--ink-soft)">interviews</text>
+        <text x="100" y="478" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink-faint)">discovery script</text>
+
+        <line x1="180" y1="445" x2="216" y2="445" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+        <!-- Gate 1 -->
+        <rect x="218" y="392" width="160" height="106" rx="4" fill="var(--paper)" stroke="var(--ink)" stroke-width="2"/>
+        <text x="298" y="414" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" font-weight="600" fill="var(--ink)">GATE · WEEK 4</text>
+        <line x1="238" y1="422" x2="358" y2="422" stroke="var(--line)" stroke-width="1"/>
+        <text x="298" y="440" text-anchor="middle" font-family="IBM Plex Sans" font-size="11" fill="var(--ink-soft)">&ge;6 / 20 doctors name</text>
+        <text x="298" y="455" text-anchor="middle" font-family="IBM Plex Sans" font-size="11" fill="var(--ink-soft)">documentation as top-3</text>
+        <text x="298" y="470" text-anchor="middle" font-family="IBM Plex Sans" font-size="11" fill="var(--ink-soft)">frustration, unprompted</text>
+        <text x="298" y="489" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--flag)">fail → pivot hypothesis</text>
+
+        <line x1="378" y1="445" x2="412" y2="445" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+        <!-- Pilot -->
+        <rect x="414" y="400" width="160" height="90" rx="4" fill="var(--accent-wash)" stroke="var(--accent)" stroke-width="1.5"/>
+        <text x="494" y="424" text-anchor="middle" font-family="IBM Plex Sans" font-size="13" font-weight="600" fill="var(--ink)">3-Clinic Pilot</text>
+        <text x="494" y="442" text-anchor="middle" font-family="IBM Plex Sans" font-size="11" fill="var(--ink-soft)">consent + pilot</text>
+        <text x="494" y="456" text-anchor="middle" font-family="IBM Plex Sans" font-size="11" fill="var(--ink-soft)">agreement signed</text>
+        <text x="494" y="474" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink-faint)">tracker: live kill-criteria</text>
+
+        <line x1="574" y1="445" x2="608" y2="445" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+        <!-- Gate 2 -->
+        <rect x="610" y="392" width="160" height="106" rx="4" fill="var(--paper)" stroke="var(--ink)" stroke-width="2"/>
+        <text x="690" y="414" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" font-weight="600" fill="var(--ink)">GATE · WEEK 8</text>
+        <line x1="630" y1="422" x2="750" y2="422" stroke="var(--line)" stroke-width="1"/>
+        <text x="690" y="440" text-anchor="middle" font-family="IBM Plex Sans" font-size="11" fill="var(--ink-soft)">&ge;2 / 3 pilots still in</text>
+        <text x="690" y="455" text-anchor="middle" font-family="IBM Plex Sans" font-size="11" fill="var(--ink-soft)">unattended use on</text>
+        <text x="690" y="470" text-anchor="middle" font-family="IBM Plex Sans" font-size="11" fill="var(--ink-soft)">day 21</text>
+        <text x="690" y="489" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--flag)">fail → retention problem</text>
+
+        <line x1="770" y1="445" x2="804" y2="445" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+        <!-- Gate 3 -->
+        <rect x="806" y="392" width="168" height="106" rx="4" fill="var(--paper)" stroke="var(--ink)" stroke-width="2"/>
+        <text x="890" y="414" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" font-weight="600" fill="var(--ink)">GATE · WEEK 16</text>
+        <line x1="826" y1="422" x2="954" y2="422" stroke="var(--line)" stroke-width="1"/>
+        <text x="890" y="440" text-anchor="middle" font-family="IBM Plex Sans" font-size="11" fill="var(--ink-soft)">&ge;5 clinics paying</text>
+        <text x="890" y="455" text-anchor="middle" font-family="IBM Plex Sans" font-size="11" fill="var(--ink-soft)">&#8377;500 / month</text>
+        <text x="890" y="470" text-anchor="middle" font-family="IBM Plex Sans" font-size="11" fill="var(--ink-soft)">real revenue, not survey</text>
+        <text x="890" y="489" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--flag)">fail → reassess venture</text>
+
+        <line x1="974" y1="445" x2="1008" y2="445" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+        <!-- Incorporation -->
+        <rect x="1010" y="400" width="170" height="90" rx="4" fill="var(--accent-wash)" stroke="var(--accent)" stroke-width="1.5"/>
+        <text x="1095" y="424" text-anchor="middle" font-family="IBM Plex Sans" font-size="13" font-weight="600" fill="var(--ink)">Incorporate</text>
+        <text x="1095" y="442" text-anchor="middle" font-family="IBM Plex Sans" font-size="11" fill="var(--ink-soft)">Pvt Ltd, on trigger</text>
+        <text x="1095" y="456" text-anchor="middle" font-family="IBM Plex Sans" font-size="11" fill="var(--ink-soft)">not before</text>
+        <text x="1095" y="474" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink-faint)">preserves SISFS window</text>
+
+        <!-- Pivot branch, downward from Gate 1 -->
+        <line x1="298" y1="498" x2="298" y2="560" stroke="var(--flag)" stroke-width="1.3" stroke-dasharray="3,3" marker-end="url(#arrow)"/>
+        <rect x="150" y="562" width="296" height="70" rx="4" fill="var(--flag-wash)" stroke="var(--flag)" stroke-width="1.3"/>
+        <text x="298" y="584" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--flag)">PIVOT HYPOTHESIS</text>
+        <text x="298" y="602" text-anchor="middle" font-family="IBM Plex Sans" font-size="10.5" fill="var(--ink-soft)">wedge shifts to patient-facing output —</text>
+        <text x="298" y="617" text-anchor="middle" font-family="IBM Plex Sans" font-size="10.5" fill="var(--ink-soft)">printed prescription, recall, prestige</text>
+
+      </svg>
+    </div>
+    <figcaption>
+      Top lane: what happens to one consultation, left to right, and where CDSCO's SaMD boundary sits —
+      scribe, note and timeline are exempt as data transfer/storage/formatting; monitoring likely crosses
+      into regulated territory because it quantifies vitals and fires alerts. Bottom lane: the evidence
+      program, three fixed go/no-go gates, and the incorporation trigger that only fires once week 16 is
+      cleared. Dashed vertical lines show where pilot data feeds the real cost model and where the
+      monitoring build triggers the incorporation decision.
+    </figcaption>
+  </figure>
+
+  <!-- ================= DETAIL SECTIONS ================= -->
+
+  <section class="detail">
+    <h2>Gate definitions</h2>
+    <table class="gates">
+      <thead>
+        <tr><th>Checkpoint</th><th>Threshold</th><th>What it tests</th><th>If it fails</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="num">Week 4</td>
+          <td class="num">&ge; 6 / 20 doctors</td>
+          <td>Documentation named unprompted as a top-3 frustration — the problem is real, not assumed</td>
+          <td>Switch to the patient-facing pivot hypothesis</td>
+        </tr>
+        <tr>
+          <td class="num">Week 8</td>
+          <td class="num">&ge; 2 / 3 clinics</td>
+          <td>Unattended use still happening on day 21 — the product survives without founder hand-holding</td>
+          <td>Retention problem: fix onboarding before scaling pilots</td>
+        </tr>
+        <tr>
+          <td class="num">Week 16</td>
+          <td class="num">&ge; 5 clinics</td>
+          <td>Paying &#8377;500/month in real revenue — replaces the deck's unreliable "completed surveys" milestone</td>
+          <td>Reassess the venture; stated willingness to pay was insufficient</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="detail">
+    <h2>Known weak points carried into this map</h2>
+    <div class="grid-2">
+      <div class="card flagged">
+        <h3>Regulatory line is function-specific</h3>
+        <p>The "no regulatory approval needed" claim is true for phases 1&ndash;2 (scribe, timeline) and false once chronic monitoring quantifies physiological parameters and fires risk alerts. That's the flag on the diagram above.</p>
+      </div>
+      <div class="card flagged">
+        <h3>Unit economics are tighter than modeled</h3>
+        <p>Placeholder inference costs put gross-margin breakeven near &#8377;2,500/clinic/month, above the deck's &#8377;2,000 assumption. Real cost-per-consultation must come from week 4 pilot data, not the placeholder.</p>
+      </div>
+      <div class="card">
+        <h3>10x claim vs. 35&ndash;45% documentation figure</h3>
+        <p>The deck's own documentation-burden number implies at most ~1.8x, not 10x. The 35&ndash;45% figure is largely drawn from Western EHR studies where the burden is billing/coding compliance &mdash; a category cash-pay Indian OPD mostly lacks.</p>
+      </div>
+      <div class="card">
+        <h3>Referral moat and monitoring assumption</h3>
+        <p>The network-effect moat is asserted, not demonstrated &mdash; the first ~200 clinics get zero network value. Slide 8's 500-monitored-patients-per-clinic figure is the softest number in the model. Eka Care's Feb 2026 offline multilingual scribe (with NVIDIA) undercuts the competition slide.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="detail">
+    <h2>Reading the map</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3>Product lane, left to right</h3>
+        <p>Audio never has to leave the boundary it's captured in before it's discarded: the highest-leverage compliance decision in the whole build is that raw audio is deleted the moment the doctor signs the note, shown as the dashed drop below the note box.</p>
+        <p>Referral routing is drawn with a dashed border because it isn't built yet &mdash; it's the fourth roadmap phase, included here to show where the pipeline is headed, not what exists today.</p>
+      </div>
+      <div class="card">
+        <h3>Why the lanes are linked, not separate</h3>
+        <p>This isn't two projects running side by side. The pilot tracker's real cost-per-consultation replaces the placeholder economics live; the moment the product build reaches chronic monitoring, that's the same moment the incorporation trigger and the SaMD regulatory path both activate.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="meta">
+    <span>ClinicOS &middot; Krishnanagar, Nadia district, West Bengal</span>
+    <span>Solo founder, ~15 hrs/wk &middot; decisions logged 18 Aug 2026</span>
+  </footer>
+
+</div>

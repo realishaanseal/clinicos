@@ -1,0 +1,517 @@
+<title>ClinicOS Differentiation Brief</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  :root {
+    --paper: #f7f5f0;
+    --paper-raised: #fdfcf9;
+    --ink: #1a2420;
+    --ink-soft: #4d564f;
+    --ink-faint: #8a9088;
+    --accent: #2d6a4f;
+    --accent-deep: #1e4a37;
+    --accent-soft: #d3e3d9;
+    --accent-wash: #eaf1ec;
+    --caution: #b5542c;
+    --caution-soft: #f1ddd2;
+    --caution-wash: #faf2ed;
+    --gap: #7d6a3f;
+    --gap-soft: #ece2c8;
+    --gap-wash: #f8f4e9;
+    --line: #cfc9ba;
+    --line-soft: #e4e0d5;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #141815;
+      --paper-raised: #1b201c;
+      --ink: #eae7de;
+      --ink-soft: #b6bcb3;
+      --ink-faint: #71776e;
+      --accent: #6fb894;
+      --accent-deep: #8fd0ac;
+      --accent-soft: #24382e;
+      --accent-wash: #1c2a22;
+      --caution: #dd8d67;
+      --caution-soft: #3c2a20;
+      --caution-wash: #271d18;
+      --gap: #d3b872;
+      --gap-soft: #362f1c;
+      --gap-wash: #241f14;
+      --line: #3a3f39;
+      --line-soft: #262b25;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper: #141815;
+    --paper-raised: #1b201c;
+    --ink: #eae7de;
+    --ink-soft: #b6bcb3;
+    --ink-faint: #71776e;
+    --accent: #6fb894;
+    --accent-deep: #8fd0ac;
+    --accent-soft: #24382e;
+    --accent-wash: #1c2a22;
+    --caution: #dd8d67;
+    --caution-soft: #3c2a20;
+    --caution-wash: #271d18;
+    --gap: #d3b872;
+    --gap-soft: #362f1c;
+    --gap-wash: #241f14;
+    --line: #3a3f39;
+    --line-soft: #262b25;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    line-height: 1.55;
+  }
+
+  .page {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 3.5rem 2rem 5rem;
+  }
+
+  /* ---------- masthead ---------- */
+  header.masthead {
+    border-bottom: 1.5px solid var(--ink);
+    padding-bottom: 1.4rem;
+    margin-bottom: 2.75rem;
+  }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.6rem;
+  }
+
+  h1 {
+    font-family: "Newsreader", Georgia, serif;
+    font-weight: 600;
+    font-size: clamp(1.9rem, 3.6vw, 2.7rem);
+    margin: 0 0 0.9rem;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+    max-width: 22ch;
+  }
+
+  .dek {
+    font-size: 1.02rem;
+    color: var(--ink-soft);
+    max-width: 62ch;
+    margin: 0;
+  }
+
+  .dek strong { color: var(--ink); font-weight: 600; }
+
+  .meta-row {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 1.1rem;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.72rem;
+    color: var(--ink-faint);
+    flex-wrap: wrap;
+  }
+
+  /* ---------- section titles ---------- */
+  .tier {
+    margin-bottom: 3.25rem;
+  }
+
+  .tier-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.85rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .tier-tag {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.55rem;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  .tier-tag.verified { background: var(--accent-wash); color: var(--accent-deep); border: 1px solid var(--accent-soft); }
+  .tier-tag.caution { background: var(--caution-wash); color: var(--caution); border: 1px solid var(--caution-soft); }
+  .tier-tag.gap { background: var(--gap-wash); color: var(--gap); border: 1px solid var(--gap-soft); }
+
+  h2 {
+    font-family: "Newsreader", Georgia, serif;
+    font-weight: 600;
+    font-size: 1.55rem;
+    margin: 0;
+    letter-spacing: -0.005em;
+  }
+
+  .tier-sub {
+    color: var(--ink-soft);
+    font-size: 0.94rem;
+    max-width: 68ch;
+    margin: 0.7rem 0 1.5rem;
+  }
+
+  /* ---------- claim cards ---------- */
+  .claims {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .claim {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.55rem;
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    padding: 1.15rem 1.4rem;
+  }
+  .claim.caution { border-left-color: var(--caution); }
+  .claim.gap { border-left-color: var(--gap); }
+
+  .claim-title {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-weight: 600;
+    font-size: 1.02rem;
+    color: var(--ink);
+  }
+
+  .claim-body {
+    font-size: 0.93rem;
+    color: var(--ink-soft);
+    max-width: 74ch;
+  }
+
+  .claim-evidence {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.76rem;
+    color: var(--ink-faint);
+    margin-top: 0.15rem;
+  }
+  .claim-evidence::before {
+    content: "→ ";
+  }
+
+  /* ---------- comparison strip ---------- */
+  .compare-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--paper-raised);
+  }
+
+  table.compare {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 720px;
+    font-size: 0.88rem;
+  }
+
+  table.compare th, table.compare td {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--line-soft);
+    vertical-align: top;
+  }
+
+  table.compare thead th {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 500;
+    border-bottom: 1.5px solid var(--ink);
+  }
+
+  table.compare th.row-label {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-weight: 600;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+
+  table.compare th.you-col, table.compare td.you-col {
+    background: var(--accent-wash);
+  }
+
+  table.compare tr:last-child td, table.compare tr:last-child th { border-bottom: none; }
+
+  .mark {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.82rem;
+  }
+  .mark.yes { color: var(--accent-deep); }
+  .mark.no { color: var(--ink-faint); }
+  .mark.partial { color: var(--gap); }
+
+  /* ---------- future roadmap ---------- */
+  .roadmap {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.25rem;
+  }
+
+  .road-card {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1.25rem 1.4rem;
+  }
+
+  .road-card .priority {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.55rem;
+  }
+  .road-card.urgent .priority { color: var(--caution); }
+
+  .road-card h3 {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem;
+    color: var(--ink);
+  }
+
+  .road-card p {
+    font-size: 0.9rem;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+
+  /* ---------- footer ---------- */
+  footer.meta {
+    margin-top: 3.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--line);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.72rem;
+    color: var(--ink-faint);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  @media (max-width: 640px) {
+    .claim { padding: 1rem 1.15rem; }
+  }
+</style>
+
+<div class="page">
+
+  <header class="masthead">
+    <div class="eyebrow">ClinicOS &middot; Differentiation Brief</div>
+    <h1>What actually makes this product different</h1>
+    <p class="dek">
+      Checked against <strong>Eka Care</strong>, <strong>HealthPlix</strong>, <strong>Practo</strong>,
+      and India's <strong>SIMPLE</strong> hypertension program &mdash; not asserted, verified against
+      each one's own public materials.
+    </p>
+    <div class="meta-row">
+      <span>Krishnanagar, Nadia district, West Bengal</span>
+      <span>Researched 25 Aug 2026</span>
+    </div>
+  </header>
+
+  <!-- ============ TIER 1: VERIFIED TODAY ============ -->
+  <section class="tier">
+    <div class="tier-head">
+      <span class="tier-tag verified">Holds today</span>
+    </div>
+    <h2>Claims no competitor is making</h2>
+    <p class="tier-sub">Verified against each company's own site and coverage. Safe to state on a deck without hedging.</p>
+
+    <div class="claims">
+      <div class="claim">
+        <div class="claim-title">Raw consultation audio is deleted the moment the doctor signs the note</div>
+        <div class="claim-body">Eka Care and HealthPlix are both retained-data, cloud-EMR platforms &mdash; that's structurally what an EMR is. Nothing in either company's public materials commits to deleting audio. For a doctor or patient wary of a national platform holding recordings, this is a trust pitch neither competitor can easily match without rebuilding their own architecture.</div>
+        <div class="claim-evidence">No retention-deletion policy found on eka.care or healthplix.com</div>
+      </div>
+
+      <div class="claim">
+        <div class="claim-title">Built for solo, non-tech-native doctors in small towns &mdash; not hospital IT departments</div>
+        <div class="claim-body">Eka Care is architected around ABDM, FHIR, AWS-scale infrastructure: 33,000+ facilities, 90,000+ doctors, hospital-grade compliance. That scale shapes its onboarding and support model toward institutions, not a single practitioner with no IT staff. Hands-on, same-day setup for someone like a Krishnanagar OPD doctor isn't what that architecture optimizes for.</div>
+        <div class="claim-evidence">Eka Care public materials emphasize NHA/FHIR/HIPAA/AWS compliance, not solo-clinic onboarding</div>
+      </div>
+
+      <div class="claim">
+        <div class="claim-title">One connected loop &mdash; scribe, timeline, monitoring, referral &mdash; for small clinics specifically</div>
+        <div class="claim-body">Eka Care covers scribe + EMR. HealthPlix covers EMR + prescriptions. Neither connects through to chronic monitoring and referral routing as one product built for a solo clinic's actual patient journey, rather than a hospital's departmental workflow.</div>
+        <div class="claim-evidence">No single competitor product spans all four stages for the solo/small-clinic segment</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TIER 2: NO LONGER UNIQUE ============ -->
+  <section class="tier">
+    <div class="tier-head">
+      <span class="tier-tag caution">Reframe needed</span>
+    </div>
+    <h2>Claims that closed since the deck was written</h2>
+    <p class="tier-sub">Still true, but no longer differentiating on their own &mdash; argue "better," not "first."</p>
+
+    <div class="claims">
+      <div class="claim caution">
+        <div class="claim-title">Offline capability</div>
+        <div class="claim-body">Eka Care built an offline-capable, unified medical scribe model with NVIDIA in February 2026, explicitly targeting remote and low-connectivity clinics &mdash; the same segment ClinicOS is aimed at. "Works offline" is now table stakes against the best-funded competitor, not a moat.</div>
+        <div class="claim-evidence">Eka Care &times; NVIDIA offline scribe announcement, Feb 2026</div>
+      </div>
+
+      <div class="claim caution">
+        <div class="claim-title">Multilingual transcription</div>
+        <div class="claim-body">EkaScribe already covers 15+ Indian languages; HealthPlix already prints prescriptions in 14 regional languages. Bengali/Hindi/English support alone isn't a differentiator &mdash; only measurable accuracy on the specific colloquial, code-switched speech your target doctors actually use would be.</div>
+        <div class="claim-evidence">eka.care and healthplix.com feature pages, both live pre-2026</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ COMPARISON STRIP ============ -->
+  <section class="tier">
+    <div class="tier-head">
+      <span class="tier-tag verified">Side by side</span>
+    </div>
+    <h2>Where each player actually sits</h2>
+    <p class="tier-sub">Not a merger of Practo and Eka Care &mdash; no partnership between them was found. Their feature sets simply overlap ClinicOS's roadmap piece by piece.</p>
+
+    <div class="compare-wrap">
+      <table class="compare">
+        <thead>
+          <tr>
+            <th class="row-label">Capability</th>
+            <th class="you-col">ClinicOS</th>
+            <th>Eka Care</th>
+            <th>HealthPlix</th>
+            <th>Practo</th>
+            <th>SIMPLE (govt.)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th class="row-label">AI voice scribe</th>
+            <td class="you-col"><span class="mark yes">yes</span></td>
+            <td><span class="mark yes">yes</span></td>
+            <td><span class="mark no">not confirmed</span></td>
+            <td><span class="mark no">no</span></td>
+            <td><span class="mark no">no</span></td>
+          </tr>
+          <tr>
+            <th class="row-label">Deletes raw audio on sign-off</th>
+            <td class="you-col"><span class="mark yes">yes</span></td>
+            <td><span class="mark no">no</span></td>
+            <td><span class="mark no">no</span></td>
+            <td><span class="mark no">n/a</span></td>
+            <td><span class="mark no">n/a</span></td>
+          </tr>
+          <tr>
+            <th class="row-label">Offline capable</th>
+            <td class="you-col"><span class="mark partial">planned</span></td>
+            <td><span class="mark yes">yes (2026)</span></td>
+            <td><span class="mark no">unclear</span></td>
+            <td><span class="mark no">no</span></td>
+            <td><span class="mark no">no</span></td>
+          </tr>
+          <tr>
+            <th class="row-label">Solo/small clinic focus</th>
+            <td class="you-col"><span class="mark yes">yes</span></td>
+            <td><span class="mark partial">also hospitals</span></td>
+            <td><span class="mark yes">yes</span></td>
+            <td><span class="mark partial">also hospitals</span></td>
+            <td><span class="mark no">public health only</span></td>
+          </tr>
+          <tr>
+            <th class="row-label">Chronic monitoring (commercial)</th>
+            <td class="you-col"><span class="mark partial">roadmap</span></td>
+            <td><span class="mark no">no</span></td>
+            <td><span class="mark no">no</span></td>
+            <td><span class="mark no">no</span></td>
+            <td><span class="mark partial">govt. program, not sold</span></td>
+          </tr>
+          <tr>
+            <th class="row-label">Referral routing</th>
+            <td class="you-col"><span class="mark partial">roadmap</span></td>
+            <td><span class="mark no">no</span></td>
+            <td><span class="mark no">no</span></td>
+            <td><span class="mark partial">marketplace-style</span></td>
+            <td><span class="mark yes">tele-consult routing</span></td>
+          </tr>
+          <tr>
+            <th class="row-label">ABDM / ABHA integration</th>
+            <td class="you-col"><span class="mark no">not yet</span></td>
+            <td><span class="mark yes">yes</span></td>
+            <td><span class="mark no">unclear</span></td>
+            <td><span class="mark no">unclear</span></td>
+            <td><span class="mark yes">yes (govt.-native)</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ TIER 3: BUILD NEXT ============ -->
+  <section class="tier">
+    <div class="tier-head">
+      <span class="tier-tag gap">Open gaps</span>
+    </div>
+    <h2>What would make this more unique</h2>
+    <p class="tier-sub">Ranked by how much they change the competitive picture, not by build effort.</p>
+
+    <div class="roadmap">
+      <div class="road-card urgent">
+        <div class="priority">Closing fast, not optional</div>
+        <h3>ABDM / ABHA integration</h3>
+        <p>Over 73 crore ABHA IDs and 3.6 lakh clinics are already registered in India's Health Facility Registry. Eka Care already has this; ClinicOS's roadmap doesn't. Non-compliance risks exclusion from national schemes, referrals, and insurance tie-ups &mdash; this is heading toward a requirement, not a nice-to-have differentiator.</p>
+      </div>
+
+      <div class="road-card">
+        <div class="priority">Testable now</div>
+        <h3>Measured dialect accuracy</h3>
+        <p>Once pilot data exists, benchmark transcription accuracy on the specific colloquial Bengali/Hindi code-switching your target doctors use, against Eka Care's broader 15-language model. "More accurate on your patients' actual speech" is a defensible number; "supports Bengali" is not.</p>
+      </div>
+
+      <div class="road-card">
+        <div class="priority">White space, high regulatory care</div>
+        <h3>Commercial chronic monitoring for small clinics</h3>
+        <p>No competitor sells this to small clinics today &mdash; SIMPLE is a government program run by frontline workers, not a product. Real opportunity, but this is also the exact point the roadmap crosses into CDSCO SaMD territory, so it needs a deliberate regulatory decision before scaling, not a default build.</p>
+      </div>
+
+      <div class="road-card">
+        <div class="priority">Compounds an existing edge</div>
+        <h3>Make the deletion policy visible to patients</h3>
+        <p>Right now it's a backend decision. Surfacing it at the point of consultation &mdash; something the patient sees and understands, not just a privacy-policy line &mdash; turns an engineering choice into a trust feature competitors would have to rebuild their architecture to copy.</p>
+      </div>
+
+      <div class="road-card">
+        <div class="priority">Depends on Week 4 gate</div>
+        <h3>Patient-facing positioning, not just time-saved</h3>
+        <p>If the documentation-burden pitch underperforms, the pivot hypothesis &mdash; branded prescriptions, recall messaging, clinic prestige &mdash; is itself a wedge: both Eka Care and HealthPlix market as scribe/EMR-first, not patient-experience-first.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="meta">
+    <span>ClinicOS &middot; competitive positioning, not yet pilot-validated</span>
+    <span>Solo founder, ~15 hrs/wk</span>
+  </footer>
+
+</div>

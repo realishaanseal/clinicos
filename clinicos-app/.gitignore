@@ -1,0 +1,10 @@
+node_modules/
+.next/
+.env
+data/*.db
+data/*.db-journal
+data/audio/
+asr/.venv/
+asr/models/
+*.log
+.DS_Store
