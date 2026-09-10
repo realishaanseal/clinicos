@@ -77,6 +77,28 @@ looks for Ollama at several paths.
 Copy `.env.example` to `.env` and set the clinic identity fields. They print on
 every prescription and still default to "Demo Clinic" / "Dr. Demo".
 
+### On Windows
+
+`go.sh` is macOS-only — it shells out to `brew`, looks for `Ollama.app`, and calls
+`open`. `go.ps1` is its Windows twin and keeps the same contract: idempotent, sets
+up whatever is missing, starts the same three processes.
+
+```powershell
+cd "$HOME\Desktop\ClinicOS - By Varaxis\clinicos-app"
+powershell -ExecutionPolicy Bypass -File .\go.ps1
+```
+
+Prerequisites: `winget install OpenJS.NodeJS.LTS`, `winget install Python.Python.3.12`,
+`winget install Ollama.Ollama`. If `better-sqlite3` has no prebuilt binary for the
+installed Node version it falls back to a source build, which needs
+`winget install Microsoft.VisualStudio.2022.BuildTools` — `go.ps1` says so when it
+happens rather than failing obscurely.
+
+`npm run asr` is POSIX-only; use `npm run asr:win` on Windows.
+
+Keep `go.sh` and `go.ps1` in step. If you change setup logic in one, change both —
+the field laptop and the dev laptop are not the same OS.
+
 ---
 
 ## Architecture
@@ -129,9 +151,16 @@ Tables: `Patient`, `Consult`, `Edit`.
   produced a backup that errored with "no such table: Patient". Always use
   `Database.prototype.backup()`.
 - **npm 12 blocks install scripts by default.** `better-sqlite3`'s native binary
-  silently fails to compile, `npm install` reports success, and the app crashes on
+  silently fails to install, `npm install` reports success, and the app crashes on
   first database access. `package.json` has an `allowScripts` allowlist and
   `go.sh` verifies `require('better-sqlite3')` actually loads.
+- **`better-sqlite3` must stay on v13 or newer.** v11 shipped ABI-specific
+  prebuilds, so a Node version newer than the release had none and npm fell back
+  to compiling from source — which needs Visual Studio on Windows and Xcode tools
+  on macOS. This cost an hour on Node 24: `prebuild-install` 404'd on
+  `node-v137-win32-x64`, then `node-gyp` failed with "Could not find any Visual
+  Studio installation". v13 moved to N-API, so one binary per platform covers
+  every Node version and nothing compiles. Do not pin it back.
 - **Google Fonts are unreachable in some sandboxes.** The UI uses native system
   font stacks deliberately. Do not add a webfont link.
 - **Background servers die between tool calls** in sandboxed shells. Use
@@ -160,6 +189,42 @@ Next in `docs/ClinicOS_Backlog.md`: #3 speed pass, #4 audit log, #5 queue,
 **Not built and deliberately so:** hosting, deployment, landing page, standalone
 desktop packaging, multi-doctor accounts, any AI beyond transcription and note
 drafting.
+
+---
+
+## Tooling
+
+`.mcp.json` at the repo root configures MCP servers for any agent session opened
+here. None of them are required to build or run the app — delete the file and
+nothing breaks.
+
+| Server | What it is for |
+|---|---|
+| `context7` | current docs for a named library. Use it before writing against Motion, GSAP, R3F or Next 15 APIs — training data on all four is stale and confidently wrong. Set `CONTEXT7_API_KEY` for higher limits; it works without one. |
+| `chrome-devtools` | open the running app, read the console, trace network and performance. The honest way to check whether an animation actually holds 60fps. |
+| `playwright` | drive and screenshot the app. Useful for confirming a UI change looks right rather than asserting that it does. |
+| `shadcn` | pull real component source. **Note:** this app has no Tailwind and no shadcn — it uses a hand-written design system in `globals.css`. The server is configured but inert unless that changes. |
+| `sequential-thinking` | structured reasoning for multi-step changes. |
+
+### Skills
+
+`.claude/skills/clinicos-motion/` — the animation and 3D system. Read it before
+touching any transition, scroll effect or 3D scene. Its core rule: clinical
+surfaces get functional motion under 200ms and no 3D; expressive motion and WebGL
+belong only on marketing surfaces, behind `next/dynamic` with `ssr: false`.
+
+### Animation dependencies
+
+`motion` (successor to Framer Motion), `gsap`, `lenis`, `three`,
+`@react-three/fiber`, `@react-three/drei`. `src/app/motion-lab/` is a development
+smoke test proving they are wired correctly — it is not a product surface and is
+safe to delete.
+
+`globals.css` now carries motion tokens (`--dur-1/2/3`, `--ease-out`, `--ease-in`)
+and a global `prefers-reduced-motion` guard. The guard is a requirement, not a
+nicety: this is health software and motion sickness in a clinic is not cosmetic.
+The recording dot and waveform degrade to a static visible state rather than
+freezing mid-animation, because their meaning is carried by movement.
 
 ---
 

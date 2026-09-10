@@ -74,7 +74,18 @@ function open(): Database.Database {
     (db.prepare(`PRAGMA table_info(Consult)`).all() as { name: string }[]).map((c) => c.name)
   );
   const add = (col: string, decl: string) => {
-    if (!have.has(col)) db.exec(`ALTER TABLE Consult ADD COLUMN ${col} ${decl}`);
+    if (have.has(col)) return;
+    try {
+      db.exec(`ALTER TABLE Consult ADD COLUMN ${col} ${decl}`);
+    } catch (e) {
+      // `have` is a snapshot taken before this loop, so another process can add
+      // the column in between and make it stale. That is not hypothetical:
+      // `next build` collects page data in parallel workers, each of which
+      // imports this module and runs these migrations against the same file.
+      // SQLite has no "ADD COLUMN IF NOT EXISTS", so losing the race is benign
+      // — the column exists, which is all we wanted. Anything else is real.
+      if (!/duplicate column name/i.test(String((e as Error)?.message))) throw e;
+    }
   };
   add("workingJson", "TEXT");      // the doctor's in-progress edits, autosaved
   add("workingSavedAt", "TEXT");
