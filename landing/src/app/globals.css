@@ -379,7 +379,17 @@ section { padding-block: clamp(5rem, 12vh, 9rem); position: relative; z-index: 1
     background var(--dur-mid) var(--ease-out),
     border-color var(--dur-mid) var(--ease-out);
 }
-.btn-primary { background: var(--grad-brand); color: #fff; box-shadow: 0 12px 36px -12px rgba(47, 109, 246, 0.9); }
+/* White label on the scene gradient. At full strength the bright light colour
+   (--scene-b) put the label under 2.5:1 in the teal scenes, so both stops are
+   mixed toward the ground. Checked against every scene in scenes.ts: the
+   lightest end stays above 4.5:1. */
+.btn-primary {
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--scene-a) 80%, var(--ink-950)) 0%,
+    color-mix(in srgb, var(--scene-b) 50%, var(--ink-950)) 100%);
+  color: #fff;
+  box-shadow: 0 12px 36px -12px rgba(47, 109, 246, 0.9);
+}
 .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 20px 48px -14px rgba(34, 211, 238, 0.85); }
 .btn-ghost {
   border-color: var(--glass-border); color: var(--fg); background: var(--glass-bg);
@@ -446,6 +456,54 @@ section { padding-block: clamp(5rem, 12vh, 9rem); position: relative; z-index: 1
 
 footer { position: relative; z-index: 2; border-top: 1px solid var(--glass-border); padding-block: 3rem 4rem; color: var(--fg-faint); font-size: 0.86rem; }
 footer .row { display: flex; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap; }
+.foot-links { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4rem 1.4rem; }
+.foot-links a { color: var(--fg-dim); transition: color var(--dur-fast) var(--ease-out); }
+.foot-links a:hover { color: var(--fg); }
+.foot-note { margin-top: 1.5rem; }
+
+/* ==========================================================================
+   Pilot
+   ========================================================================== */
+
+.pilot-terms { display: grid; gap: 1rem; margin-top: 2.6rem; }
+@media (min-width: 900px) { .pilot-terms { grid-template-columns: repeat(3, 1fr); } }
+/* --fg-dim rather than --fg-faint: this is the line asking people to leave
+   patient details out, and it sits over the brightest glow on the page. */
+.pilot-note { margin-top: 1.1rem; font-size: 0.84rem; color: var(--fg-dim); max-width: 62ch; }
+/* Links inside running text are underlined, so they don't rely on colour alone. */
+.pilot-note a, .doc p a { text-decoration: underline; text-underline-offset: 3px; }
+
+/* ==========================================================================
+   Focus
+
+   An explicit ring in the scene accent, so keyboard focus stays visible over
+   the glass and re-lights with the rest of the page.
+   ========================================================================== */
+
+:where(a:any-link, button):focus-visible { outline: 2px solid var(--scene-accent); outline-offset: 3px; }
+.btn:focus-visible { outline-offset: 4px; }
+
+/* ==========================================================================
+   Plain document pages — privacy, not found
+
+   Readable first: no reveals and no animated headings. The stage still lights
+   the background behind the panel.
+   ========================================================================== */
+
+.doc { padding-block: clamp(6rem, 14vh, 9rem) 4rem; }
+/* Near-opaque, unlike the glass on the home page. Long passages of body text
+   over the moving stage dropped below 4.5:1 wherever a bright form passed
+   behind the panel; a document page is read, not looked at. */
+.doc-panel { padding: clamp(1.8rem, 4vw, 3rem); background: rgba(5, 10, 18, 0.84); }
+.doc h1 { font-size: clamp(2rem, 4vw, 2.8rem); margin-bottom: 0.7rem; }
+.doc h2 { font-size: 1.2rem; letter-spacing: -0.012em; margin: 2.2rem 0 0.6rem; }
+.doc p, .doc li { color: var(--fg-dim); max-width: 68ch; }
+.doc p + p { margin-top: 0.8rem; }
+.doc ul { margin: 0.7rem 0 0.9rem; padding-left: 1.2rem; }
+.doc li + li { margin-top: 0.35rem; }
+.doc .updated { font-size: 0.84rem; color: var(--fg-faint); }
+.back-link { display: inline-block; margin-bottom: 1.4rem; font-size: 0.9rem; color: var(--fg-dim); }
+.back-link:hover { color: var(--fg); }
 .sources { margin-top: 2rem; font-size: 0.75rem; line-height: 1.75; color: var(--fg-faint); padding-left: 1.1rem; }
 .sources li { margin-bottom: 0.3rem; }
 

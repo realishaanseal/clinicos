@@ -37,8 +37,8 @@ export default function Hero() {
         </motion.p>
 
         <motion.div className="cta-row" {...rise(1)}>
-          <a className="btn btn-primary" href="#how">See how it works</a>
-          <a className="btn btn-ghost" href="#privacy">Where the data lives</a>
+          <a className="btn btn-primary" href="#pilot">Join the pilot</a>
+          <a className="btn btn-ghost" href="#how">See how it works</a>
         </motion.div>
       </div>
     </header>

@@ -3,6 +3,7 @@ import Reveal from "@/components/Reveal";
 import AnimatedText from "@/components/AnimatedText";
 import CountUp from "@/components/CountUp";
 import ProductTour from "@/components/ProductTour";
+import { CONTACT_EMAIL, PILOT_FORM_URL } from "@/site";
 
 /**
  * Positioning: ClinicOS is a Varaxis product for clinics and hospitals
@@ -12,6 +13,10 @@ import ProductTour from "@/components/ProductTour";
  * Every figure is cited inline and comes from docs/ClinicOS_Problem_Statement.md.
  * Nothing here claims the product makes a clinical judgement, because it does
  * not and legally must not — see invariant 1 in CLAUDE.md.
+ *
+ * The pilot terms mirror docs/ClinicOS_Pilot_Agreement.md (free for 90 days,
+ * records exportable free, a week's notice to end, no automatic charging). If
+ * the agreement changes, change these in the same commit.
  */
 
 const FIGURES = [
@@ -52,7 +57,7 @@ const STEPS = [
 const FEATURES = [
   {
     t: "Crash and offline recovery",
-    d: "Audio is written to disk in short chunks as you record, and the note saves as you go. Whatever stops it, the consultation reappears on the day\u2019s list with the reason: power, network, or a closed tab.",
+    d: "Audio is written to disk in short chunks as you record, and the note saves as you go. Whatever stops it, the consultation reappears on the day’s list with the reason: power, network, or a closed tab.",
     icon: "M12 3v9m0 0 3.5-3.5M12 12 8.5 8.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3",
   },
   {
@@ -82,164 +87,222 @@ const FEATURES = [
   },
 ];
 
+const PILOT_TERMS = [
+  {
+    tag: "You get",
+    h: "ClinicOS, set up with you",
+    d: "Installed on your own machines, with support while you use it. There is no fee during the pilot.",
+  },
+  {
+    tag: "We ask",
+    h: "Real use and plain feedback",
+    d: "Use it in real consultations. Tell us when it gets in your way, and tell us if you stop using it.",
+  },
+  {
+    tag: "Stays yours",
+    h: "Your records, your call",
+    d: "Every record belongs to you and exports free whenever you ask. Either side can end the pilot with a week’s notice. Nothing starts charging automatically.",
+  },
+];
+
 export default function Page() {
   return (
     <>
       <Hero />
 
-      <section id="problem">
-        <div className="wrap">
-          <Reveal>
-            <div className="eyebrow">The problem</div>
-            <AnimatedText text="Most clinical software costs more time [[than]] [[it]] [[saves.]]" />
-            <p className="lede" style={{ marginTop: "1.5rem" }}>
-              Hand a clinic an EMR and you have handed the clinician a data-entry job. That is
-              why documentation gets abandoned, in well-funded hospitals as much as in small
-              practices. The bar for anything worth installing is simple. It has to take less
-              attention than paper already does.
-            </p>
-          </Reveal>
-
-          <Reveal>
-            <div className="figures stagger-group" style={{ marginTop: "3rem" }}>
-              {FIGURES.map((f) => (
-                <div className="figure glass glass-i glass-lit" key={f.k}>
-                  <div className="n">
-                    <CountUp value={f.n} />
-                    {f.unit && <small>{f.unit}</small>}
-                  </div>
-                  <div className="k">{f.k}</div>
-                  <cite>{f.cite}</cite>
-                </div>
-              ))}
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
-      <section id="how">
-        <div className="wrap">
-          <Reveal>
-            <div className="eyebrow">How it works</div>
-            <AnimatedText text="Five steps. You do [[one]] [[of]] [[them.]]" />
-          </Reveal>
-          <Reveal>
-            <div className="steps stagger-group" style={{ marginTop: "2.8rem" }}>
-              {STEPS.map((s, i) => (
-                <div className="step glass glass-i glass-lit" key={s.t}>
-                  <div className="i">{i + 1}</div>
-                  <h3>{s.t}</h3>
-                  <p>{s.d}</p>
-                </div>
-              ))}
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
-      <section id="privacy">
-        <div className="wrap">
-          <Reveal>
-            <div className="eyebrow">Where the data lives</div>
-            <AnimatedText text="On your hardware. [[Nowhere]] [[else.]]" />
-            <p className="lede" style={{ marginTop: "1.5rem" }}>
-              Transcription and drafting run on your own machines. No account, no sync, no
-              internet needed. Consultation data never crosses a network, which turns data
-              residency from a compliance project into a question you do not have to answer.
-            </p>
-          </Reveal>
-
-          <Reveal>
-            <div className="promises stagger-group">
-              <div className="promise glass glass-i glass-lit">
-                <span className="tag">Promise</span>
-                <h3>Audio is deleted at signing</h3>
-                <p>You tell the patient the recording will be deleted. We delete it in the code that signs the note, so it cannot be left switched off by mistake.</p>
-              </div>
-              <div className="promise glass glass-i glass-lit">
-                <span className="tag">Promise</span>
-                <h3>Nothing is ever lost</h3>
-                <p>Audio is written to disk while you record and the note saves as you go. Lose power mid-consultation and it comes back, with the reason it stopped.</p>
-              </div>
-              <div className="promise glass glass-i glass-lit">
-                <span className="tag">Promise</span>
-                <h3>No lock-in, ever</h3>
-                <p>Export everything, whenever you want, in an open format. If you decide to leave, you should not have to ask us or hire anyone to get your records out.</p>
-              </div>
-              <div className="promise negative glass glass-i glass-lit">
-                <span className="tag">Never</span>
-                <h3>No diagnosis, no risk scores, no triage flags</h3>
-                <p>Software that quantifies a physiological parameter to drive a clinical decision is a regulated medical device. ClinicOS carries the record. The judgement stays with you.</p>
-              </div>
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
-      <section id="built">
-        <div className="wrap">
-          <Reveal>
-            <div className="eyebrow">What is built</div>
-            <AnimatedText text="The boring half is the half [[that]] [[keeps]] [[you.]]" />
-            <p className="lede" style={{ marginTop: "1.5rem" }}>
-              Drafting a note from a transcript is the easy part. Whether you are still using
-              ClinicOS in six months comes down to what happens when the power cuts, when a
-              database needs restoring, and when you want your data back.
-            </p>
-          </Reveal>
-          <Reveal>
-            <div className="features stagger-group">
-              {FEATURES.map((f) => (
-                <div className="feature glass glass-i glass-lit" key={f.t}>
-                  <div className="fi">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d={f.icon} strokeLinecap="round" strokeLinejoin="round" /></svg>
-                  </div>
-                  <h3>{f.t}</h3>
-                  <p>{f.d}</p>
-                </div>
-              ))}
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
-      <ProductTour />
-
-      <section id="scale">
-        <div className="wrap">
-          <Reveal>
-            <div className="eyebrow">Who it is for</div>
-            <AnimatedText text="One room, or [[one]] [[hospital.]]" />
-            <p className="lede" style={{ marginTop: "1.5rem" }}>
-              Build for the smallest clinic and you have built for everyone. One clinician who
-              is also the receptionist and the record-keeper, no IT department to call, two
-              minutes a patient. Clear that bar and a hospital department is straightforward.
-              The constraint never changes: the record has to cost less attention than paper.
-            </p>
-          </Reveal>
-        </div>
-      </section>
-
-      <section id="status">
-        <div className="narrow">
-          <Reveal>
-            <div className="glass glass-lit" style={{ padding: "clamp(1.8rem, 4vw, 3rem)" }}>
-              <div className="eyebrow">Where this is</div>
-              <AnimatedText text="Early, and we will [[say]] [[so.]]" />
-              <p className="lede" style={{ marginTop: "1.4rem" }}>
-                The full flow works today. Consent, recording, on-device transcription,
-                drafting, review, signing, printing, backup, restore. What we have not done is
-                sit with twenty clinicians and find out whether documentation is really one of
-                their top three problems. Until we have, everything on this page is a
-                hypothesis, and we would rather tell you that now than later.
+      <main id="content">
+        <section id="problem">
+          <div className="wrap">
+            <Reveal>
+              <div className="eyebrow">The problem</div>
+              <AnimatedText text="Most clinical software costs more time [[than]] [[it]] [[saves.]]" />
+              <p className="lede" style={{ marginTop: "1.5rem" }}>
+                Hand a clinic an EMR and you have handed the clinician a data-entry job. That is
+                why documentation gets abandoned, in well-funded hospitals as much as in small
+                practices. The bar for anything worth installing is simple. It has to take less
+                attention than paper already does.
               </p>
-              <div className="cta-row" style={{ justifyContent: "flex-start", marginTop: "2rem" }}>
-                <a className="btn btn-primary" href="mailto:ishaan.seal2007@gmail.com">Talk to us</a>
+            </Reveal>
+
+            <Reveal>
+              <div className="figures stagger-group" style={{ marginTop: "3rem" }}>
+                {FIGURES.map((f) => (
+                  <div className="figure glass glass-i glass-lit" key={f.k}>
+                    <div className="n">
+                      <CountUp value={f.n} />
+                      {f.unit && <small>{f.unit}</small>}
+                    </div>
+                    <div className="k">{f.k}</div>
+                    <cite>{f.cite}</cite>
+                  </div>
+                ))}
               </div>
+            </Reveal>
+          </div>
+        </section>
+
+        <section id="how">
+          <div className="wrap">
+            <Reveal>
+              <div className="eyebrow">How it works</div>
+              <AnimatedText text="Five steps. You do [[one]] [[of]] [[them.]]" />
+            </Reveal>
+            <Reveal>
+              <div className="steps stagger-group" style={{ marginTop: "2.8rem" }}>
+                {STEPS.map((s, i) => (
+                  <div className="step glass glass-i glass-lit" key={s.t}>
+                    <div className="i">{i + 1}</div>
+                    <h3>{s.t}</h3>
+                    <p>{s.d}</p>
+                  </div>
+                ))}
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
+        <section id="privacy">
+          <div className="wrap">
+            <Reveal>
+              <div className="eyebrow">Where the data lives</div>
+              <AnimatedText text="On your hardware. [[Nowhere]] [[else.]]" />
+              <p className="lede" style={{ marginTop: "1.5rem" }}>
+                Transcription and drafting run on your own machines. No account, no sync, no
+                internet needed. Consultation data never crosses a network, which turns data
+                residency from a compliance project into a question you do not have to answer.
+              </p>
+            </Reveal>
+
+            <Reveal>
+              <div className="promises stagger-group">
+                <div className="promise glass glass-i glass-lit">
+                  <span className="tag">Promise</span>
+                  <h3>Audio is deleted at signing</h3>
+                  <p>You tell the patient the recording will be deleted. We delete it in the code that signs the note, so it cannot be left switched off by mistake.</p>
+                </div>
+                <div className="promise glass glass-i glass-lit">
+                  <span className="tag">Promise</span>
+                  <h3>Nothing is ever lost</h3>
+                  <p>Audio is written to disk while you record and the note saves as you go. Lose power mid-consultation and it comes back, with the reason it stopped.</p>
+                </div>
+                <div className="promise glass glass-i glass-lit">
+                  <span className="tag">Promise</span>
+                  <h3>No lock-in, ever</h3>
+                  <p>Export everything, whenever you want, in an open format. If you decide to leave, you should not have to ask us or hire anyone to get your records out.</p>
+                </div>
+                <div className="promise negative glass glass-i glass-lit">
+                  <span className="tag">Never</span>
+                  <h3>No diagnosis, no risk scores, no triage flags</h3>
+                  <p>Software that quantifies a physiological parameter to drive a clinical decision is a regulated medical device. ClinicOS carries the record. The judgement stays with you.</p>
+                </div>
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
+        <section id="built">
+          <div className="wrap">
+            <Reveal>
+              <div className="eyebrow">What is built</div>
+              <AnimatedText text="The boring half is the half [[that]] [[keeps]] [[you.]]" />
+              <p className="lede" style={{ marginTop: "1.5rem" }}>
+                Drafting a note from a transcript is the easy part. Whether you are still using
+                ClinicOS in six months comes down to what happens when the power cuts, when a
+                database needs restoring, and when you want your data back.
+              </p>
+            </Reveal>
+            <Reveal>
+              <div className="features stagger-group">
+                {FEATURES.map((f) => (
+                  <div className="feature glass glass-i glass-lit" key={f.t}>
+                    <div className="fi">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d={f.icon} strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    </div>
+                    <h3>{f.t}</h3>
+                    <p>{f.d}</p>
+                  </div>
+                ))}
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
+        <ProductTour />
+
+        <section id="scale">
+          <div className="wrap">
+            <Reveal>
+              <div className="eyebrow">Who it is for</div>
+              <AnimatedText text="One room, or [[one]] [[hospital.]]" />
+              <p className="lede" style={{ marginTop: "1.5rem" }}>
+                Build for the smallest clinic and you have built for everyone. One clinician who
+                is also the receptionist and the record-keeper, no IT department to call, two
+                minutes a patient. Clear that bar and a hospital department is straightforward.
+                The constraint never changes: the record has to cost less attention than paper.
+              </p>
+            </Reveal>
+          </div>
+        </section>
+
+        <section id="status">
+          <div className="narrow">
+            <Reveal>
+              <div className="glass glass-lit" style={{ padding: "clamp(1.8rem, 4vw, 3rem)" }}>
+                <div className="eyebrow">Where this is</div>
+                <AnimatedText text="Early, and we will [[say]] [[so.]]" />
+                <p className="lede" style={{ marginTop: "1.4rem" }}>
+                  The full flow works today. Consent, recording, on-device transcription,
+                  drafting, review, signing, printing, backup, restore. What we have not done is
+                  sit with twenty clinicians and find out whether documentation is really one of
+                  their top three problems. Until we have, everything on this page is a
+                  hypothesis, and we would rather tell you that now than later.
+                </p>
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
+        <section id="pilot">
+          <div className="wrap">
+            <Reveal>
+              <div className="eyebrow">Pilot programme</div>
+              <AnimatedText text="Try it in your own practice. [[Free]] [[for]] [[90]] [[days.]]" />
+              <p className="lede" style={{ marginTop: "1.5rem" }}>
+                We are opening a small number of pilots for clinics and hospital departments. It
+                starts with a short conversation about how your consultations run. If ClinicOS
+                fits, we set it up on your own hardware and stay close while you use it.
+              </p>
+            </Reveal>
+
+            <Reveal>
+              <div className="pilot-terms stagger-group">
+                {PILOT_TERMS.map((t) => (
+                  <div className="promise glass glass-i glass-lit" key={t.h}>
+                    <span className="tag">{t.tag}</span>
+                    <h3>{t.h}</h3>
+                    <p>{t.d}</p>
+                  </div>
+                ))}
+              </div>
+            </Reveal>
+
+            {/* Deliberately not in a <Reveal>. This is the last section, and the
+                scroll-driven reveal only completes once an element has travelled a
+                third of the way up the viewport. Near the end of the document it
+                cannot, so on tall screens the main call to action stayed faded. */}
+            <div>
+              <div className="cta-row" style={{ justifyContent: "flex-start" }}>
+                <a className="btn btn-primary" href={PILOT_FORM_URL}>Apply for the pilot</a>
+                <a className="btn btn-ghost" href={`mailto:${CONTACT_EMAIL}`}>Talk to us</a>
+              </div>
+              <p className="pilot-note">
+                The form asks about you and where you work, and nothing about patients. Please
+                leave patient details out. <a href="/privacy">How we handle what you send</a>.
+              </p>
             </div>
-          </Reveal>
-        </div>
-      </section>
+          </div>
+        </section>
+      </main>
 
       <footer>
         <div className="wrap">
@@ -248,8 +311,15 @@ export default function Page() {
               <strong style={{ color: "var(--fg)" }}>ClinicOS</strong> — a Varaxis product
               <div style={{ marginTop: "0.3rem" }}>Local-first clinical documentation.</div>
             </div>
-            <div>Not a medical device. Makes no clinical judgement.</div>
+            <nav aria-label="Footer">
+              <ul className="foot-links">
+                <li><a href={PILOT_FORM_URL}>Apply for the pilot</a></li>
+                <li><a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a></li>
+                <li><a href="/privacy">Privacy</a></li>
+              </ul>
+            </nav>
           </div>
+          <p className="foot-note">Not a medical device. Makes no clinical judgement.</p>
 
           <ol className="sources">
             <li>Irving G. et al., &ldquo;International variations in primary care physician consultation time: a systematic review of 67 countries,&rdquo; <em>BMJ Open</em> 7(10), 2017.</li>

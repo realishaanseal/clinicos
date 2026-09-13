@@ -17,6 +17,28 @@ Port 3001, so it runs alongside the clinical app on 3000.
 Vercel, with **Root Directory set to `landing`**. No environment variables, no
 database, no build overrides. The page is fully static.
 
+## Contact, pilot form and privacy
+
+Every address the site points at lives in `src/site.ts`: the public site URL,
+the contact email and the pilot form link. Change them there, nowhere else.
+
+- **Pilot form** is a Tally form ("Talk to ClinicOS"). Responses land in the
+  Tally account, not in this repo, and nothing is posted from the site itself.
+  The form links back to `/privacy`, so if `SITE_URL` changes, update that link
+  in Tally too.
+- **`/privacy`** makes specific promises: no cookies, no analytics, no
+  third-party scripts, and form responses deleted within 12 months of last
+  contact. Adding any tracking or a new form provider means changing that page
+  in the same commit, and the 12-month deletion has to actually happen.
+- **Pilot terms** on the home page mirror `docs/ClinicOS_Pilot_Agreement.md`.
+  Keep the two in step.
+- **`SITE_URL`** drives the share-preview image, `robots.txt` and the sitemap.
+  It must match the domain the Vercel project actually serves.
+
+`icon`, `apple-icon` and `opengraph-image` are generated at build time with
+`next/og` from `src/components/BrandMark.tsx`. That renderer (Satori) supports
+only flexbox, inline styles and gradients, so keep the mark inside that subset.
+
 ## Design
 
 Morphing light on near-black, with frosted glass panels over it.

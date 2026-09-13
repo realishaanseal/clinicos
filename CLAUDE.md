@@ -127,6 +127,8 @@ clinicos-app/
   src/app/api/            route handlers
   asr/server.py           FastAPI + faster-whisper sidecar
   go.sh                   setup and launch
+landing/                  public website. static Next.js, no database, no API
+                          routes, no access to clinicos-app. see landing/README.md
 docs/                     launch plan, backlog, consent script, agreements
 artifacts/                decks, trackers, briefs
 ```
@@ -183,12 +185,19 @@ Built and tested:
   page load, 14 kept, one-tap download, restore behind a typed `RESTORE`
   confirmation that snapshots the current database first.
 
+- **Backlog #37 — the public website.** `landing/`, deployed on Vercel from `main`
+  with Root Directory `landing`. It holds no patient data and cannot reach the
+  clinical app. Pilot enquiries go to a Tally form; every address the site uses
+  lives in `landing/src/site.ts`. Public copy is Varaxis-branded and international
+  (clinics of any size up to hospitals). The Krishnanagar field site stays in
+  internal docs and pilots, not on the site.
+
 Next in `docs/ClinicOS_Backlog.md`: #3 speed pass, #4 audit log, #5 queue,
 #8 search by phone. Numbered 1–37 across tiers 0–7.
 
-**Not built and deliberately so:** hosting, deployment, landing page, standalone
-desktop packaging, multi-doctor accounts, any AI beyond transcription and note
-drafting.
+**Not built and deliberately so:** hosting or deploying the clinical app,
+standalone desktop packaging, multi-doctor accounts, any AI beyond transcription
+and note drafting.
 
 ---
 

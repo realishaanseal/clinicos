@@ -3,9 +3,16 @@ import "./globals.css";
 import Stage from "@/components/Stage";
 import SmoothScroll from "@/components/SmoothScroll";
 import ScrollProgress from "@/components/ScrollProgress";
+import { SITE_URL } from "@/site";
 
 export const metadata: Metadata = {
-  title: "ClinicOS — clinical documentation that writes itself",
+  // Share previews need absolute image URLs; this is what they resolve against.
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "ClinicOS — clinical documentation that writes itself",
+    template: "%s — ClinicOS",
+  },
+  twitter: { card: "summary_large_image" },
   description:
     "Local-first clinical documentation for clinics and hospitals. The note is drafted from the consultation already taking place, and patient data never leaves your hardware. A Varaxis product.",
   openGraph: {
@@ -13,6 +20,7 @@ export const metadata: Metadata = {
     description:
       "The consultation already happened. The record should too. Local-first clinical documentation, from a single-room practice to a hospital department.",
     type: "website",
+    siteName: "ClinicOS",
   },
 };
 
