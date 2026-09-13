@@ -16,12 +16,11 @@ export default function SideNav({ user, clinicName }: { user: NavUser; clinicNam
   const path = usePathname();
   const [leaving, setLeaving] = useState(false);
 
-  const clinical = user.role === "doctor";
   const frontdesk = user.role !== "admin";
   const admin = user.role === "admin" || user.isAdmin;
 
   const links = [
-    clinical && { href: "/", label: "Today", icon: <IcPulse size={17} /> },
+    frontdesk && { href: "/", label: "Today", icon: <IcPulse size={17} /> },
     frontdesk && { href: "/patients", label: "Patients", icon: <IcUsers size={17} /> },
     admin && { href: "/admin", label: "Clinic admin", icon: <IcCog size={17} /> },
     admin && { href: "/admin/users", label: "People", icon: <IcShield size={17} /> },

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
-import { databaseStats, listUsers, searchPatients } from "@/lib/db";
+import { databaseStats, listUsers, localDay, searchPatients, signedConsultsSince } from "@/lib/db";
 import { getClinic } from "@/lib/clinic";
 import { listBackups } from "@/lib/backup";
 import BackupPanel from "@/components/BackupPanel";
@@ -10,6 +10,27 @@ import { IcArrow } from "@/components/Icons";
 
 export const dynamic = "force-dynamic";
 
+/** Signed consultations per doctor for the last seven local days. Raw counts:
+ *  no averages, no rankings, nothing that reads as a performance score. */
+function signedByDoctor() {
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - (6 - i));
+    return d;
+  });
+  const dayKeys = days.map((d) => localDay(d));
+  const counts = new Map<string, number[]>();
+  for (const s of signedConsultsSince(days[0].toISOString())) {
+    const idx = dayKeys.indexOf(localDay(new Date(s.signedAt)));
+    if (idx < 0) continue;
+    const who = s.doctorName ?? "Signed before accounts";
+    if (!counts.has(who)) counts.set(who, Array(7).fill(0));
+    counts.get(who)![idx]++;
+  }
+  return { days, rows: [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0])) };
+}
+
 export default async function AdminPage() {
   await requireUser("admin");
 
@@ -17,6 +38,7 @@ export default async function AdminPage() {
   const backups = await listBackups();
   const patients = searchPatients("");
   const activePeople = listUsers().filter((u) => u.active).length;
+  const week = signedByDoctor();
 
   return (
     <div className="page page-narrow">
@@ -64,6 +86,46 @@ export default async function AdminPage() {
             </Link>
           </div>
         </div>
+      </div>
+
+      <div className="card flush">
+        <div className="card-head">
+          <span className="title">Consultations signed, last 7 days</span>
+          <span className="muted">counts only</span>
+        </div>
+        {week.rows.length === 0 ? (
+          <div className="card-body">
+            <p className="muted" style={{ margin: 0 }}>No consultations were signed in the last 7 days.</p>
+          </div>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table className="week">
+              <thead>
+                <tr>
+                  <th>Doctor</th>
+                  {week.days.map((d) => (
+                    <th key={d.toISOString()} className="num">
+                      {d.toLocaleDateString("en-IN", { weekday: "short" })}
+                      <div className="sub">{d.getDate()}</div>
+                    </th>
+                  ))}
+                  <th className="num">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {week.rows.map(([who, perDay]) => (
+                  <tr key={who}>
+                    <td style={{ fontWeight: 580 }}>{who}</td>
+                    {perDay.map((n, i) => (
+                      <td key={i} className={`num ${n === 0 ? "dim" : ""}`}>{n}</td>
+                    ))}
+                    <td className="num" style={{ fontWeight: 620 }}>{perDay.reduce((a, b) => a + b, 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className="card flush">

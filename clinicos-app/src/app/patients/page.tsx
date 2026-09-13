@@ -1,6 +1,7 @@
 import { searchPatients } from "@/lib/db";
 import Link from "next/link";
 import { IcUsers, IcArrow } from "@/components/Icons";
+import AddToQueueButton from "@/components/AddToQueueButton";
 import { can, requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +12,8 @@ export default async function PatientsPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   const user = await requireUser("frontdesk");
-  // Front desk can find a patient; only a doctor can open their clinical history.
+  // Front desk can find a patient and put them on today's list; only a doctor
+  // can open their clinical history.
   const canOpen = can(user, "clinical");
 
   const { q } = await searchParams;
@@ -28,9 +30,10 @@ export default async function PatientsPage({
       <form className="card" style={{ padding: 14 }}>
         <input
           name="q"
+          type="search"
           defaultValue={q || ""}
-          placeholder="Search by name…"
-          aria-label="Search patients"
+          placeholder="Search by name or phone number…"
+          aria-label="Search patients by name or phone number"
         />
       </form>
 
@@ -39,9 +42,15 @@ export default async function PatientsPage({
           <div className="empty">
             <IcUsers size={26} />
             <div className="big" style={{ marginTop: 10 }}>
-              {q ? "No patient by that name" : "No patients yet"}
+              {q ? "Nobody matches that search" : "No patients yet"}
             </div>
-            <div>{q ? "Try a shorter search." : canOpen ? "Start a consultation from Today." : "Nobody has been registered yet."}</div>
+            <div>
+              {q
+                ? "Try part of the name, or the last few digits of their phone number."
+                : canOpen
+                ? "Start a consultation from Today."
+                : "Register the first patient from Today."}
+            </div>
           </div>
         ) : (
           <table>
@@ -64,10 +73,12 @@ export default async function PatientsPage({
                   <td className="dim">{p.phone || "—"}</td>
                   <td className="dim">{p.consultCount}</td>
                   <td style={{ textAlign: "right" }}>
-                    {canOpen && (
+                    {canOpen ? (
                       <Link href={`/patients/${p.id}`} aria-label={`Open ${p.name}`}>
                         <IcArrow size={16} />
                       </Link>
+                    ) : (
+                      <AddToQueueButton patientId={p.id} name={p.name} />
                     )}
                   </td>
                 </tr>

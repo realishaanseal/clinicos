@@ -174,11 +174,10 @@ export function can(user: SessionUser, cap: Capability): boolean {
 }
 
 /** Where each account lands. Each of these pages must be reachable by that
- *  role, or requireUser would redirect in a loop. */
+ *  role, or requireUser would redirect in a loop. "/" shows a doctor their
+ *  Today and the front desk theirs. */
 export function homeFor(user: SessionUser): string {
-  if (user.role === "doctor") return "/";
-  if (user.role === "staff") return "/patients";
-  return "/admin";
+  return user.role === "admin" ? "/admin" : "/";
 }
 
 /** Only same-site paths, so ?next= cannot send someone to another website. */

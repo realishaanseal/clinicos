@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createPatient, createConsult, searchPatients } from "@/lib/db";
+import { addToQueue, createPatient, createConsult, searchPatients } from "@/lib/db";
 import { can, requireApiUser } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
@@ -19,7 +19,12 @@ export async function POST(req: NextRequest) {
     guardianName: body.guardianName || null,
   });
 
-  // Only a doctor goes straight from registration into a consultation.
+  // The front desk registers straight onto today's list. A doctor registering a
+  // walk-in goes straight into the consultation instead.
+  if (body.queue) {
+    const { entry } = addToQueue(patient.id, auth.user.id);
+    return NextResponse.json({ patient, consultId: null, queue: { id: entry.id, token: entry.token } });
+  }
   const consult = can(auth.user, "clinical") ? createConsult(patient.id, auth.user.id) : null;
   return NextResponse.json({ patient, consultId: consult?.id ?? null });
 }

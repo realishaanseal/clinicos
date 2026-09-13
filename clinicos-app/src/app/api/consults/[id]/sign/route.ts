@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getConsult, addEdits, signConsult, recordAudit } from "@/lib/db";
+import { getConsult, addEdits, signConsult, recordAudit, markQueueDoneForConsult } from "@/lib/db";
 import { parseNote, NOTE_FIELDS, ClinicalNote } from "@/lib/types";
 import { requireApiUser } from "@/lib/auth";
 import { unlink } from "fs/promises";
@@ -51,6 +51,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   signConsult(id, JSON.stringify(final), audioDeleted, auth.user.id);
+  // Signing is what tells the front desk the patient has been seen.
+  markQueueDoneForConsult(id);
   recordAudit(
     auth.user,
     "consult_sign",

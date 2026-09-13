@@ -116,6 +116,27 @@ function open(): Database.Database {
       key   TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+
+    -- The day's list at the front desk (v1). day is the clinic computer's
+    -- local date, never a UTC date: in India a UTC date would file the first
+    -- five and a half hours of every day under yesterday. Tokens restart at 1
+    -- each day, and the unique index makes a duplicate token impossible even
+    -- if two desks add a patient at the same instant.
+    CREATE TABLE IF NOT EXISTS QueueEntry (
+      id         TEXT PRIMARY KEY,
+      patientId  TEXT NOT NULL REFERENCES Patient(id) ON DELETE CASCADE,
+      day        TEXT NOT NULL,
+      token      INTEGER NOT NULL,
+      status     TEXT NOT NULL CHECK (status IN ('waiting', 'with-doctor', 'done', 'left')),
+      addedBy    TEXT,
+      consultId  TEXT,
+      calledBy   TEXT,
+      addedAt    TEXT NOT NULL,
+      calledAt   TEXT,
+      doneAt     TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_queue_day ON QueueEntry(day);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_queue_token ON QueueEntry(day, token);
   `);
 
   // Columns added after the first release. SQLite has no "ADD COLUMN IF NOT
@@ -208,6 +229,21 @@ export function newId(): string {
 }
 const now = () => new Date().toISOString();
 
+/** The clinic computer's local calendar date, YYYY-MM-DD. Stored timestamps
+ *  are UTC ISO strings; "today" has to mean the clinic's today. */
+export function localDay(d = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** Start and end of the clinic's local day, as UTC ISO strings for comparing
+ *  against stored timestamps. */
+function localDayBounds(d = new Date()): [string, string] {
+  const start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+  return [start.toISOString(), end.toISOString()];
+}
+
 // ---------------------------------------------------------------- types
 export type Patient = {
   id: string;
@@ -268,14 +304,35 @@ export function getPatient(id: string): Patient | undefined {
   return getDb().prepare(`SELECT * FROM Patient WHERE id = ?`).get(id) as Patient | undefined;
 }
 
+/**
+ * Find patients by name, or by phone number when the search is a number.
+ *
+ * Patients forget how their name was spelt last time; they never forget their
+ * number (backlog #8). Phone matching ignores spaces, dashes, brackets and a
+ * leading +91, because nobody types a number the way it was first written down.
+ */
 export function searchPatients(q: string): (Patient & { consultCount: number })[] {
-  const sql = q
-    ? `SELECT p.*, (SELECT COUNT(*) FROM Consult c WHERE c.patientId = p.id) AS consultCount
-       FROM Patient p WHERE p.name LIKE ? ORDER BY p.createdAt DESC LIMIT 50`
-    : `SELECT p.*, (SELECT COUNT(*) FROM Consult c WHERE c.patientId = p.id) AS consultCount
-       FROM Patient p ORDER BY p.createdAt DESC LIMIT 50`;
-  const stmt = getDb().prepare(sql);
-  return (q ? stmt.all(`%${q}%`) : stmt.all()) as (Patient & { consultCount: number })[];
+  const term = q.trim();
+  const base = `SELECT p.*, (SELECT COUNT(*) FROM Consult c WHERE c.patientId = p.id) AS consultCount FROM Patient p`;
+  if (!term) {
+    return getDb().prepare(`${base} ORDER BY p.createdAt DESC LIMIT 50`).all() as (Patient & { consultCount: number })[];
+  }
+
+  const compact = term.replace(/[\s()+-]/g, "");
+  if (/^\d{3,}$/.test(compact)) {
+    const digits = compact.length > 10 ? compact.slice(-10) : compact;
+    return getDb()
+      .prepare(
+        `${base}
+         WHERE REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(p.phone, ''), ' ', ''), '-', ''), '+', ''), '(', ''), ')', '') LIKE ?
+         ORDER BY p.createdAt DESC LIMIT 50`
+      )
+      .all(`%${digits}%`) as (Patient & { consultCount: number })[];
+  }
+
+  return getDb()
+    .prepare(`${base} WHERE p.name LIKE ? ORDER BY p.createdAt DESC LIMIT 50`)
+    .all(`%${term}%`) as (Patient & { consultCount: number })[];
 }
 
 // ---------------------------------------------------------------- consults
@@ -389,12 +446,27 @@ export function countPatients(): number {
 }
 
 export function countConsultsToday(): number {
-  const day = new Date().toISOString().slice(0, 10);
+  // The clinic's local day. Comparing the UTC date put every consultation
+  // before 05:30 IST under the previous day.
+  const [start, end] = localDayBounds();
   return (
-    getDb().prepare(`SELECT COUNT(*) AS n FROM Consult WHERE substr(createdAt, 1, 10) = ?`).get(day) as {
+    getDb().prepare(`SELECT COUNT(*) AS n FROM Consult WHERE createdAt >= ? AND createdAt < ?`).get(start, end) as {
       n: number;
     }
   ).n;
+}
+
+/** Signed consultations since a moment, with the signing doctor's name. Raw
+ *  rows for simple counting — no scores, no rankings. */
+export function signedConsultsSince(sinceIso: string): { doctorName: string | null; signedAt: string }[] {
+  return getDb()
+    .prepare(
+      `SELECT u.name AS doctorName, c.signedAt
+       FROM Consult c LEFT JOIN User u ON u.id = c.doctorId
+       WHERE c.signedAt IS NOT NULL AND c.signedAt >= ?
+       ORDER BY c.signedAt`
+    )
+    .all(sinceIso) as { doctorName: string | null; signedAt: string }[];
 }
 
 /** Minutes of documentation saved, at a conservative 4 minutes per signed note.
@@ -415,8 +487,9 @@ export type DeletionReport = {
 /**
  * Permanently delete a patient and everything attached to them.
  *
- * Consults and edits cascade via foreign keys. Audio paths are returned so the
- * caller can unlink the files — the database cannot delete anything on disk.
+ * Consults, edits and queue entries cascade via foreign keys. Audio paths are
+ * returned so the caller can unlink the files — the database cannot delete
+ * anything on disk.
  *
  * There is no undo. The route that calls this requires the caller to retype
  * the patient's name first, and that check exists for a reason.
@@ -436,7 +509,7 @@ export function deletePatientCascade(id: string): DeletionReport | null {
   const editsDeleted = consultIds.reduce((n, c) => n + countEdits(c.id), 0);
 
   const tx = getDb().transaction(() => {
-    getDb().prepare(`DELETE FROM Patient WHERE id = ?`).run(id); // cascades to Consult -> Edit
+    getDb().prepare(`DELETE FROM Patient WHERE id = ?`).run(id); // cascades to Consult -> Edit, QueueEntry
   });
   tx();
 
@@ -539,6 +612,120 @@ export function unfinishedConsults(): UnfinishedConsult[] {
       return { ...c, patient, reason };
     })
     .filter(Boolean) as UnfinishedConsult[];
+}
+
+// ------------------------------------------------------------------- queue
+export type QueueStatus = "waiting" | "with-doctor" | "done" | "left";
+
+export type QueueEntry = {
+  id: string;
+  patientId: string;
+  day: string;
+  token: number;
+  status: QueueStatus;
+  addedBy: string | null;
+  consultId: string | null;
+  calledBy: string | null;
+  addedAt: string;
+  calledAt: string | null;
+  doneAt: string | null;
+};
+
+/** A list row with just enough about the patient to call them in. Nothing
+ *  clinical: the front desk reads this. */
+export type QueueRow = QueueEntry & {
+  patientName: string;
+  patientAge: number | null;
+  patientSex: string | null;
+  patientPhone: string | null;
+  calledByName: string | null;
+};
+
+export function getQueueEntry(id: string): QueueEntry | undefined {
+  return getDb().prepare(`SELECT * FROM QueueEntry WHERE id = ?`).get(id) as QueueEntry | undefined;
+}
+
+export function todaysQueue(): QueueRow[] {
+  return getDb()
+    .prepare(
+      `SELECT q.*, p.name AS patientName, p.age AS patientAge, p.sex AS patientSex, p.phone AS patientPhone,
+              d.name AS calledByName
+       FROM QueueEntry q
+       JOIN Patient p ON p.id = q.patientId
+       LEFT JOIN User d ON d.id = q.calledBy
+       WHERE q.day = ?
+       ORDER BY q.token`
+    )
+    .all(localDay()) as QueueRow[];
+}
+
+/**
+ * Put a patient on today's list. A patient already waiting or with a doctor
+ * keeps their token rather than getting a second one, so a receptionist who
+ * adds someone twice does not make them queue twice.
+ */
+export function addToQueue(patientId: string, addedBy: string | null): { entry: QueueEntry; alreadyQueued: boolean } {
+  const tx = getDb().transaction(() => {
+    const day = localDay();
+    const existing = getDb()
+      .prepare(`SELECT * FROM QueueEntry WHERE day = ? AND patientId = ? AND status IN ('waiting', 'with-doctor')`)
+      .get(day, patientId) as QueueEntry | undefined;
+    if (existing) return { entry: existing, alreadyQueued: true };
+
+    const token = (
+      getDb().prepare(`SELECT COALESCE(MAX(token), 0) + 1 AS t FROM QueueEntry WHERE day = ?`).get(day) as { t: number }
+    ).t;
+    const id = newId();
+    getDb()
+      .prepare(
+        `INSERT INTO QueueEntry (id, patientId, day, token, status, addedBy, addedAt)
+         VALUES (?, ?, ?, ?, 'waiting', ?, ?)`
+      )
+      .run(id, patientId, day, token, addedBy, now());
+    return { entry: getQueueEntry(id)!, alreadyQueued: false };
+  });
+  return tx();
+}
+
+/**
+ * A doctor calls a waiting patient in. Opens a consultation (or returns the one
+ * this doctor already opened) and marks the entry "with doctor", in one
+ * transaction so two doctors pressing the button together cannot both take
+ * the same patient. Returns null when the patient is no longer theirs to call.
+ */
+export function startQueueEntry(id: string, doctorId: string): QueueEntry | null {
+  const tx = getDb().transaction(() => {
+    const e = getQueueEntry(id);
+    if (!e || e.day !== localDay()) return null;
+    if (e.status === "with-doctor" && e.calledBy === doctorId && e.consultId) return e;
+    if (e.status !== "waiting") return null;
+
+    let consultId = e.consultId;
+    const existing = consultId ? getConsult(consultId) : undefined;
+    if (!existing || existing.signedAt) consultId = createConsult(e.patientId, doctorId).id;
+
+    getDb()
+      .prepare(`UPDATE QueueEntry SET status = 'with-doctor', consultId = ?, calledBy = ?, calledAt = ? WHERE id = ?`)
+      .run(consultId, doctorId, now(), id);
+    return getQueueEntry(id)!;
+  });
+  return tx();
+}
+
+/** The patient went home without being seen. Only a waiting entry can leave. */
+export function markQueueLeft(id: string): boolean {
+  return (
+    getDb()
+      .prepare(`UPDATE QueueEntry SET status = 'left', doneAt = ? WHERE id = ? AND status = 'waiting'`)
+      .run(now(), id).changes === 1
+  );
+}
+
+/** Signing the consultation is what marks the patient as seen. */
+export function markQueueDoneForConsult(consultId: string) {
+  getDb()
+    .prepare(`UPDATE QueueEntry SET status = 'done', doneAt = ? WHERE consultId = ? AND status = 'with-doctor'`)
+    .run(now(), consultId);
 }
 
 // ---------------------------------------------------------------- accounts

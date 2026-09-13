@@ -227,11 +227,14 @@ Built and tested:
   On branch `v1`. Verified with a 99-check permission matrix over HTTP against a
   seeded copy of a prototype database (every existing record unchanged), plus the
   reset-password script and restoring a pre-accounts backup.
+- **v1 Part B — role dashboards, the day's list (backlog #5), search by phone (#8).**
+  Front desk Today is the desk (find, register, list); doctor Today has "Waiting
+  now" with Start visit; admin sees signed consultations per doctor as raw counts.
+  `QueueEntry.day` is the clinic computer's local date, never the UTC date.
 
-Next, in order: v1 Part B (role dashboards, the front-desk queue — backlog #5 —
-and search by phone — #8), Part C (patient portal: a doctor shares a signed visit
-with the patient's consent), Part D (invariant 2, consent script and website copy
-updated to match). Then #3 speed pass. Backlog numbered 1–37 across tiers 0–7.
+Next, in order: v1 Part C (patient portal: a doctor shares a signed visit with the
+patient's consent), Part D (invariant 2, consent script and website copy updated
+to match). Then #3 speed pass. Backlog numbered 1–37 across tiers 0–7.
 
 **Not built and deliberately so:** hosting or deploying the clinical app,
 standalone desktop packaging, multi-clinic accounts, any AI beyond transcription

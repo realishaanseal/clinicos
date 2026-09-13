@@ -6,8 +6,11 @@ import {
   countPatients,
   countConsultsToday,
   minutesSaved,
+  todaysQueue,
 } from "@/lib/db";
 import NewPatient from "@/components/NewPatient";
+import FrontDeskToday from "@/components/FrontDeskToday";
+import WaitingPanel from "@/components/WaitingPanel";
 import Link from "next/link";
 import { parseNote } from "@/lib/types";
 import { IcDoc, IcArrow, IcAlert } from "@/components/Icons";
@@ -16,9 +19,28 @@ import { requireUser } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  // Today lists diagnoses, so it is a clinical page. Staff and non-clinical
-  // admins are sent to their own home instead.
-  await requireUser("clinical");
+  const user = await requireUser("frontdesk");
+
+  const today = new Date().toLocaleDateString("en-IN", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+
+  // The front desk's Today. It returns before a single clinical query runs,
+  // so nothing clinical can leak into this render by accident.
+  if (user.role !== "doctor") {
+    return (
+      <div className="page">
+        <div className="page-head">
+          <div className="eyebrow">{today}</div>
+          <h1>Today</h1>
+          <p className="sub">Find or register patients, and keep the day&apos;s list moving.</p>
+        </div>
+        <FrontDeskToday initial={todaysQueue()} />
+      </div>
+    );
+  }
 
   const consults = recentConsults(20);
   const unfinished = unfinishedConsults();
@@ -26,12 +48,6 @@ export default async function Home() {
   const edits = countEdits();
   const editsPerNote = signed ? (edits / signed).toFixed(1) : "—";
   const saved = minutesSaved();
-
-  const today = new Date().toLocaleDateString("en-IN", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
 
   return (
     <div className="page">
@@ -66,6 +82,8 @@ export default async function Home() {
           <div className="n">at 4 min per note</div>
         </div>
       </div>
+
+      <WaitingPanel initial={todaysQueue()} doctorId={user.id} />
 
       {unfinished.length > 0 && (
         <div className="card flush resume">
