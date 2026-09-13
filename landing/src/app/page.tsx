@@ -3,7 +3,7 @@ import Reveal from "@/components/Reveal";
 import AnimatedText from "@/components/AnimatedText";
 import CountUp from "@/components/CountUp";
 import ProductTour from "@/components/ProductTour";
-import { CONTACT_EMAIL, PILOT_FORM_URL } from "@/site";
+import { CONTACT_EMAIL, CONTACT_FORM_URL } from "@/site";
 
 /**
  * Positioning: ClinicOS is a Varaxis product for clinics and hospitals
@@ -13,10 +13,6 @@ import { CONTACT_EMAIL, PILOT_FORM_URL } from "@/site";
  * Every figure is cited inline and comes from docs/ClinicOS_Problem_Statement.md.
  * Nothing here claims the product makes a clinical judgement, because it does
  * not and legally must not — see invariant 1 in CLAUDE.md.
- *
- * The pilot terms mirror docs/ClinicOS_Pilot_Agreement.md (free for 90 days,
- * records exportable free, a week's notice to end, no automatic charging). If
- * the agreement changes, change these in the same commit.
  */
 
 const FIGURES = [
@@ -84,24 +80,6 @@ const FEATURES = [
     t: "Every edit is kept",
     d: "The original draft is never overwritten. Your corrections are stored separately, and the gap between the two tells us how good the drafting actually is.",
     icon: "M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z",
-  },
-];
-
-const PILOT_TERMS = [
-  {
-    tag: "You get",
-    h: "ClinicOS, set up with you",
-    d: "Installed on your own machines, with support while you use it. There is no fee during the pilot.",
-  },
-  {
-    tag: "We ask",
-    h: "Real use and plain feedback",
-    d: "Use it in real consultations. Tell us when it gets in your way, and tell us if you stop using it.",
-  },
-  {
-    tag: "Stays yours",
-    h: "Your records, your call",
-    d: "Every record belongs to you and exports free whenever you ask. Either side can end the pilot with a week’s notice. Nothing starts charging automatically.",
   },
 ];
 
@@ -262,44 +240,26 @@ export default function Page() {
           </div>
         </section>
 
-        <section id="pilot">
+        {/* No <Reveal> anywhere in this section. It is the last one on the page,
+            and the scroll-driven reveal only completes once an element has
+            travelled a third of the way up the viewport. Near the end of the
+            document it cannot, so on tall screens the text and buttons here
+            stayed faded. */}
+        <section id="contact">
           <div className="wrap">
-            <Reveal>
-              <div className="eyebrow">Pilot programme</div>
-              <AnimatedText text="Try it in your own practice. [[Free]] [[for]] [[90]] [[days.]]" />
-              <p className="lede" style={{ marginTop: "1.5rem" }}>
-                We are opening a small number of pilots for clinics and hospital departments. It
-                starts with a short conversation about how your consultations run. If ClinicOS
-                fits, we set it up on your own hardware and stay close while you use it.
-              </p>
-            </Reveal>
-
-            <Reveal>
-              <div className="pilot-terms stagger-group">
-                {PILOT_TERMS.map((t) => (
-                  <div className="promise glass glass-i glass-lit" key={t.h}>
-                    <span className="tag">{t.tag}</span>
-                    <h3>{t.h}</h3>
-                    <p>{t.d}</p>
-                  </div>
-                ))}
-              </div>
-            </Reveal>
-
-            {/* Deliberately not in a <Reveal>. This is the last section, and the
-                scroll-driven reveal only completes once an element has travelled a
-                third of the way up the viewport. Near the end of the document it
-                cannot, so on tall screens the main call to action stayed faded. */}
-            <div>
-              <div className="cta-row" style={{ justifyContent: "flex-start" }}>
-                <a className="btn btn-primary" href={PILOT_FORM_URL}>Apply for the pilot</a>
-                <a className="btn btn-ghost" href={`mailto:${CONTACT_EMAIL}`}>Talk to us</a>
-              </div>
-              <p className="pilot-note">
-                The form asks about you and where you work, and nothing about patients. Please
-                leave patient details out. <a href="/privacy">How we handle what you send</a>.
-              </p>
+            <div className="eyebrow">Get in touch</div>
+            <AnimatedText text="Run a clinic or a hospital department? [[Talk]] [[to]] [[us.]]" />
+            <p className="lede" style={{ marginTop: "1.5rem" }}>
+              Tell us where you work and what you need. We read every message and reply by email.
+            </p>
+            <div className="cta-row" style={{ justifyContent: "flex-start" }}>
+              <a className="btn btn-primary" href={CONTACT_FORM_URL}>Send us a message</a>
+              <a className="btn btn-ghost" href={`mailto:${CONTACT_EMAIL}`}>Email us</a>
             </div>
+            <p className="contact-note">
+              Please leave patient details out of your message.{" "}
+              <a href="/privacy">How we handle what you send</a>.
+            </p>
           </div>
         </section>
       </main>
@@ -313,7 +273,7 @@ export default function Page() {
             </div>
             <nav aria-label="Footer">
               <ul className="foot-links">
-                <li><a href={PILOT_FORM_URL}>Apply for the pilot</a></li>
+                <li><a href={CONTACT_FORM_URL}>Send us a message</a></li>
                 <li><a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a></li>
                 <li><a href="/privacy">Privacy</a></li>
               </ul>

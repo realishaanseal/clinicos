@@ -187,7 +187,7 @@ Built and tested:
 
 - **Backlog #37 — the public website.** `landing/`, deployed on Vercel from `main`
   with Root Directory `landing`. It holds no patient data and cannot reach the
-  clinical app. Pilot enquiries go to a Tally form; every address the site uses
+  clinical app. Enquiries go to a Tally contact form; every address the site uses
   lives in `landing/src/site.ts`. Public copy is Varaxis-branded and international
   (clinics of any size up to hospitals). The Krishnanagar field site stays in
   internal docs and pilots, not on the site.

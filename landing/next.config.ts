@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
 
   // The site never needs a camera, microphone or location, so it says so and
   // no embedded content can ask. The referrer policy sends only the origin, not
-  // the full URL, when someone clicks through to the pilot form.
+  // the full URL, when someone clicks through to the contact form.
   async headers() {
     return [
       {
