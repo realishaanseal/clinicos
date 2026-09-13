@@ -42,9 +42,9 @@ export const SCENES: Scene[] = [
   { ground: "#050416", a: "#7b5cf0", b: "#b79cff", c: "#3c1f9c", accent: "#c4b1ff" },
   // where this is — settles back toward the hero
   { ground: "#02060b", a: "#2f6df6", b: "#54e6c8", c: "#0d3170", accent: "#7cffcf" },
-  // the pilot — the invitation, so the page ends on its brightest teal
+  // get in touch — the invitation, so the page ends on its brightest teal
   { ground: "#02080d", a: "#1f7ae0", b: "#5ef0d8", c: "#0b3d66", accent: "#8ff5e2" },
 ];
 
 /** DOM ids of the sections each scene belongs to, in document order. */
-export const SCENE_ANCHORS = ["hero", "problem", "how", "privacy", "built", "tour", "scale", "status", "pilot"];
+export const SCENE_ANCHORS = ["hero", "problem", "how", "privacy", "built", "tour", "scale", "status", "contact"];

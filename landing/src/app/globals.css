@@ -462,16 +462,14 @@ footer .row { display: flex; justify-content: space-between; gap: 1.5rem; flex-w
 .foot-note { margin-top: 1.5rem; }
 
 /* ==========================================================================
-   Pilot
+   Get in touch
    ========================================================================== */
 
-.pilot-terms { display: grid; gap: 1rem; margin-top: 2.6rem; }
-@media (min-width: 900px) { .pilot-terms { grid-template-columns: repeat(3, 1fr); } }
 /* --fg-dim rather than --fg-faint: this is the line asking people to leave
    patient details out, and it sits over the brightest glow on the page. */
-.pilot-note { margin-top: 1.1rem; font-size: 0.84rem; color: var(--fg-dim); max-width: 62ch; }
+.contact-note { margin-top: 1.1rem; font-size: 0.84rem; color: var(--fg-dim); max-width: 62ch; }
 /* Links inside running text are underlined, so they don't rely on colour alone. */
-.pilot-note a, .doc p a { text-decoration: underline; text-underline-offset: 3px; }
+.contact-note a, .doc p a { text-decoration: underline; text-underline-offset: 3px; }
 
 /* ==========================================================================
    Focus

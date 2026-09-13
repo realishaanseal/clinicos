@@ -12,4 +12,4 @@ export const SITE_URL = "https://clinicos-varaxis.vercel.app";
 export const CONTACT_EMAIL = "ishaanseal@gmail.com";
 
 /** Tally form "Talk to ClinicOS". Responses land in the Tally account, never here. */
-export const PILOT_FORM_URL = "https://tally.so/r/QKbB8k";
+export const CONTACT_FORM_URL = "https://tally.so/r/QKbB8k";
