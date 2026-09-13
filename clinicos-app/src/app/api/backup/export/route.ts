@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server";
-import { exportEverything } from "@/lib/db";
+import { exportEverything, recordAudit } from "@/lib/db";
+import { requireApiUser } from "@/lib/auth";
 
 /** Everything, as JSON. Readable without ClinicOS or SQLite. */
 export async function GET() {
+  const auth = await requireApiUser("admin");
+  if (auth.denied) return auth.denied;
+
   const data = exportEverything();
   const day = new Date().toISOString().slice(0, 10);
+  recordAudit(auth.user, "export_all", "export", null, `${data.patients.length} patients`);
+
   return new NextResponse(JSON.stringify(data, null, 2), {
     headers: {
       "Content-Type": "application/json",

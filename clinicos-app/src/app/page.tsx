@@ -11,14 +11,14 @@ import NewPatient from "@/components/NewPatient";
 import Link from "next/link";
 import { parseNote } from "@/lib/types";
 import { IcDoc, IcArrow, IcAlert } from "@/components/Icons";
-import { maybeAutoBackup } from "@/lib/backup";
+import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  // Lazy daily backup. Cheap when a recent one exists, and it cannot be
-  // "switched off" by accident the way a separate scheduler can.
-  await maybeAutoBackup();
+  // Today lists diagnoses, so it is a clinical page. Staff and non-clinical
+  // admins are sent to their own home instead.
+  await requireUser("clinical");
 
   const consults = recentConsults(20);
   const unfinished = unfinishedConsults();

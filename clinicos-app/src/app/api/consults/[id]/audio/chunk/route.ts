@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getConsult, setAudioPath, markRecordingStarted } from "@/lib/db";
+import { requireApiUser } from "@/lib/auth";
 import { appendFile, mkdir, stat } from "fs/promises";
 import path from "path";
 
@@ -16,6 +17,9 @@ export const maxDuration = 60;
  * loses at most the final fragment; everything before it still decodes.
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireApiUser("clinical");
+  if (auth.denied) return auth.denied;
+
   const { id } = await params;
 
   const consult = getConsult(id);

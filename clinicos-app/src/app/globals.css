@@ -598,6 +598,126 @@ input.good { border-color: var(--teal-500); box-shadow: 0 0 0 3px rgba(20, 145, 
 
 
 /* ==========================================================================
+   Accounts — sign in, setup, password, people
+   ========================================================================== */
+
+/* The global input rule sets width: 100% and appearance: none, which makes
+   radios and checkboxes invisible. Give them their native look back. */
+input[type="radio"], input[type="checkbox"] {
+  width: auto; padding: 0; appearance: auto; accent-color: var(--teal-600); flex: none;
+}
+
+.auth {
+  min-height: 100vh; display: grid; place-items: center; align-content: center; gap: 16px;
+  padding: 32px 18px; background: var(--grad-ink);
+}
+.auth-card {
+  width: min(420px, 100%); background: var(--surface); border-radius: var(--r-xl);
+  padding: 30px 30px 26px; box-shadow: var(--sh-3);
+}
+.auth-card.wide { width: min(560px, 100%); }
+.auth-card h1 { font-size: 23px; }
+.auth-card .sub { color: var(--slate-500); font-size: 14px; margin: 6px 0 22px; }
+.auth-brand { display: flex; align-items: center; gap: 11px; margin-bottom: 24px; }
+.auth-brand .mark {
+  width: 36px; height: 36px; flex: none; border-radius: 10px; background: var(--grad-brand);
+  box-shadow: var(--sh-brand); display: grid; place-items: center;
+}
+.auth-brand .name { font-family: var(--font-display); font-size: 16px; font-weight: 680; color: var(--ink-900); line-height: 1.2; }
+.auth-brand .tag { font-size: 12.5px; color: var(--slate-500); }
+.auth-foot { margin: 0; font-size: 13px; color: #8ea19d; text-align: center; }
+
+.hint { font-size: 12.5px; color: var(--slate-500); margin: 5px 0 0; }
+
+.choice { border: 0; padding: 0; margin: 0 0 16px; display: grid; gap: 8px; min-width: 0; }
+.choice legend { font-size: 12.5px; font-weight: 620; color: var(--slate-600); margin-bottom: 6px; padding: 0; }
+.choice label {
+  display: flex; gap: 10px; align-items: flex-start; margin: 0;
+  padding: 11px 13px; border: 1px solid var(--line); border-radius: var(--r-md);
+  font-size: 14px; font-weight: 580; color: var(--ink-800); cursor: pointer;
+  transition: border-color var(--dur-1) ease, background var(--dur-1) ease;
+}
+.choice label:has(input:checked) { border-color: var(--teal-500); background: var(--teal-50); }
+.choice input { margin-top: 3px; }
+.choice small { display: block; font-size: 12.5px; font-weight: 400; color: var(--slate-500); margin-top: 1px; }
+.choice:disabled label { cursor: not-allowed; opacity: 0.6; }
+
+.check {
+  display: flex; gap: 9px; align-items: center; margin: 0 0 16px;
+  font-size: 14px; font-weight: 560; color: var(--ink-800); cursor: pointer;
+}
+
+.secret {
+  font-family: var(--font-mono); font-size: 16px; letter-spacing: 0.08em; color: var(--ink-900);
+  background: #fff; border: 1px dashed var(--teal-300); border-radius: var(--r-sm);
+  padding: 2px 9px; margin-left: 4px; user-select: all;
+}
+
+.row-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+.pill.off { background: var(--line-soft); color: var(--slate-500); border: 1px solid var(--line); }
+/* A status label broken over two lines ("In / progress") reads as two labels. */
+.pill { white-space: nowrap; }
+
+/* Five columns in the space a laptop leaves beside the menu: tighter padding
+   than the default table, and nothing that must stay on one line is allowed
+   to push the Manage button off the edge. */
+.people th, .people td { padding: 11px 14px; }
+.people th, .people .nm, .nowrap { white-space: nowrap; }
+.people .nm { font-weight: 580; }
+.people .sub { font-size: 12.5px; margin-top: 1px; }
+
+.manage-more {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  padding: 12px 0; border-top: 1px solid var(--line-soft);
+}
+.manage-more strong { display: block; font-size: 14px; font-weight: 620; }
+.manage-more .muted { display: block; }
+
+/* A dialog taller than the screen had no way to reach its buttons. Keep the
+   header and footer in view and scroll the body instead. */
+.modal { max-height: calc(100dvh - 40px); display: flex; flex-direction: column; }
+.modal-bd { overflow-y: auto; }
+.modal-hd.neutral { background: var(--grad-ink); }
+
+.visually-hidden:where(:not(:focus-within, :active)) {
+  position: absolute !important; clip-path: inset(50%) !important; overflow: hidden !important;
+  width: 1px !important; height: 1px !important; margin: -1px !important; padding: 0 !important;
+  border: 0 !important; white-space: nowrap !important;
+}
+
+/* who is signed in, at the foot of the side navigation */
+.brand .tag { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.whoami { display: flex; flex-direction: column; gap: 9px; margin-top: 14px; padding-top: 13px; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+.whoami .who { font-size: 12px; color: #8ea19d; line-height: 1.35; }
+.whoami .who strong { display: block; font-size: 13.5px; font-weight: 620; color: #fff; }
+.whoami .acts { display: flex; gap: 6px; }
+.whoami .acts a, .whoami .acts button {
+  font-size: 12.5px; font-weight: 560; color: #c9d4d2; padding: 5px 10px;
+  background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--r-sm); box-shadow: none;
+}
+.whoami .acts a:hover, .whoami .acts button:hover:not(:disabled) {
+  color: #fff; background: rgba(255, 255, 255, 0.11); transform: none; filter: none;
+}
+
+/* narrow screens: the side navigation is hidden, so give them a top bar */
+.topnav { display: none; }
+@media (max-width: 860px) {
+  .shell { flex-direction: column; }
+  .topnav {
+    display: flex; align-items: center; gap: 2px; padding: 9px 12px; overflow-x: auto;
+    background: var(--grad-ink); position: sticky; top: 0; z-index: 50;
+  }
+  .topnav a, .topnav button {
+    font-size: 13.5px; font-weight: 560; color: #c9d4d2; padding: 7px 10px; white-space: nowrap;
+    border-radius: var(--r-sm); background: none; border: 0; box-shadow: none;
+  }
+  .topnav a.active { background: rgba(94, 204, 194, 0.14); color: #fff; }
+  .topnav .spacer { flex: 1; }
+}
+@media print { .topnav { display: none !important; } }
+
+/* ==========================================================================
    Reduced motion
    This is health software; vestibular disorders are common and motion sickness
    in a clinic is not a cosmetic problem. Everything above degrades to a static

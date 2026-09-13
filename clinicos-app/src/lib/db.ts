@@ -1,9 +1,10 @@
 /**
  * Storage. Plain SQLite, no ORM.
  *
- * A single file at ./data/clinicos.db. Copy it to back up; delete it to reset.
- * When you eventually deploy, this is the layer you replace — everything above
- * it talks to the functions exported here, not to SQL.
+ * A single file at ./data/clinicos.db. Back it up with the tools in backup.ts,
+ * never by copying the file — see the WAL note there. When you eventually
+ * deploy, this is the layer you replace — everything above it talks to the
+ * functions exported here, not to SQL.
  */
 import Database from "better-sqlite3";
 import path from "path";
@@ -65,21 +66,75 @@ function open(): Database.Database {
       createdAt TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_edit_consult ON Edit(consultId);
+
+    -- Accounts, added in v1. Every database from before then has none, so
+    -- nothing may assume a row exists: an empty User table means "run setup".
+    CREATE TABLE IF NOT EXISTS User (
+      id                 TEXT PRIMARY KEY,
+      name               TEXT NOT NULL,
+      username           TEXT NOT NULL UNIQUE COLLATE NOCASE,
+      role               TEXT NOT NULL CHECK (role IN ('doctor', 'staff', 'admin')),
+      isAdmin            INTEGER NOT NULL DEFAULT 0,
+      passwordHash       TEXT NOT NULL,
+      qualification      TEXT,
+      regNo              TEXT,
+      active             INTEGER NOT NULL DEFAULT 1,
+      mustChangePassword INTEGER NOT NULL DEFAULT 0,
+      createdAt          TEXT NOT NULL,
+      lastLoginAt        TEXT
+    );
+
+    -- Only a SHA-256 of the cookie token is stored, so a copied database or a
+    -- downloaded backup cannot be used to sign in as anyone.
+    CREATE TABLE IF NOT EXISTS Session (
+      tokenHash  TEXT PRIMARY KEY,
+      userId     TEXT NOT NULL REFERENCES User(id) ON DELETE CASCADE,
+      createdAt  TEXT NOT NULL,
+      expiresAt  TEXT NOT NULL,
+      lastSeenAt TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_session_user ON Session(userId);
+
+    -- Who did what. The app only ever inserts here. userName is copied in so
+    -- the log still reads correctly after someone is renamed, and there is no
+    -- foreign key so a row outlives anything it refers to. Never put a
+    -- patient's name in detail: a deleted record must not survive in the log.
+    CREATE TABLE IF NOT EXISTS AuditEvent (
+      id         TEXT PRIMARY KEY,
+      userId     TEXT,
+      userName   TEXT,
+      action     TEXT NOT NULL,
+      targetType TEXT,
+      targetId   TEXT,
+      detail     TEXT,
+      at         TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_audit_at ON AuditEvent(at);
+
+    -- Clinic identity edited in the app. Falls back to .env (see clinic.ts).
+    CREATE TABLE IF NOT EXISTS Setting (
+      key   TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
   `);
 
   // Columns added after the first release. SQLite has no "ADD COLUMN IF NOT
   // EXISTS", so check what is already there. Existing pilot databases must
   // survive an upgrade untouched — never drop and recreate.
-  const have = new Set(
-    (db.prepare(`PRAGMA table_info(Consult)`).all() as { name: string }[]).map((c) => c.name)
-  );
-  const add = (col: string, decl: string) => {
-    if (have.has(col)) return;
+  const known = new Map<string, Set<string>>();
+  const addColumn = (table: string, col: string, decl: string) => {
+    if (!known.has(table)) {
+      known.set(
+        table,
+        new Set((db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((c) => c.name))
+      );
+    }
+    if (known.get(table)!.has(col)) return;
     try {
-      db.exec(`ALTER TABLE Consult ADD COLUMN ${col} ${decl}`);
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${decl}`);
     } catch (e) {
-      // `have` is a snapshot taken before this loop, so another process can add
-      // the column in between and make it stale. That is not hypothetical:
+      // The snapshot above is taken before these run, so another process can
+      // add the column in between and make it stale. That is not hypothetical:
       // `next build` collects page data in parallel workers, each of which
       // imports this module and runs these migrations against the same file.
       // SQLite has no "ADD COLUMN IF NOT EXISTS", so losing the race is benign
@@ -87,10 +142,12 @@ function open(): Database.Database {
       if (!/duplicate column name/i.test(String((e as Error)?.message))) throw e;
     }
   };
-  add("workingJson", "TEXT");      // the doctor's in-progress edits, autosaved
-  add("workingSavedAt", "TEXT");
-  add("recordingStartedAt", "TEXT");
-  add("recordingEndedAt", "TEXT"); // null while a recording is still open
+  addColumn("Consult", "workingJson", "TEXT");      // the doctor's in-progress edits, autosaved
+  addColumn("Consult", "workingSavedAt", "TEXT");
+  addColumn("Consult", "recordingStartedAt", "TEXT");
+  addColumn("Consult", "recordingEndedAt", "TEXT"); // null while a recording is still open
+  addColumn("Consult", "createdBy", "TEXT");        // v1: the account that opened the consultation
+  addColumn("Consult", "doctorId", "TEXT");         // v1: the doctor who signed; NULL on older rows
 
   return db;
 }
@@ -116,7 +173,9 @@ export function reopenDatabase(): void {
 }
 
 /** Full human-readable export. Deliberately independent of SQLite so the
- *  clinic's records survive even if this app does not. */
+ *  clinic's records survive even if this app does not. Accounts and sessions
+ *  are left out: they are not clinical records, and hashes have no business
+ *  in a file people email around. */
 export function exportEverything() {
   const patients = getDb().prepare(`SELECT * FROM Patient ORDER BY createdAt`).all() as Patient[];
   return {
@@ -182,6 +241,8 @@ export type Consult = {
   llmModel: string | null;
   llmSeconds: number | null;
   signedAt: string | null;
+  createdBy: string | null;
+  doctorId: string | null;
   createdAt: string;
 };
 
@@ -218,9 +279,11 @@ export function searchPatients(q: string): (Patient & { consultCount: number })[
 }
 
 // ---------------------------------------------------------------- consults
-export function createConsult(patientId: string): Consult {
+export function createConsult(patientId: string, createdBy: string | null = null): Consult {
   const id = newId();
-  getDb().prepare(`INSERT INTO Consult (id, patientId, createdAt) VALUES (?, ?, ?)`).run(id, patientId, now());
+  getDb()
+    .prepare(`INSERT INTO Consult (id, patientId, createdBy, createdAt) VALUES (?, ?, ?, ?)`)
+    .run(id, patientId, createdBy, now());
   return getConsult(id)!;
 }
 
@@ -288,13 +351,13 @@ export function setDraft(id: string, transcript: string, draftJson: string, mode
   ).run(transcript, draftJson, model, seconds, id);
 }
 
-export function signConsult(id: string, finalJson: string, audioDeleted: boolean) {
+export function signConsult(id: string, finalJson: string, audioDeleted: boolean, doctorId: string | null) {
   getDb().prepare(
     `UPDATE Consult
      SET finalJson = ?, signedAt = ?, audioPath = NULL, audioDeletedAt = ?,
-         workingJson = NULL, recordingEndedAt = COALESCE(recordingEndedAt, ?)
+         workingJson = NULL, recordingEndedAt = COALESCE(recordingEndedAt, ?), doctorId = ?
      WHERE id = ?`
-  ).run(finalJson, now(), audioDeleted ? now() : null, now(), id);
+  ).run(finalJson, now(), audioDeleted ? now() : null, now(), doctorId, id);
 }
 
 // ------------------------------------------------------------------- edits
@@ -476,4 +539,272 @@ export function unfinishedConsults(): UnfinishedConsult[] {
       return { ...c, patient, reason };
     })
     .filter(Boolean) as UnfinishedConsult[];
+}
+
+// ---------------------------------------------------------------- accounts
+export type Role = "doctor" | "staff" | "admin";
+
+export type UserRow = {
+  id: string;
+  name: string;
+  username: string;
+  role: Role;
+  isAdmin: number;
+  passwordHash: string;
+  qualification: string | null;
+  regNo: string | null;
+  active: number;
+  mustChangePassword: number;
+  createdAt: string;
+  lastLoginAt: string | null;
+};
+
+/** A user row that is safe to hand to a page: no password hash. */
+export type PublicUser = Omit<UserRow, "passwordHash">;
+
+const PUBLIC_USER_COLUMNS =
+  "id, name, username, role, isAdmin, qualification, regNo, active, mustChangePassword, createdAt, lastLoginAt";
+
+/** Admin access follows from the role for staff and admins; only a doctor's is
+ *  a separate choice. Normalising here means no row can say "staff, admin". */
+function adminFlag(role: Role, isAdmin: boolean): number {
+  if (role === "admin") return 1;
+  if (role === "staff") return 0;
+  return isAdmin ? 1 : 0;
+}
+
+export function countUsers(): number {
+  return (getDb().prepare(`SELECT COUNT(*) AS n FROM User`).get() as { n: number }).n;
+}
+
+/** People who can still manage the clinic. Guards against locking everyone out. */
+export function countActiveAdmins(): number {
+  return (
+    getDb().prepare(`SELECT COUNT(*) AS n FROM User WHERE active = 1 AND isAdmin = 1`).get() as { n: number }
+  ).n;
+}
+
+export function getUserRow(id: string): UserRow | undefined {
+  return getDb().prepare(`SELECT * FROM User WHERE id = ?`).get(id) as UserRow | undefined;
+}
+
+export function getUserPublic(id: string): PublicUser | undefined {
+  return getDb().prepare(`SELECT ${PUBLIC_USER_COLUMNS} FROM User WHERE id = ?`).get(id) as PublicUser | undefined;
+}
+
+export function getUserByUsername(username: string): UserRow | undefined {
+  return getDb().prepare(`SELECT * FROM User WHERE username = ?`).get(username) as UserRow | undefined;
+}
+
+export function listUsers(): PublicUser[] {
+  return getDb()
+    .prepare(`SELECT ${PUBLIC_USER_COLUMNS} FROM User ORDER BY active DESC, name COLLATE NOCASE`)
+    .all() as PublicUser[];
+}
+
+export type NewUser = {
+  name: string;
+  username: string;
+  role: Role;
+  isAdmin: boolean;
+  passwordHash: string;
+  qualification?: string | null;
+  regNo?: string | null;
+  mustChangePassword: boolean;
+};
+
+export function createUser(u: NewUser): UserRow {
+  const id = newId();
+  getDb()
+    .prepare(
+      `INSERT INTO User (id, name, username, role, isAdmin, passwordHash, qualification, regNo,
+                         active, mustChangePassword, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`
+    )
+    .run(
+      id,
+      u.name,
+      u.username,
+      u.role,
+      adminFlag(u.role, u.isAdmin),
+      u.passwordHash,
+      u.qualification || null,
+      u.regNo || null,
+      u.mustChangePassword ? 1 : 0,
+      now()
+    );
+  return getUserRow(id)!;
+}
+
+/**
+ * The first account, created from /setup. The emptiness check and the insert
+ * share one transaction, so two browsers submitting setup at the same moment
+ * cannot both become the owner.
+ */
+export function createFirstAccount(u: NewUser, clinicName: string): UserRow | null {
+  const tx = getDb().transaction(() => {
+    if (countUsers() > 0) return null;
+    const user = createUser(u);
+    setSettings({ clinic_name: clinicName });
+    return user;
+  });
+  return tx();
+}
+
+export type UserPatch = {
+  name?: string;
+  role?: Role;
+  isAdmin?: boolean;
+  qualification?: string | null;
+  regNo?: string | null;
+  active?: boolean;
+};
+
+export function updateUser(id: string, patch: UserPatch) {
+  const current = getUserRow(id);
+  if (!current) return;
+  const role = patch.role ?? current.role;
+  const isAdmin = adminFlag(role, patch.isAdmin ?? !!current.isAdmin);
+  getDb()
+    .prepare(
+      `UPDATE User SET name = ?, role = ?, isAdmin = ?, qualification = ?, regNo = ?, active = ? WHERE id = ?`
+    )
+    .run(
+      patch.name ?? current.name,
+      role,
+      isAdmin,
+      patch.qualification !== undefined ? patch.qualification : current.qualification,
+      patch.regNo !== undefined ? patch.regNo : current.regNo,
+      patch.active !== undefined ? (patch.active ? 1 : 0) : current.active,
+      id
+    );
+}
+
+export function setUserPassword(id: string, passwordHash: string, mustChange: boolean) {
+  getDb()
+    .prepare(`UPDATE User SET passwordHash = ?, mustChangePassword = ? WHERE id = ?`)
+    .run(passwordHash, mustChange ? 1 : 0, id);
+}
+
+export function touchLogin(id: string) {
+  getDb().prepare(`UPDATE User SET lastLoginAt = ? WHERE id = ?`).run(now(), id);
+}
+
+/** Put an account back exactly as it was, hash included. Used after restoring a
+ *  backup that predates accounts, so the person restoring is not locked out. */
+export function reinsertUserRow(row: UserRow) {
+  getDb()
+    .prepare(
+      `INSERT OR IGNORE INTO User (id, name, username, role, isAdmin, passwordHash, qualification, regNo,
+                                   active, mustChangePassword, createdAt, lastLoginAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .run(
+      row.id, row.name, row.username, row.role, row.isAdmin, row.passwordHash, row.qualification,
+      row.regNo, row.active, row.mustChangePassword, row.createdAt, row.lastLoginAt
+    );
+}
+
+// ---------------------------------------------------------------- sessions
+export type SessionJoin = {
+  tokenHash: string;
+  expiresAt: string;
+  lastSeenAt: string;
+  id: string;
+  name: string;
+  username: string;
+  role: Role;
+  isAdmin: number;
+  qualification: string | null;
+  regNo: string | null;
+  mustChangePassword: number;
+};
+
+export function insertSession(tokenHash: string, userId: string, expiresAt: string) {
+  const t = now();
+  getDb()
+    .prepare(`INSERT INTO Session (tokenHash, userId, createdAt, expiresAt, lastSeenAt) VALUES (?, ?, ?, ?, ?)`)
+    .run(tokenHash, userId, t, expiresAt, t);
+}
+
+/** A live session and its account. Deactivated accounts and expired sessions
+ *  simply do not match, so there is no separate check to forget. */
+export function getSessionUser(tokenHash: string): SessionJoin | undefined {
+  return getDb()
+    .prepare(
+      `SELECT s.tokenHash, s.expiresAt, s.lastSeenAt,
+              u.id, u.name, u.username, u.role, u.isAdmin, u.qualification, u.regNo, u.mustChangePassword
+       FROM Session s JOIN User u ON u.id = s.userId
+       WHERE s.tokenHash = ? AND s.expiresAt > ? AND u.active = 1`
+    )
+    .get(tokenHash, now()) as SessionJoin | undefined;
+}
+
+export function touchSession(tokenHash: string, expiresAt: string) {
+  getDb().prepare(`UPDATE Session SET lastSeenAt = ?, expiresAt = ? WHERE tokenHash = ?`).run(now(), expiresAt, tokenHash);
+}
+
+export function deleteSession(tokenHash: string) {
+  getDb().prepare(`DELETE FROM Session WHERE tokenHash = ?`).run(tokenHash);
+}
+
+export function deleteSessionsForUser(userId: string, exceptTokenHash: string | null = null) {
+  if (exceptTokenHash) {
+    getDb().prepare(`DELETE FROM Session WHERE userId = ? AND tokenHash != ?`).run(userId, exceptTokenHash);
+  } else {
+    getDb().prepare(`DELETE FROM Session WHERE userId = ?`).run(userId);
+  }
+}
+
+export function pruneExpiredSessions() {
+  getDb().prepare(`DELETE FROM Session WHERE expiresAt <= ?`).run(now());
+}
+
+// ------------------------------------------------------------------- audit
+export type AuditActor = { id: string; name: string } | null;
+
+export type AuditEvent = {
+  id: string;
+  userId: string | null;
+  userName: string | null;
+  action: string;
+  targetType: string | null;
+  targetId: string | null;
+  detail: string | null;
+  at: string;
+};
+
+export function recordAudit(
+  actor: AuditActor,
+  action: string,
+  targetType: string | null = null,
+  targetId: string | null = null,
+  detail: string | null = null
+) {
+  getDb()
+    .prepare(
+      `INSERT INTO AuditEvent (id, userId, userName, action, targetType, targetId, detail, at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .run(newId(), actor?.id ?? null, actor?.name ?? null, action, targetType, targetId, detail, now());
+}
+
+export function listAudit(limit = 300): AuditEvent[] {
+  return getDb().prepare(`SELECT * FROM AuditEvent ORDER BY at DESC LIMIT ?`).all(limit) as AuditEvent[];
+}
+
+// ---------------------------------------------------------------- settings
+export function getSettings(): Record<string, string> {
+  const rows = getDb().prepare(`SELECT key, value FROM Setting`).all() as { key: string; value: string }[];
+  return Object.fromEntries(rows.map((r) => [r.key, r.value]));
+}
+
+export function setSettings(values: Record<string, string>) {
+  const stmt = getDb().prepare(
+    `INSERT INTO Setting (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`
+  );
+  const tx = getDb().transaction((entries: [string, string][]) => {
+    for (const [k, v] of entries) stmt.run(k, v);
+  });
+  tx(Object.entries(values));
 }

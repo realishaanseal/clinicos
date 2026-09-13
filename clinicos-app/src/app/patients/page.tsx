@@ -1,6 +1,7 @@
 import { searchPatients } from "@/lib/db";
 import Link from "next/link";
 import { IcUsers, IcArrow } from "@/components/Icons";
+import { can, requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,10 @@ export default async function PatientsPage({
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
+  const user = await requireUser("frontdesk");
+  // Front desk can find a patient; only a doctor can open their clinical history.
+  const canOpen = can(user, "clinical");
+
   const { q } = await searchParams;
   const patients = searchPatients(q || "");
 
@@ -36,7 +41,7 @@ export default async function PatientsPage({
             <div className="big" style={{ marginTop: 10 }}>
               {q ? "No patient by that name" : "No patients yet"}
             </div>
-            <div>{q ? "Try a shorter search." : "Start a consultation from Today."}</div>
+            <div>{q ? "Try a shorter search." : canOpen ? "Start a consultation from Today." : "Nobody has been registered yet."}</div>
           </div>
         ) : (
           <table>
@@ -53,15 +58,17 @@ export default async function PatientsPage({
               {patients.map((p) => (
                 <tr key={p.id}>
                   <td style={{ fontWeight: 580 }}>
-                    <Link href={`/patients/${p.id}`}>{p.name}</Link>
+                    {canOpen ? <Link href={`/patients/${p.id}`}>{p.name}</Link> : p.name}
                   </td>
                   <td className="dim">{p.age ?? "—"}</td>
                   <td className="dim">{p.phone || "—"}</td>
                   <td className="dim">{p.consultCount}</td>
                   <td style={{ textAlign: "right" }}>
-                    <Link href={`/patients/${p.id}`} aria-label={`Open ${p.name}`}>
-                      <IcArrow size={16} />
-                    </Link>
+                    {canOpen && (
+                      <Link href={`/patients/${p.id}`} aria-label={`Open ${p.name}`}>
+                        <IcArrow size={16} />
+                      </Link>
+                    )}
                   </td>
                 </tr>
               ))}

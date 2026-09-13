@@ -1,16 +1,25 @@
-import { getConsultWithPatient } from "@/lib/db";
+import { getConsultWithPatient, getUserPublic } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { parseNote } from "@/lib/types";
 import ConsultWorkflow from "@/components/ConsultWorkflow";
-import { clinic } from "@/lib/clinic";
+import { prescriptionIdentity } from "@/lib/clinic";
+import { requireUser } from "@/lib/auth";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 export default async function ConsultPage({ params }: { params: Promise<{ id: string }> }) {
+  const user = await requireUser("clinical");
+
   const { id } = await params;
   const c = getConsultWithPatient(id);
   if (!c) notFound();
+
+  // The letterhead names the doctor who signed. While unsigned, that is the
+  // doctor working on it now. Notes signed before accounts existed have no
+  // doctor recorded and keep the old .env doctor.
+  const signer = c.doctorId ? getUserPublic(c.doctorId) ?? null : null;
+  const identity = prescriptionIdentity(c.signedAt ? signer : user);
 
   return (
     <div className="page">
@@ -55,7 +64,7 @@ export default async function ConsultPage({ params }: { params: Promise<{ id: st
           llmModel: c.llmModel,
           llmSeconds: c.llmSeconds,
         }}
-        clinic={clinic}
+        clinic={identity}
       />
     </div>
   );

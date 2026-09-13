@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPatient, deletePatientCascade } from "@/lib/db";
+import { getPatient, deletePatientCascade, recordAudit } from "@/lib/db";
+import { requireApiUser } from "@/lib/auth";
 import { unlink } from "fs/promises";
 
 /**
@@ -10,6 +11,9 @@ import { unlink } from "fs/promises";
  * "I clicked the wrong row in a list of sixty".
  */
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireApiUser("admin");
+  if (auth.denied) return auth.denied;
+
   const { id } = await params;
 
   const patient = getPatient(id);
@@ -40,6 +44,16 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       /* already gone */
     }
   }
+
+  // Deliberately no name in the log. This is often an erasure request, and the
+  // activity log must not become the one place the patient still exists.
+  recordAudit(
+    auth.user,
+    "patient_delete",
+    "patient",
+    id,
+    `${report.consultsDeleted} consultation${report.consultsDeleted === 1 ? "" : "s"} removed`
+  );
 
   return NextResponse.json({ ok: true, ...report, audioDeleted });
 }

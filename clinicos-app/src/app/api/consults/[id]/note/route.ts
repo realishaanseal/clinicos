@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { getConsult, setDraft, previousSignedConsults } from "@/lib/db";
 import { getLlm } from "@/lib/llm";
 import { parseNote } from "@/lib/types";
+import { requireApiUser } from "@/lib/auth";
 
 export const maxDuration = 600;
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireApiUser("clinical");
+  if (auth.denied) return auth.denied;
+
   const { id } = await params;
   const consult = getConsult(id);
   if (!consult) return NextResponse.json({ error: "Consult not found" }, { status: 404 });

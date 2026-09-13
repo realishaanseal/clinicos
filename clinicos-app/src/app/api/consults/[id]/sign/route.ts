@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getConsult, addEdits, signConsult } from "@/lib/db";
+import { getConsult, addEdits, signConsult, recordAudit } from "@/lib/db";
 import { parseNote, NOTE_FIELDS, ClinicalNote } from "@/lib/types";
+import { requireApiUser } from "@/lib/auth";
 import { unlink } from "fs/promises";
 
 function asText(v: unknown): string {
@@ -10,12 +11,17 @@ function asText(v: unknown): string {
 }
 
 /**
- * Signing does three things, in this order:
+ * Signing does four things, in this order:
  *   1. diffs the doctor's version against the AI draft and logs every change
- *   2. stores the signed note
+ *   2. stores the signed note, with the signing doctor's account
  *   3. deletes the raw audio — the promise made in the consent script
+ *   4. records the signature in the activity log
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  // Signing is the clinical act. Only a doctor's account may do it.
+  const auth = await requireApiUser("clinical");
+  if (auth.denied) return auth.denied;
+
   const { id } = await params;
   const consult = getConsult(id);
   if (!consult) return NextResponse.json({ error: "Consult not found" }, { status: 404 });
@@ -44,6 +50,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     audioDeleted = true;
   }
 
-  signConsult(id, JSON.stringify(final), audioDeleted);
+  signConsult(id, JSON.stringify(final), audioDeleted, auth.user.id);
+  recordAudit(
+    auth.user,
+    "consult_sign",
+    "consult",
+    id,
+    `${edits.length} correction${edits.length === 1 ? "" : "s"} to the draft${audioDeleted ? ", audio deleted" : ""}`
+  );
   return NextResponse.json({ ok: true, editCount: edits.length, audioDeleted });
 }

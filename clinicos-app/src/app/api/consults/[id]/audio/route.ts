@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getConsult, setAudio } from "@/lib/db";
+import { requireApiUser } from "@/lib/auth";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireApiUser("clinical");
+  if (auth.denied) return auth.denied;
+
   const { id } = await params;
   const consult = getConsult(id);
   if (!consult) return NextResponse.json({ error: "Consult not found" }, { status: 404 });

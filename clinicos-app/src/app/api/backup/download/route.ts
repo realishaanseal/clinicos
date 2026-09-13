@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createBackup, backupPathFor, BACKUP_DIR } from "@/lib/backup";
+import { recordAudit } from "@/lib/db";
+import { requireApiUser } from "@/lib/auth";
 import { readFile } from "fs/promises";
 import path from "path";
 
 /** Download an existing backup by name, or make a fresh one and send that. */
 export async function GET(req: NextRequest) {
+  const auth = await requireApiUser("admin");
+  if (auth.denied) return auth.denied;
+
   const name = req.nextUrl.searchParams.get("name");
 
   let filePath: string | null;
@@ -21,6 +26,9 @@ export async function GET(req: NextRequest) {
   }
 
   const buf = await readFile(filePath);
+  // Every copy of the whole database that leaves this machine is logged.
+  recordAudit(auth.user, "backup_download", "backup", null, fileName);
+
   return new NextResponse(new Uint8Array(buf), {
     headers: {
       "Content-Type": "application/x-sqlite3",

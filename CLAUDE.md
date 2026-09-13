@@ -111,20 +111,28 @@ downloads were blocked — and it is not coming back.
 clinicos-app/
   src/lib/
     db.ts            all storage. schema, migrations, every query. no ORM.
+    auth.ts          passwords (scrypt), sessions, requireUser / requireApiUser, roles
+    session-cookie.ts  cookie name + idle limit shared with middleware (no Node imports)
+    users.ts         role labels and account validation, safe for client components
     backup.ts        snapshot / restore / retention
     asr.ts           speech-to-text provider interface (local | http)
     llm.ts           note generation provider interface (ollama | openai)
                      SYSTEM_PROMPT lives here — the clinical safety text
     types.ts         ClinicalNote shape and parseNote()
-    clinic.ts        clinic identity read from env
+    clinic.ts        clinic identity: Setting table first, .env as fallback
     useRecorder.ts   streams 5-second audio chunks to disk while recording
     useAutosave.ts   debounced server save + localStorage mirror
+  src/middleware.ts       redirects to /login when there is no session cookie (only)
   src/components/
     ConsultWorkflow.tsx   the 4-step consultation UI
     Prescription.tsx      printable A4 prescription
-    BackupPanel.tsx       settings: backup, restore, export
+    BackupPanel.tsx       clinic admin: backup, restore, export
     DeletePatient.tsx     type-the-name-to-confirm deletion
-  src/app/api/            route handlers
+    UsersAdmin.tsx        clinic admin: add people, manage access, reset passwords
+  src/app/setup, login    first-run owner account; sign-in
+  src/app/admin/          clinic details, people, activity log, backups, deletion
+  src/app/api/            route handlers — every one starts with requireApiUser()
+  scripts/reset-password.mjs   npm run reset-password -- <username>, at the laptop
   asr/server.py           FastAPI + faster-whisper sidecar
   go.sh                   setup and launch
 landing/                  public website. static Next.js, no database, no API
@@ -141,7 +149,31 @@ not call Ollama or Whisper directly from a component or route.
 `PRAGMA table_info` and conditionally runs `ALTER TABLE`. Safe to re-run. Existing
 pilot databases must survive upgrades — never drop and recreate a table.
 
-Tables: `Patient`, `Consult`, `Edit`.
+Tables: `Patient`, `Consult`, `Edit`, and since v1 `User`, `Session`, `AuditEvent`, `Setting`.
+
+**Accounts and permissions (v1).** The first run opens `/setup`, which creates the
+owner account and then refuses forever. Every page calls `requireUser()` and every
+route handler calls `requireApiUser()` with the capability it needs — hiding a link
+is never the control:
+
+| Capability | doctor | staff | admin |
+|---|---|---|---|
+| `clinical` — transcripts, notes, signing, prescriptions, patient history | yes | no | no |
+| `frontdesk` — register and find patients, record consent | yes | yes | no |
+| `admin` — people, clinic details, backups, export, deletion, activity log | if `isAdmin` | no | yes |
+
+- A non-clinical admin never sees clinical notes. A doctor who owns the clinic is
+  `role=doctor, isAdmin=1`.
+- `middleware.ts` runs on the Edge runtime, where `better-sqlite3` cannot load, so it
+  only checks that a session cookie exists. The real check is always in the handler.
+- Only SHA-256 hashes of session tokens are stored. Sessions slide on a 12-hour idle
+  limit so nobody is signed out mid-recording.
+- Never write a patient's name into `AuditEvent.detail`: a deleted record must not
+  survive in the activity log.
+- A restore brings back the backup's accounts. If the backup predates accounts, the
+  restoring admin is kept so `/setup` never reopens.
+- Clinic identity is edited in Clinic admin (`Setting`); `.env` is only the fallback.
+  A locked-out owner runs `npm run reset-password -- <username>` at the laptop.
 
 ---
 
@@ -191,12 +223,18 @@ Built and tested:
   lives in `landing/src/site.ts`. Public copy is Varaxis-branded and international
   (clinics of any size up to hospitals). The Krishnanagar field site stays in
   internal docs and pilots, not on the site.
+- **v1 Part A — accounts, roles, permissions, and the activity log (backlog #4).**
+  On branch `v1`. Verified with a 99-check permission matrix over HTTP against a
+  seeded copy of a prototype database (every existing record unchanged), plus the
+  reset-password script and restoring a pre-accounts backup.
 
-Next in `docs/ClinicOS_Backlog.md`: #3 speed pass, #4 audit log, #5 queue,
-#8 search by phone. Numbered 1–37 across tiers 0–7.
+Next, in order: v1 Part B (role dashboards, the front-desk queue — backlog #5 —
+and search by phone — #8), Part C (patient portal: a doctor shares a signed visit
+with the patient's consent), Part D (invariant 2, consent script and website copy
+updated to match). Then #3 speed pass. Backlog numbered 1–37 across tiers 0–7.
 
 **Not built and deliberately so:** hosting or deploying the clinical app,
-standalone desktop packaging, multi-doctor accounts, any AI beyond transcription
+standalone desktop packaging, multi-clinic accounts, any AI beyond transcription
 and note drafting.
 
 ---

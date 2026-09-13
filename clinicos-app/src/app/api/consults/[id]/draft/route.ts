@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getConsult, saveWorking } from "@/lib/db";
+import { requireApiUser } from "@/lib/auth";
 
 /**
  * Autosave of work in progress — the corrected transcript and the doctor's
@@ -9,6 +10,9 @@ import { getConsult, saveWorking } from "@/lib/db";
  * stay untouched or the edit diff produced at signing becomes a lie.
  */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireApiUser("clinical");
+  if (auth.denied) return auth.denied;
+
   const { id } = await params;
   const consult = getConsult(id);
   if (!consult) return NextResponse.json({ error: "Consult not found" }, { status: 404 });
@@ -23,3 +27,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   saveWorking(id, transcript, note);
   return NextResponse.json({ ok: true, savedAt: new Date().toISOString() });
 }
+
+// The last-gasp save in useAutosave uses navigator.sendBeacon, which can only
+// POST. Without this the beacon got a 405 and that final save never landed.
+export const POST = PATCH;

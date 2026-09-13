@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getConsult, setTranscript } from "@/lib/db";
 import { getAsr } from "@/lib/asr";
+import { requireApiUser } from "@/lib/auth";
 import { readFile } from "fs/promises";
 import path from "path";
 
 export const maxDuration = 600;
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireApiUser("clinical");
+  if (auth.denied) return auth.denied;
+
   const { id } = await params;
   const consult = getConsult(id);
   if (!consult) return NextResponse.json({ error: "Consult not found" }, { status: 404 });

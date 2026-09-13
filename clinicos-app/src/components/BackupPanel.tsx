@@ -62,12 +62,15 @@ export default function BackupPanel({
       setMsg(
         `Restored — ${data.counts.patients} patients, ${data.counts.consults} consultations. ` +
           `Your previous data was saved as ${data.safetyCopy} in case this was a mistake. ` +
+          `Accounts come from the backup as well, so everyone needs to sign in again. ` +
           `Restart ClinicOS to be certain everything is reading the new database.`
       );
       setRestoreOpen(false);
       setFile(null);
       setTyped("");
-      router.refresh();
+      // No router.refresh() here. The restore replaced the sessions too, so a
+      // refresh would jump straight to the sign-in page before anyone could
+      // read the message above.
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -187,7 +190,8 @@ export default function BackupPanel({
               Restoring <strong>replaces everything currently in ClinicOS</strong> with the contents of
               the backup file. Any consultation recorded since that backup was taken will be gone.
               ClinicOS saves a copy of your current data first, so a mistake here is recoverable — but
-              do not do this casually.
+              do not do this casually. Accounts and passwords are restored along with the records; if the
+              backup is older than accounts, your own account is kept so you can still sign in.
             </span>
           </div>
 

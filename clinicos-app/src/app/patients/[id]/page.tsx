@@ -4,10 +4,13 @@ import { parseNote } from "@/lib/types";
 import Link from "next/link";
 import NewConsultButton from "@/components/NewConsultButton";
 import { IcDoc, IcArrow } from "@/components/Icons";
+import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function PatientPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireUser("clinical");
+
   const { id } = await params;
   const patient = getPatient(id);
   if (!patient) notFound();
