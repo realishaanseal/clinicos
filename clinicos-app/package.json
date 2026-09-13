@@ -9,7 +9,8 @@
     "asr": "cd asr && ./.venv/bin/python server.py",
     "setup": "bash scripts/setup.sh",
     "asr:win": "asr\\.venv\\Scripts\\python.exe asr\\server.py",
-    "reset-password": "node scripts/reset-password.mjs"
+    "reset-password": "node scripts/reset-password.mjs",
+    "test:e2e": "node scripts/test/run.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",

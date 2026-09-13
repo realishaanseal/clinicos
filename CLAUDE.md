@@ -4,6 +4,11 @@ Read this before changing anything. It exists so a session on any machine starts
 with the same understanding, and so that decisions already argued through are not
 quietly reversed.
 
+**What is built and live, every decision already made, and what comes next are in
+[CONTEXT.md](CONTEXT.md).** Read it as well, and update it when you finish a piece of
+work. These rules apply to every assistant, not only Claude; `AGENTS.md` points
+other tools here.
+
 ---
 
 ## What this is
@@ -17,8 +22,8 @@ dropped. ClinicOS records the consultation that was already happening, transcrib
 it locally, drafts a structured clinical note, and asks the doctor only to review
 and sign. A branded prescription prints from the signed note.
 
-Everything runs on the clinic's own laptop. No cloud, no account, no internet
-required.
+Everything runs on the clinic's own laptop, with no cloud and no internet required.
+Since v1, people sign in with accounts that also live only on that laptop.
 
 **Owner:** Ishaan Seal — part-time student founder, near-zero capital. Assume
 constrained time and money in every recommendation.
@@ -74,8 +79,11 @@ Ollama on `:11434`.
 Mac app (`ollama pull qwen2.5:7b-instruct`). Homebrew is *not* required — `go.sh`
 looks for Ollama at several paths.
 
-Copy `.env.example` to `.env` and set the clinic identity fields. They print on
-every prescription and still default to "Demo Clinic" / "Dr. Demo".
+Copy `.env.example` to `.env`. On the first run the app opens `/setup` to create the
+owner account — do this straight away, because until an account exists anyone who
+reaches the app could claim it. Clinic details are then edited in Clinic admin; the
+clinic fields in `.env` are only a fallback and still default to "Demo Clinic" /
+"Dr. Demo".
 
 ### On Windows
 
@@ -122,10 +130,13 @@ clinicos-app/
     clinic.ts        clinic identity: Setting table first, .env as fallback
     useRecorder.ts   streams 5-second audio chunks to disk while recording
     useAutosave.ts   debounced server save + localStorage mirror
+    useQueue.ts      polls today's list every 5 seconds while the tab is visible
   src/middleware.ts       redirects to /login when there is no session cookie (only)
   src/components/
     ConsultWorkflow.tsx   the 4-step consultation UI
     Prescription.tsx      printable A4 prescription
+    FrontDeskToday.tsx    the front desk's Today: find, register, today's list
+    WaitingPanel.tsx      the doctor's "Waiting now" and Start visit
     BackupPanel.tsx       clinic admin: backup, restore, export
     DeletePatient.tsx     type-the-name-to-confirm deletion
     UsersAdmin.tsx        clinic admin: add people, manage access, reset passwords
@@ -133,6 +144,7 @@ clinicos-app/
   src/app/admin/          clinic details, people, activity log, backups, deletion
   src/app/api/            route handlers — every one starts with requireApiUser()
   scripts/reset-password.mjs   npm run reset-password -- <username>, at the laptop
+  scripts/test/           npm run test:e2e — see Tooling
   asr/server.py           FastAPI + faster-whisper sidecar
   go.sh                   setup and launch
 landing/                  public website. static Next.js, no database, no API
@@ -149,7 +161,8 @@ not call Ollama or Whisper directly from a component or route.
 `PRAGMA table_info` and conditionally runs `ALTER TABLE`. Safe to re-run. Existing
 pilot databases must survive upgrades — never drop and recreate a table.
 
-Tables: `Patient`, `Consult`, `Edit`, and since v1 `User`, `Session`, `AuditEvent`, `Setting`.
+Tables: `Patient`, `Consult`, `Edit`, and since v1 `User`, `Session`, `AuditEvent`,
+`Setting`, `QueueEntry`.
 
 **Accounts and permissions (v1).** The first run opens `/setup`, which creates the
 owner account and then refuses forever. Every page calls `requireUser()` and every
@@ -159,7 +172,7 @@ is never the control:
 | Capability | doctor | staff | admin |
 |---|---|---|---|
 | `clinical` — transcripts, notes, signing, prescriptions, patient history | yes | no | no |
-| `frontdesk` — register and find patients, record consent | yes | yes | no |
+| `frontdesk` — register and find patients, today's list, record consent | yes | yes | no |
 | `admin` — people, clinic details, backups, export, deletion, activity log | if `isAdmin` | no | yes |
 
 - A non-clinical admin never sees clinical notes. A doctor who owns the clinic is
@@ -174,6 +187,10 @@ is never the control:
   restoring admin is kept so `/setup` never reopens.
 - Clinic identity is edited in Clinic admin (`Setting`); `.env` is only the fallback.
   A locked-out owner runs `npm run reset-password -- <username>` at the laptop.
+- The front desk's Today renders before any clinical query runs. Keep it that way:
+  nothing clinical may reach a page or API a front-desk account can open.
+- "Today" means the clinic computer's local date (`localDay()` in `db.ts`), never the
+  UTC date — in India a UTC date files everything before 05:30 under yesterday.
 
 ---
 
@@ -201,6 +218,11 @@ is never the control:
   `setsid ... < /dev/null &` and allow a real warm-up before curling.
 - **A truncated WebM still decodes** up to the truncation point. This is desirable:
   it is what makes partial-recording recovery work. Do not "fix" it.
+- **`next build` runs the migrations.** It imports `db.ts` while collecting page
+  data, so it opens whatever `DB_PATH` points at. Build with the test database in
+  `DB_PATH` when testing, as `npm run test:e2e` does.
+- **Never test against `data/`.** It is the clinic's real database. Test accounts
+  created there would become the clinic's accounts.
 
 ---
 
@@ -224,17 +246,17 @@ Built and tested:
   (clinics of any size up to hospitals). The Krishnanagar field site stays in
   internal docs and pilots, not on the site.
 - **v1 Part A — accounts, roles, permissions, and the activity log (backlog #4).**
-  On branch `v1`. Verified with a 99-check permission matrix over HTTP against a
-  seeded copy of a prototype database (every existing record unchanged), plus the
+  In `main`. Verified by `npm run test:e2e`: the permission matrix over HTTP against
+  a seeded prototype-era database (every existing record unchanged), plus the
   reset-password script and restoring a pre-accounts backup.
 - **v1 Part B — role dashboards, the day's list (backlog #5), search by phone (#8).**
   Front desk Today is the desk (find, register, list); doctor Today has "Waiting
   now" with Start visit; admin sees signed consultations per doctor as raw counts.
-  `QueueEntry.day` is the clinic computer's local date, never the UTC date.
 
 Next, in order: v1 Part C (patient portal: a doctor shares a signed visit with the
 patient's consent), Part D (invariant 2, consent script and website copy updated
-to match). Then #3 speed pass. Backlog numbered 1–37 across tiers 0–7.
+to match). The full plan is in CONTEXT.md §6. Then #3 speed pass. Backlog numbered
+1–37 across tiers 0–7.
 
 **Not built and deliberately so:** hosting or deploying the clinical app,
 standalone desktop packaging, multi-clinic accounts, any AI beyond transcription
@@ -243,6 +265,13 @@ and note drafting.
 ---
 
 ## Tooling
+
+**Tests.** `cd clinicos-app && npm run test:e2e` seeds a prototype-era database in
+`clinicos-app/.test-data/`, builds the app against it, starts it on port 3100 and runs
+the suites in `scripts/test/` over real HTTP: upgrade safety and the permission
+matrix, the day's list, and the recovery tools. Run it after any change to the
+clinic app, and add checks when you add routes. Don't run it while `npm run dev` is
+running in the same folder — both use `.next/`. Add `-- --no-build` to reuse a build.
 
 `.mcp.json` at the repo root configures MCP servers for any agent session opened
 here. None of them are required to build or run the app — delete the file and

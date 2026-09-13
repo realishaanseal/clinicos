@@ -14,6 +14,9 @@ clinicos-app/data/
 *.db-shm
 *.db-wal
 
+# Throwaway databases and logs from `npm run test:e2e`
+clinicos-app/.test-data/
+
 # Real clinic identity and any API keys
 .env
 .env.local
