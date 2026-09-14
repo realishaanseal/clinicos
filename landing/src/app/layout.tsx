@@ -1,8 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import Stage from "@/components/Stage";
+import Backdrop from "@/components/Backdrop";
+import SiteHeader from "@/components/SiteHeader";
 import SmoothScroll from "@/components/SmoothScroll";
 import ScrollProgress from "@/components/ScrollProgress";
+import StaggerGroups from "@/components/StaggerGroups";
 import { SITE_URL } from "@/site";
 
 export const metadata: Metadata = {
@@ -24,16 +26,22 @@ export const metadata: Metadata = {
   },
 };
 
+// The browser's own chrome, the address bar on phones, matches the film's near-black.
+export const viewport: Viewport = {
+  themeColor: "#010604",
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
-        {/* The ambient wash and the morphing rig both sit behind the whole
-            document and are re-choreographed by scroll position. */}
-        <div className="flow" aria-hidden="true"><span /><span /><span /></div>
-        <Stage />
+        <a className="skip-link" href="#content">Skip to content</a>
+        {/* The film sits behind the whole document and is scrubbed by scroll position. */}
+        <Backdrop />
         <SmoothScroll />
         <ScrollProgress />
+        <StaggerGroups />
+        <SiteHeader />
         {children}
       </body>
     </html>

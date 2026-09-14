@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * The opening section. The Varaxis ClinicOS lockup sits in the header directly
+ * above it, so the hero carries no badge of its own and the headline is the first
+ * thing read.
+ */
+
 import { motion, useReducedMotion } from "motion/react";
 import AnimatedText from "./AnimatedText";
 
@@ -16,31 +22,26 @@ export default function Hero() {
         };
 
   return (
-    <header className="hero">
+    <section id="hero" className="hero">
       <div className="wrap hero-copy">
-        <motion.div className="pill glass" {...rise(0)}>
-          <span className="dot" />
-          A Varaxis product
-        </motion.div>
-
         <AnimatedText
           as="h1"
           text="The consultation already happened. [[The]] [[record]] [[should]] [[too.]]"
-          delay={0.15}
+          delay={0.1}
           stagger={0.055}
         />
 
-        <motion.p className="lede" {...rise(0.85)}>
+        <motion.p className="lede" {...rise(0.8)}>
           ClinicOS listens to the consultation you are already having and drafts the
           clinical note. You review it and sign. Everything runs on your own hardware — no
           cloud, no account, no patient data leaving the building.
         </motion.p>
 
-        <motion.div className="cta-row" {...rise(1)}>
+        <motion.div className="cta-row" {...rise(0.95)}>
           <a className="btn btn-primary" href="#contact">Get in touch</a>
           <a className="btn btn-ghost" href="#how">See how it works</a>
         </motion.div>
       </div>
-    </header>
+    </section>
   );
 }

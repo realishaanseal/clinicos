@@ -19,6 +19,13 @@ const nextConfig: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
         ],
       },
+      {
+        // The backdrop film and its posters carry a version in the file name
+        // (glass-landscape-v1.mp4). A new film gets a new name, so these can be
+        // cached for a year without anyone ever being served a stale one.
+        source: "/backdrop/:file*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
     ];
   },
 };

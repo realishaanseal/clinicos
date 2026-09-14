@@ -3,6 +3,7 @@ import Reveal from "@/components/Reveal";
 import AnimatedText from "@/components/AnimatedText";
 import CountUp from "@/components/CountUp";
 import ProductTour from "@/components/ProductTour";
+import Wordmark from "@/components/Wordmark";
 import { CONTACT_EMAIL, CONTACT_FORM_URL } from "@/site";
 
 /**
@@ -86,9 +87,9 @@ const FEATURES = [
 export default function Page() {
   return (
     <>
-      <Hero />
-
       <main id="content">
+        <Hero />
+
         <section id="problem">
           <div className="wrap">
             <Reveal>
@@ -264,12 +265,14 @@ export default function Page() {
         </section>
       </main>
 
-      <footer>
+      <footer className="site-footer">
         <div className="wrap">
           <div className="row">
             <div>
-              <strong style={{ color: "var(--fg)" }}>ClinicOS</strong> — a Varaxis product
-              <div style={{ marginTop: "0.3rem" }}>Local-first clinical documentation.</div>
+              <a className="lockup-link" href="/" aria-label="Varaxis ClinicOS, home">
+                <Wordmark id="foot" />
+              </a>
+              <div className="foot-tag">Local-first clinical documentation.</div>
             </div>
             <nav aria-label="Footer">
               <ul className="foot-links">

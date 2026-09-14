@@ -45,10 +45,10 @@ It is framed differently for different audiences:
 | `.claude/launch.json` | Preview configs: `landing` on :3001, `clinic` on :3000. |
 | `.mcp.json` | Optional MCP servers for agent sessions. |
 
-**Branches.** `main` is the only branch you need. It holds everything, and Vercel
-deploys the public website from it. `v1`, `website-contact`, `website-v1` and `site`
-are already merged into `main`; they are history and can be deleted. Start new work on
-a fresh feature branch off `main`.
+**Branches.** `main` holds everything that is live, and Vercel deploys the public
+website from it. `v1`, `website-contact`, `website-v1` and `site` are already merged
+into `main`; they are history and can be deleted. Start new work on a fresh feature
+branch off `main`. One branch is waiting to be merged: `website-glass-backdrop` (§3).
 
 ---
 
@@ -68,6 +68,26 @@ a fresh feature branch off `main`.
   - The form links back to the website's `/privacy`.
   - It asks for no patient information.
 - **Public contact email:** ishaanseal@gmail.com
+
+### Built, waiting to go live
+
+- **Website redesign** on branch `website-glass-backdrop`. Merging it into `main`
+  deploys it.
+  - **The backdrop is the ClinicOS film:** Ishaan's own footage of glass lenses in
+    green light, scrubbed forward as the page scrolls. It replaces the morphing SVG
+    stage. Wide screens get it rotated a quarter-turn (a crop threw away two thirds of
+    the frame); phones get the original portrait frame. It is cleaned up and upscaled
+    to 1080p by `landing/scripts/backdrop.py`.
+  - **Readability is built in:** for every frame and every band of the screen, the
+    script records how far text must be darkened to hold 4.5:1, and the page darkens
+    only where text is being read. Checked by replaying the page's logic over the real
+    frames at 1440×900, 1100×700 and 375×812: no text below 4.5:1, or 3:1 for large
+    headings.
+  - **A site header with the Varaxis ClinicOS lockup** replaces the "A Varaxis product"
+    pill; the footer uses the lockup too. It is set like Varaxis Scholar: tile,
+    "Varaxis" heavy and white, the product name lighter in its own colour (mint).
+  - **Green palette** taken from the film; favicon, app icon and share image match.
+  - How it all works: `landing/README.md`, "Design".
 
 ### Built, and deliberately not deployed
 
@@ -109,6 +129,8 @@ Windows or `go.sh` on macOS.
   - All passed on 14 September 2026.
   - Don't run it while `npm run dev` is running in that folder.
 - **Website:** `cd landing && npm run build`
+  - After changing the film or the colours it is measured against:
+    `pip install imageio-ffmpeg numpy pillow`, then `python landing/scripts/backdrop.py`.
 
 ---
 
@@ -128,6 +150,8 @@ Windows or `go.sh` on macOS.
 | 13 Sep 2026 | A shared visit shows exactly the printed prescription. | Never the transcript, audio, AI draft or edit log. It matches the patient-held record direction in blueprint §28 and ABDM. |
 | 13 Sep 2026 | The front desk gets a simple day's list with tokens. | |
 | 14 Sep 2026 | `main` holds everything; all branches were merged into it. | So any assistant opening the repo sees the latest version without switching branch. |
+| 14 Sep 2026 | The website backdrop is Ishaan's own glass film, used as the real footage. Not a WebGL, SVG or AI-generated imitation of it. | Ishaan asked for the video's look itself, not something like it. No video-upscaler connector exists, so clean-up and the 1080p upscale are done locally with ffmpeg. |
+| 14 Sep 2026 | Varaxis product lockup: tile, "Varaxis" heavy and white, the product name lighter in its own colour. ClinicOS's colour is the film's mint. | It matches the Varaxis Scholar lockup, so the products read as one family. It uses the system display face because the site loads no webfonts. |
 | Prototype era | The invariants in CLAUDE.md. | No clinical judgement. Audio deleted at signing. No training on audio. Consent enforced server-side. `draftJson` immutable. Backups via the SQLite backup API. No lock-in. |
 
 ---
@@ -245,16 +269,21 @@ speed pass.
 
 ## 7. Waiting on Ishaan
 
-1. **Supabase:** create an account and a project in **Mumbai (ap-south-1)**, then copy
+1. **Website redesign:** look at the `website-glass-backdrop` branch (Vercel builds a
+   preview for it if previews are on for the project), then say whether to merge it into
+   `main`. Merging deploys it to the live site.
+2. **Supabase:** create an account and a project in **Mumbai (ap-south-1)**, then copy
    the pooler connection string. Needed to start Part C.
-2. **Vercel:** create a project from this repo with Root Directory `portal`, and add the
+3. **Vercel:** create a project from this repo with Root Directory `portal`, and add the
    domain `clinicos-portal.vercel.app`. Paste in the environment variables. The
    assistant generates the random keys; it does not type keys into dashboards.
-3. **Before real patients use the portal:** Supabase Pro ($25/month). Vercel Pro too,
+4. **Before real patients use the portal:** Supabase Pro ($25/month). Vercel Pro too,
    because the Hobby plan is for non-commercial use, and that applies to the website as
    well.
-4. **Optional:** delete the merged branches (`v1`, `website-contact`, `website-v1`,
+5. **Optional:** delete the merged branches (`v1`, `website-contact`, `website-v1`,
    `site`).
+6. **Optional:** if Varaxis has a brand typeface file, add it and the lockup can use it.
+   Until then it uses the system display face.
 
 The Vercel connector available to assistants cannot see the `Varaxis` team. Project
 settings and deploy logs have to be checked in the Vercel dashboard, or the connector
@@ -275,6 +304,12 @@ re-authorised for that team.
   addresses, so staff devices on the clinic Wi-Fi can use everything except recording.
 - **Harmless warning:** a stray `package-lock.json` in the Windows user folder makes Next
   warn about the "workspace root". It is not part of the repo.
+- **The assistant's in-app browser stops painting when its window is covered.**
+  Screenshots time out, `requestAnimationFrame` stops and smooth `scrollTo` never
+  arrives, so a scroll-driven page looks frozen. Keep the window in front when checking
+  motion; for readability over the film, the replay approach in §3 does not need it.
+- **ffmpeg** is not installed on the development laptop. `pip install imageio-ffmpeg`
+  brings a static build, which is what `landing/scripts/backdrop.py` uses.
 
 ---
 
@@ -282,15 +317,16 @@ re-authorised for that team.
 
 - **Missing favicon:** the clinic app has none, so there is a harmless 404 in the browser
   console.
-- **Dead parallax:** on the website, GSAP warns ".flow not found". `landing/src/components/Stage.tsx`
-  scopes `gsap.context` to `.stage`, so the `.flow` parallax never runs.
+- **Dead parallax:** on the live website, GSAP warns ".flow not found".
+  `landing/src/components/Stage.tsx` scopes `gsap.context` to `.stage`, so the `.flow`
+  parallax never runs. Gone on `website-glass-backdrop`, which removes the stage.
 - **Delete list limit:** Clinic admin's delete list shows only the 50 most recent
   patients, the `searchPatients` limit.
 - **Setup is open until the first account exists.** Anyone who reaches the app before
   then could claim it, so run setup as soon as a clinic install starts.
 - **Promises on the website's privacy page:** no cookies, no analytics, no third-party
   scripts, and contact-form responses deleted within 12 months of last contact. Keep
-  all of these true.
+  all of these true. (The backdrop film and its tables are served from the site itself.)
 - **Duplicate PDF:** on the development laptop, an untracked
   `ClinicOS_Prototype_Documentation.pdf` sits at the repo root. It is identical to
   `artifacts/ClinicOS_Prototype_Documentation.pdf`.
@@ -312,3 +348,5 @@ re-authorised for that team.
   - The end-to-end test suite moved into the repo (`npm run test:e2e`).
   - This file and `AGENTS.md` were added.
   - Everything was merged into `main`, which puts "Get in touch" live.
+  - The website redesign was built on `website-glass-backdrop`: the ClinicOS film as
+    the backdrop, the Varaxis ClinicOS lockup in a new header, a green palette.

@@ -1,63 +1,63 @@
 /* ==========================================================================
    ClinicOS — landing site
-   Glass discs on near-black: an electric blue-to-cyan light source, iridescent
-   rims, and frosted panels that refract it.
 
-   Why no WebGL: `backdrop-filter` re-blurs whatever sits behind it. Over a
-   canvas repainting every frame that is expensive, and this product targets
-   low-end hospital hardware. Every moving element here is a `transform` on a
-   composited layer, which costs almost nothing.
+   The ClinicOS film runs behind everything: glass lenses turning in green light,
+   scrubbed forward as you scroll (Backdrop.tsx). Frosted panels sit over it and
+   take their tint from whichever frame is on screen, so the copy holds 4.5:1
+   however bright the film gets.
+
+   It is a video, not WebGL or animated SVG, because the film is the look: this
+   is the real footage rather than an approximation of it. A paused video that is
+   only seeked costs one decode when the frame changes and nothing while the page
+   is still, and under the panels' backdrop-filter it composites like an image.
    ========================================================================== */
 
 :root {
-  /* --- light source ----------------------------------------------------- */
-  --blue-700: #1039a8;
-  --blue-600: #1d4ed8;
-  --blue-500: #2f6df6;
-  --cyan-500: #06b6d4;
-  --cyan-400: #22d3ee;
-  --cyan-300: #67e8f9;
-  /* the product's teal, kept so the two surfaces stay related */
-  --teal-500: #14918a;
-  --teal-300: #5eccc2;
+  /* --- the film's colours ---------------------------------------------- */
+  --mint-50: #f4fffa;
+  --mint-300: #a6f0d6;
+  --mint-400: #8fe6c8;
+  --teal-500: #1f7a6e;
 
-  /* --- iridescence: the rim colours on the discs ------------------------- */
-  --irid: conic-gradient(
-    from 210deg,
-    #7cffb2 0%,
-    #67e8f9 14%,
-    #2f6df6 32%,
-    #a78bfa 48%,
-    #ff7aa2 62%,
-    #ffb86b 74%,
-    #7cffb2 100%
-  );
+  /* --- scene: interpolated by Backdrop.tsx as the page scrolls --------- */
+  --scene-ground: #010504;
+  --scene-a: #1f7a6e;
+  --scene-b: #a8dcc9;
+  --scene-c: #0a3a33;
+  --scene-accent: #8fe6c8;
 
-  /* --- scene: interpolated by Stage.tsx as the page scrolls -------------- */
-  --scene-ground: #03060a;
-  --scene-a: #2f6df6;
-  --scene-b: #22d3ee;
-  --scene-c: #0f2f8f;
-  --scene-accent: #67e8f9;
+  /* --- ground ---------------------------------------------------------- */
+  --ink-950: #010604;
+  --ink-900: #04100d;
 
-  /* --- ground ----------------------------------------------------------- */
-  --ink-950: #03060a;
-  --ink-900: #070d14;
+  /* The veil laid over the film and the tint glass panels take. Both colours
+     must match scripts/backdrop.py, which measures how much of each every frame
+     needs for text to hold 4.5:1. --panel-a and --header-a are rewritten per
+     frame by Backdrop.tsx; these are their values over the opening. */
+  --veil: #010604;
+  --panel-rgb: 3 11 10;
+  --panel-a: 0.34;
+  --header-a: 0;
 
-  --fg: #eef4f8;
-  --fg-dim: #a3b4c4;
-  --fg-faint: #6d8092;
+  /* Measured against in scripts/backdrop.py too. */
+  --fg: #eef6f3;
+  --fg-dim: #b4c7c1;
+  --fg-faint: #93aaa3;
 
-  /* --- glass ------------------------------------------------------------ */
-  --glass-bg: rgba(255, 255, 255, 0.045);
-  --glass-bg-strong: rgba(255, 255, 255, 0.08);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-border-lit: rgba(255, 255, 255, 0.22);
-  --glass-blur: blur(24px) saturate(180%);
-  --glass-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset,
-    0 20px 54px -26px rgba(0, 0, 0, 0.95);
+  /* --- glass ----------------------------------------------------------- */
+  --glass-bg: rgb(var(--panel-rgb) / var(--panel-a));
+  --glass-bg-strong: rgb(var(--panel-rgb) / calc(var(--panel-a) + 0.08));
+  --glass-border: rgb(196 240 224 / 0.11);
+  --glass-border-lit: rgb(208 246 232 / 0.26);
+  --glass-blur: blur(24px) saturate(150%);
+  --glass-shadow: 0 1px 0 rgb(230 255 245 / 0.07) inset,
+    0 20px 54px -26px rgb(0 0 0 / 0.95);
 
-  --grad-brand: linear-gradient(135deg, var(--scene-a) 0%, var(--scene-b) 100%);
+  /* Behind white labels and icons: primary light into deep fill, never the
+     bright sea-glass. The light end is pulled a fifth of the way toward the deep
+     fill: at full strength it left white at 3.9:1 in the brightest scenes, and
+     this way every scene in scenes.ts keeps it above 4.5:1 end to end. */
+  --grad-deep: linear-gradient(135deg, color-mix(in srgb, var(--scene-a) 80%, var(--scene-c)) 0%, var(--scene-c) 100%);
 
   --r-md: 12px;
   --r-lg: 18px;
@@ -65,7 +65,8 @@
 
   --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable",
     "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans Bengali", sans-serif;
-  --font-display: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display",
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
   /* Marketing motion is slower than the product's, deliberately. The app is
      used under time pressure and must feel instant; this should feel unhurried,
@@ -91,7 +92,7 @@ body {
   overflow-x: hidden;
 }
 
-::selection { background: var(--blue-600); color: #fff; }
+::selection { background: var(--teal-500); color: #fff; }
 a { color: var(--scene-accent); text-decoration: none; }
 
 h1, h2, h3 { font-family: var(--font-display); margin: 0; letter-spacing: -0.032em; line-height: 1.06; }
@@ -100,9 +101,15 @@ h2 { font-size: clamp(1.9rem, 4.2vw, 3rem); font-weight: 640; }
 h3 { font-size: 1.08rem; font-weight: 620; letter-spacing: -0.012em; }
 p { margin: 0; }
 
+/* Section headlines stay inside the copy column, which is where the veil sits.
+   At full width a long one ran out over the brightest part of the film. */
+section h2 { max-width: 19ch; text-wrap: balance; }
+
 .wrap { width: min(1140px, 100% - 3rem); margin-inline: auto; position: relative; z-index: 2; }
 .narrow { width: min(780px, 100% - 3rem); margin-inline: auto; position: relative; z-index: 2; }
 section { padding-block: clamp(5rem, 12vh, 9rem); position: relative; z-index: 1; }
+/* So a jump from the header lands with the headline clear of it. */
+section[id] { scroll-margin-top: 4.5rem; }
 
 .eyebrow {
   font-size: 0.72rem; font-weight: 680; letter-spacing: 0.17em;
@@ -111,151 +118,111 @@ section { padding-block: clamp(5rem, 12vh, 9rem); position: relative; z-index: 1
 .lede { font-size: clamp(1.04rem, 1.8vw, 1.26rem); color: var(--fg-dim); max-width: 62ch; }
 
 /* ==========================================================================
-   Ambient light
+   The backdrop — the ClinicOS film
 
-   Dim, heavily blurred fields so the glass panels further down the page have
-   something to refract. Far subtler than the hero discs — those are the
-   subject; this is only the room they sit in.
+   See Backdrop.tsx. Back to front: the poster (the video's own first frame),
+   the video, the veil over the copy column, the even veil, and grain.
    ========================================================================== */
 
-.flow { position: fixed; inset: -20%; z-index: 0; pointer-events: none; overflow: hidden; }
-.flow span { position: absolute; display: block; border-radius: 50%; filter: blur(100px); will-change: transform; }
-.flow span:nth-child(1) {
-  width: 60vw; height: 60vw; left: -12%; top: 6%;
-  background: radial-gradient(circle at 45% 45%, var(--scene-a), transparent 68%);
-  opacity: 0.42;
-  animation: drift-a 30s ease-in-out infinite alternate;
+.backdrop {
+  position: fixed; inset: 0; z-index: 0;
+  pointer-events: none; overflow: hidden;
+  background: var(--veil);
 }
-.flow span:nth-child(2) {
-  width: 52vw; height: 52vw; right: -10%; top: 22%;
-  background: radial-gradient(circle at 50% 50%, var(--scene-b), transparent 68%);
-  opacity: 0.3;
-  animation: drift-b 36s ease-in-out infinite alternate;
+.backdrop-still, .backdrop-still img, .backdrop-film {
+  position: absolute; inset: 0; display: block;
+  width: 100%; height: 100%;
+  object-fit: cover;
 }
-.flow span:nth-child(3) {
-  width: 48vw; height: 48vw; left: 30%; bottom: -10%;
-  background: radial-gradient(circle at 50% 50%, var(--scene-c), transparent 70%);
-  opacity: 0.28;
-  animation: drift-c 42s ease-in-out infinite alternate;
-}
+/* Fades in over the poster only once a seek has landed, so the first frame the
+   video ever shows is the right one. */
+.backdrop-film { opacity: 0; transition: opacity 900ms var(--ease-out); }
+.backdrop-film.is-ready { opacity: 1; }
 
-@keyframes drift-a { from { transform: translate3d(0,0,0) scale(1); }   to { transform: translate3d(10vw, 7vh, 0) scale(1.16); } }
-@keyframes drift-b { from { transform: translate3d(0,0,0) scale(1.1); } to { transform: translate3d(-12vw, 10vh, 0) scale(0.94); } }
-@keyframes drift-c { from { transform: translate3d(0,0,0) scale(0.96); } to { transform: translate3d(8vw, -9vh, 0) scale(1.18); } }
+.backdrop-veil {
+  position: absolute; inset: 0;
+  background: var(--veil);
+  opacity: 0;
+  will-change: opacity;
+}
+/* Full strength across the copy column, which ends near 60% of the width on
+   desktop, then out to nothing, so the right edge of the film is untouched. */
+.backdrop-veil-copy {
+  background: linear-gradient(90deg, var(--veil) 0%, var(--veil) 62%, rgb(1 6 4 / 0) 96%);
+}
+/* Fine, static grain, the way it would sit on a projected print. It also hides
+   the last of the banding an 8-bit video keeps in near-black gradients. Moving
+   grain would redraw the whole screen every frame, so it does not move. */
+.backdrop-grain {
+  position: absolute; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 1.4 -0.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  opacity: 0.05;
+}
 
 /* ==========================================================================
-   The stage — morphing light
-
-   Colour, shape, the aurora and the ambient loops all change together — see the
-   header comment in Stage.tsx. Every colour here reads a --scene-* variable that
-   Stage interpolates on scroll, so the page re-lights section by section rather
-   than staying one fixed blue.
+   Site header and the Varaxis lockup
    ========================================================================== */
 
-.stage {
-  position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
-  /* Blurred children were clipped at this box's edge, leaving a hard vertical
-     seam through the headline. Fade the layer out instead of cutting it. */
-  /* Fades toward the copy column instead of cutting; a hard edge here left a
-     visible seam through the headline in an earlier version. */
-  -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,0.25) 0%, #000 46%, #000 100%);
-  mask-image: linear-gradient(to right, rgba(0,0,0,0.25) 0%, #000 46%, #000 100%);
+.skip-link {
+  position: fixed; top: 0.75rem; left: 0.75rem; z-index: 100;
+  padding: 0.6rem 1rem; border-radius: 999px;
+  background: var(--fg); color: var(--ink-950);
+  font-size: 0.9rem; font-weight: 600;
+  transform: translateY(-200%);
+  transition: transform var(--dur-fast) var(--ease-out);
 }
-@media (max-width: 979px) {
-  /* Behind the copy on narrow screens, so it dims and takes a scrim.
-     Readability beats spectacle. */
-  .stage { opacity: 0.42; -webkit-mask-image: none; mask-image: none; }
-  .stage::after {
-    content: ""; position: absolute; inset: 0;
-    background: radial-gradient(ellipse 78% 60% at 50% 45%, rgba(3,6,10,0.88) 0%, rgba(3,6,10,0.6) 62%, transparent 92%);
-  }
+.skip-link:focus-visible { transform: none; }
+
+.site-header { position: fixed; inset: 0 0 auto 0; z-index: 50; }
+.site-header::before,
+.site-header::after { content: ""; position: absolute; inset: 0; pointer-events: none; }
+/* Follows the film: as dark as the frame behind the links needs, and no darker.
+   The fade at its foot keeps it from reading as a hard band across the glass. */
+.site-header::before {
+  bottom: -1.5rem;
+  background: rgb(1 6 4 / var(--header-a));
+  -webkit-mask-image: linear-gradient(#000 calc(100% - 1.5rem), transparent);
+  mask-image: linear-gradient(#000 calc(100% - 1.5rem), transparent);
 }
-
-
-.stage-ribbons { position: absolute; inset: -14% -10%; width: 120%; height: 128%; filter: blur(34px) saturate(150%); opacity: 0.55; }
-.ribbon.r1 { mix-blend-mode: screen; }
-.ribbon.r2 { mix-blend-mode: screen; opacity: 0.75; }
-
-/* horizon arc: a hard bright rim with a bloom under it */
-.horizon { position: absolute; left: 58%; bottom: -14%; width: 118%; translate: -50% 0; aspect-ratio: 2.4; }
-.horizon-rim {
-  position: absolute; inset: 0;
-  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
-  background: linear-gradient(90deg, transparent, #bdefff 22%, #ffffff 50%, #bdefff 78%, transparent);
-  clip-path: inset(0 0 calc(100% - 2px) 0);
-  opacity: 0.85;
-  animation: horizon-breathe 11s ease-in-out infinite alternate;
-}
-.horizon-bloom {
-  position: absolute; inset: 0;
-  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
-  background: radial-gradient(ellipse 44% 62% at 50% 0%, rgba(56, 160, 255, 0.62), transparent 62%);
-  filter: blur(38px);
-  animation: horizon-breathe 11s ease-in-out infinite alternate-reverse;
-}
-@keyframes horizon-breathe {
-  from { opacity: 0.45; transform: translateY(1.5%) scaleX(0.98); }
-  to   { opacity: 0.95; transform: translateY(-1.5%) scaleX(1.03); }
-}
-
-/* SVG gradient stops read the scene variables, so the glass forms re-light with
-   the rest of the page instead of staying one fixed blue. */
-.stop-ground { stop-color: var(--scene-ground); }
-.stop-a { stop-color: var(--scene-a); }
-.stop-b { stop-color: var(--scene-b); }
-.stop-c { stop-color: var(--scene-c); }
-
-.stage-svg {
-  position: absolute;
-  right: -14%; top: 50%; translate: 0 -50%;
-  width: min(70vh, 54%);
-  aspect-ratio: 1;
-  overflow: visible;
-  /* It is lighting, not a subject. At full strength it reads as a foreground
-     object and bleeds through the frosted panels badly enough to hurt the text
-     behind them. */
-  opacity: 0.34;
-  filter: blur(1.6px) drop-shadow(0 44px 100px rgba(4, 26, 78, 0.85));
-}
-.form { transform-origin: 300px 300px; will-change: transform; }
-.morph-b { opacity: 0.72; }
-.morph-c { opacity: 0.5; }
-
-/* A large conic wash rotating behind everything, recoloured by the scene. */
-.aurora {
-  position: absolute;
-  left: 50%; top: 50%;
-  width: 150%; aspect-ratio: 1;
-  translate: -50% -50%;
-  border-radius: 50%;
-  background: conic-gradient(
-    from 0deg,
-    transparent 0deg,
-    var(--scene-a) 60deg,
-    transparent 130deg,
-    var(--scene-b) 200deg,
-    transparent 265deg,
-    var(--scene-c) 320deg,
-    transparent 360deg
-  );
-  filter: blur(110px);
-  opacity: 0.36;
-  will-change: transform;
-  animation: aurora-spin 64s linear infinite;
-}
-@keyframes aurora-spin { to { rotate: 360deg; } }
-
-/* A band of light that crosses the viewport as each section arrives. */
-.sweep {
-  position: absolute;
-  top: -20%; left: 0;
-  width: 42%; height: 140%;
-  background: linear-gradient(100deg, transparent, color-mix(in srgb, var(--scene-b) 55%, transparent), transparent);
-  filter: blur(52px);
+/* Once the page scrolls, content passes under the header, so it takes a proper
+   smoked-glass bar. It fades in on opacity: backdrop-filter itself is never
+   animated, because that re-blurs the whole region on every frame. */
+.site-header::after {
+  background: rgb(1 7 6 / 0.62);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+  border-bottom: 1px solid rgb(196 240 224 / 0.08);
   opacity: 0;
-  pointer-events: none;
-  will-change: transform, opacity;
+  transition: opacity var(--dur-mid) var(--ease-out);
 }
+.site-header.is-stuck::after { opacity: 1; }
+
+.site-header-row { display: flex; align-items: center; gap: 2rem; height: 4.25rem; }
+.site-header nav { margin-left: auto; }
+.site-nav { display: flex; gap: 1.9rem; list-style: none; margin: 0; padding: 0; }
+.site-nav a { color: var(--fg-dim); font-size: 0.9rem; font-weight: 520; transition: color var(--dur-fast) var(--ease-out); }
+.site-nav a:hover { color: var(--fg); }
+@media (max-width: 759px) {
+  .site-header nav { display: none; }
+  .site-header-row .btn { margin-left: auto; }
+}
+
+.lockup-link { display: inline-flex; border-radius: 10px; color: inherit; }
+.lockup { display: inline-flex; align-items: center; gap: 0.62rem; }
+.lockup-tile {
+  width: 2rem; height: 2rem; flex: none; border-radius: 0.5rem;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35), 0 8px 22px -8px rgb(56 190 160 / 0.55);
+}
+/* Set like the rest of the Varaxis family: the maker heavy and white, the
+   product lighter and in its own colour, the same size on the same baseline. */
+.lockup-name {
+  font-family: var(--font-display);
+  font-size: 1.2rem; line-height: 1;
+  letter-spacing: -0.022em; white-space: nowrap;
+}
+.lockup-maker { font-weight: 700; color: #fff; }
+.lockup-product { font-weight: 560; color: #9fe8cf; }
 
 /* ==========================================================================
    Text animation
@@ -264,7 +231,7 @@ section { padding-block: clamp(5rem, 12vh, 9rem); position: relative; z-index: 1
 .word-wrap { display: inline-block; overflow: hidden; vertical-align: bottom; }
 .word { display: inline-block; will-change: transform, opacity, filter; }
 .word.accent, .accent {
-  background: linear-gradient(115deg, var(--scene-accent) 0%, #eafcff 34%, var(--scene-a) 72%, var(--scene-accent) 100%);
+  background: linear-gradient(115deg, var(--scene-accent) 0%, var(--mint-50) 34%, var(--scene-b) 72%, var(--scene-accent) 100%);
   background-size: 260% 100%;
   -webkit-background-clip: text; background-clip: text; color: transparent;
   animation: sheen 9s linear infinite;
@@ -287,40 +254,40 @@ section { padding-block: clamp(5rem, 12vh, 9rem); position: relative; z-index: 1
   backdrop-filter: var(--glass-blur);
 }
 
-/* Without backdrop-filter the panels would be near-invisible, so fall back to
-   an opaque surface rather than an unreadable one. */
+/* Without backdrop-filter the panels would be see-through over the film, so fall
+   back to an opaque surface rather than an unreadable one. */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass { background: rgba(7, 13, 20, 0.94); }
+  .glass { background: rgb(var(--panel-rgb) / 0.94); }
 }
 
 /* Interactive glass. The lift is the visible transition — slow enough to read,
-   and it only moves transform/opacity/border/shadow. Never animate
-   backdrop-filter itself: it re-blurs the whole region every frame. */
+   and it only moves transform, border and shadow. Background is left out on
+   purpose: the tint follows the film frame by frame, and easing it would leave
+   the panel lighter than the frame needs for half a second at a time. Never
+   animate backdrop-filter itself: it re-blurs the whole region every frame. */
 .glass-i {
   transition: transform var(--dur-mid) var(--ease-out),
     border-color var(--dur-mid) var(--ease-out),
-    background var(--dur-mid) var(--ease-out),
     box-shadow var(--dur-mid) var(--ease-out);
 }
 .glass-i:hover {
   transform: translateY(-7px);
   border-color: var(--glass-border-lit);
-  background: var(--glass-bg-strong);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.14) inset,
-    0 34px 66px -30px rgba(0, 0, 0, 0.96),
-    0 0 0 1px rgba(103, 232, 249, 0.14);
+  box-shadow: 0 1px 0 rgb(230 255 245 / 0.14) inset,
+    0 34px 66px -30px rgb(0 0 0 / 0.96),
+    0 0 0 1px rgb(166 240 214 / 0.16);
 }
 
-/* An iridescent specular edge along the top, echoing the disc rims. It brightens
-   on hover — the panel catching more light as it lifts. */
+/* A glass rim along the top edge: the thin bright line the lenses in the film
+   catch. It brightens on hover, the panel catching more light as it lifts. */
 .glass-lit { position: relative; overflow: hidden; }
 .glass-lit::before {
   content: "";
   position: absolute;
   inset: 0 0 auto 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, #7cffb2 18%, #67e8f9 38%, #a78bfa 58%, #ff9ab4 78%, transparent);
-  opacity: 0.42;
+  background: linear-gradient(90deg, transparent, rgb(166 240 214 / 0.5) 20%, var(--mint-50) 50%, rgb(166 240 214 / 0.5) 80%, transparent);
+  opacity: 0.4;
   transition: opacity var(--dur-mid) var(--ease-out);
 }
 .glass-lit:hover::before { opacity: 0.9; }
@@ -336,36 +303,22 @@ section { padding-block: clamp(5rem, 12vh, 9rem); position: relative; z-index: 1
   display: grid;
   align-items: center;
   padding-block: 8rem 5rem;
-  position: relative;
   isolation: isolate;
 }
-/* The copy sits in the left half on desktop so the morphing stage on the right
-   is never competing with a word. Centred copy over moving light was the
-   mistake in the first version of this page. */
+/* The copy sits in the left half on desktop, over the column the veil guards,
+   so the film on the right never competes with a word. Centred copy over moving
+   light was the mistake in the first version of this page. */
 .hero-copy { position: relative; z-index: 2; max-width: 40rem; text-align: left; }
 .hero h1 { max-width: 15ch; }
 .hero .lede { margin-top: 1.7rem; max-width: 46ch; }
 .hero .cta-row { justify-content: flex-start; }
 
-/* Below 980px the stage moves behind the copy, so it gets dimmed and a scrim
-   goes over it — readability wins over spectacle every time. */
+/* Below 980px the copy centres over the film and the veil turns even. */
 @media (max-width: 979px) {
   .hero-copy { max-width: none; text-align: center; }
   .hero h1 { margin-inline: auto; }
   .hero .lede { margin-inline: auto; }
   .hero .cta-row { justify-content: center; }
-}
-
-.pill {
-  display: inline-flex; align-items: center; gap: 0.6rem;
-  padding: 0.45rem 1rem 0.45rem 0.75rem;
-  border-radius: 999px;
-  font-size: 0.78rem; font-weight: 560;
-  color: var(--fg-dim); margin-bottom: 1.9rem;
-}
-.pill .dot {
-  width: 7px; height: 7px; border-radius: 50%; background: var(--scene-b);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--scene-b) 18%, transparent), 0 0 12px var(--scene-b);
 }
 
 .cta-row { display: flex; gap: 0.85rem; justify-content: center; flex-wrap: wrap; margin-top: 2.5rem; }
@@ -376,21 +329,23 @@ section { padding-block: clamp(5rem, 12vh, 9rem); position: relative; z-index: 1
   border: 1px solid transparent; cursor: pointer;
   transition: transform var(--dur-fast) var(--ease-out),
     box-shadow var(--dur-mid) var(--ease-out),
-    background var(--dur-mid) var(--ease-out),
     border-color var(--dur-mid) var(--ease-out);
 }
-/* White label on the scene gradient. At full strength the bright light colour
-   (--scene-b) put the label under 2.5:1 in the teal scenes, so both stops are
-   mixed toward the ground. Checked against every scene in scenes.ts: the
-   lightest end stays above 4.5:1. */
+.btn-sm { padding: 0.55rem 1.1rem; font-size: 0.86rem; }
+/* White label on the scene gradient. Both stops are mixed toward the ground, the
+   bright sea-glass one hard: at full strength it left the label near 1.5:1.
+   Checked against every scene in scenes.ts; both ends stay above 4.5:1. */
 .btn-primary {
   background: linear-gradient(135deg,
-    color-mix(in srgb, var(--scene-a) 80%, var(--ink-950)) 0%,
-    color-mix(in srgb, var(--scene-b) 50%, var(--ink-950)) 100%);
+    color-mix(in srgb, var(--scene-a) 78%, var(--ink-950)) 0%,
+    color-mix(in srgb, var(--scene-b) 36%, var(--ink-950)) 100%);
   color: #fff;
-  box-shadow: 0 12px 36px -12px rgba(47, 109, 246, 0.9);
+  box-shadow: 0 1px 0 rgb(230 255 245 / 0.22) inset, 0 12px 36px -12px rgb(31 122 110 / 0.9);
 }
-.btn-primary:hover { transform: translateY(-3px); box-shadow: 0 20px 48px -14px rgba(34, 211, 238, 0.85); }
+.btn-primary:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 1px 0 rgb(230 255 245 / 0.3) inset, 0 20px 48px -14px rgb(143 230 200 / 0.55);
+}
 .btn-ghost {
   border-color: var(--glass-border); color: var(--fg); background: var(--glass-bg);
   -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
@@ -422,10 +377,10 @@ section { padding-block: clamp(5rem, 12vh, 9rem); position: relative; z-index: 1
 .step { padding: 1.7rem 1.35rem; }
 .step .i {
   width: 32px; height: 32px; border-radius: 10px;
-  background: var(--grad-brand); color: #fff;
+  background: var(--grad-deep); color: #fff;
   display: grid; place-items: center;
   font-size: 0.82rem; font-weight: 680; margin-bottom: 1.05rem;
-  box-shadow: 0 8px 20px -8px rgba(47, 109, 246, 0.95);
+  box-shadow: 0 0 0 1px rgb(166 240 214 / 0.18) inset, 0 8px 20px -8px rgb(31 122 110 / 0.95);
 }
 .step h3 { margin-bottom: 0.45rem; }
 .step p { font-size: 0.89rem; color: var(--fg-dim); }
@@ -443,19 +398,29 @@ section { padding-block: clamp(5rem, 12vh, 9rem); position: relative; z-index: 1
   display: inline-block; font-size: 0.67rem; font-weight: 700; letter-spacing: 0.12em;
   text-transform: uppercase; margin-bottom: 0.75rem; color: var(--scene-accent);
 }
-.promise.negative .tag { color: #ff9ab4; }
+.promise.negative .tag { color: #f5b1a5; }
 .promise.negative:hover {
-  box-shadow: 0 1px 0 rgba(255,255,255,0.14) inset,
-    0 34px 66px -30px rgba(0,0,0,0.96),
-    0 0 0 1px rgba(255, 154, 180, 0.18);
+  box-shadow: 0 1px 0 rgb(230 255 245 / 0.14) inset,
+    0 34px 66px -30px rgb(0 0 0 / 0.96),
+    0 0 0 1px rgb(245 177 165 / 0.2);
 }
 
 /* ==========================================================================
    Footer
    ========================================================================== */
 
-footer { position: relative; z-index: 2; border-top: 1px solid var(--glass-border); padding-block: 3rem 4rem; color: var(--fg-faint); font-size: 0.86rem; }
-footer .row { display: flex; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap; }
+/* Its own smoked band: the page ends on the brightest frame of the film, and
+   the small print here is the smallest text on the page. */
+.site-footer {
+  position: relative; z-index: 2;
+  border-top: 1px solid var(--glass-border);
+  background: rgb(1 6 4 / 0.9);
+  padding-block: 3rem 4rem;
+  color: var(--fg-faint); font-size: 0.86rem;
+}
+.site-footer .row { display: flex; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap; }
+.site-footer .lockup-name { font-size: 1.1rem; }
+.foot-tag { margin-top: 0.75rem; }
 .foot-links { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4rem 1.4rem; }
 .foot-links a { color: var(--fg-dim); transition: color var(--dur-fast) var(--ease-out); }
 .foot-links a:hover { color: var(--fg); }
@@ -466,7 +431,7 @@ footer .row { display: flex; justify-content: space-between; gap: 1.5rem; flex-w
    ========================================================================== */
 
 /* --fg-dim rather than --fg-faint: this is the line asking people to leave
-   patient details out, and it sits over the brightest glow on the page. */
+   patient details out, and it sits over the brightest frame of the film. */
 .contact-note { margin-top: 1.1rem; font-size: 0.84rem; color: var(--fg-dim); max-width: 62ch; }
 /* Links inside running text are underlined, so they don't rely on colour alone. */
 .contact-note a, .doc p a { text-decoration: underline; text-underline-offset: 3px; }
@@ -484,15 +449,14 @@ footer .row { display: flex; justify-content: space-between; gap: 1.5rem; flex-w
 /* ==========================================================================
    Plain document pages — privacy, not found
 
-   Readable first: no reveals and no animated headings. The stage still lights
-   the background behind the panel.
+   Readable first: no reveals and no animated headings. The film still sits
+   behind the panel.
    ========================================================================== */
 
 .doc { padding-block: clamp(6rem, 14vh, 9rem) 4rem; }
-/* Near-opaque, unlike the glass on the home page. Long passages of body text
-   over the moving stage dropped below 4.5:1 wherever a bright form passed
-   behind the panel; a document page is read, not looked at. */
-.doc-panel { padding: clamp(1.8rem, 4vw, 3rem); background: rgba(5, 10, 18, 0.84); }
+/* Near-opaque, unlike the glass on the home page. Long passages of body text are
+   read, not looked at, and should not depend on which frame is behind them. */
+.doc-panel { padding: clamp(1.8rem, 4vw, 3rem); background: rgb(2 9 8 / 0.88); }
 .doc h1 { font-size: clamp(2rem, 4vw, 2.8rem); margin-bottom: 0.7rem; }
 .doc h2 { font-size: 1.2rem; letter-spacing: -0.012em; margin: 2.2rem 0 0.6rem; }
 .doc p, .doc li { color: var(--fg-dim); max-width: 68ch; }
@@ -535,9 +499,8 @@ footer .row { display: flex; justify-content: space-between; gap: 1.5rem; flex-w
 
 @media (prefers-reduced-motion: reduce) {
   [data-reveal], .js-reveal { opacity: 1 !important; transform: none !important; animation: none !important; transition: none !important; }
-  .flow span, .aurora, .horizon-rim, .horizon-bloom, .word.accent, .accent { animation: none !important; }
-  .sweep { display: none !important; }
-  .accent { -webkit-text-fill-color: var(--cyan-300); color: var(--cyan-300); }
+  .word.accent, .accent { animation: none !important; }
+  .accent { -webkit-text-fill-color: var(--mint-300); color: var(--mint-300); }
   html { scroll-behavior: auto; }
 }
 
@@ -547,37 +510,16 @@ footer .row { display: flex; justify-content: space-between; gap: 1.5rem; flex-w
 
 .scroll-progress {
   position: fixed; inset: 0 0 auto 0; height: 2px; z-index: 60;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgb(255 255 255 / 0.06);
 }
 .scroll-progress > div {
   height: 100%; width: 100%;
   transform: scaleX(0); transform-origin: 0 50%;
-  background: linear-gradient(90deg, var(--scene-a), var(--scene-b) 60%, #eafcff);
-  box-shadow: 0 0 14px rgba(34, 211, 238, 0.7);
+  background: linear-gradient(90deg, var(--scene-a), var(--scene-b) 60%, var(--mint-50));
+  box-shadow: 0 0 14px rgb(143 230 200 / 0.6);
   will-change: transform;
 }
 @media (prefers-reduced-motion: reduce) { .scroll-progress { display: none; } }
-
-/* ==========================================================================
-   Hazier off-centre forms
-
-   Their own SVG layer so they can be blurred and dimmed hard without touching
-   the crisper right-hand cluster. They morph on the same timeline, on different
-   offsets through the sequence.
-   ========================================================================== */
-
-.stage-haze {
-  position: absolute;
-  left: -18%; top: 46%; translate: 0 -50%;
-  width: min(96vh, 86%);
-  aspect-ratio: 1;
-  overflow: visible;
-  opacity: 0.2;
-  filter: blur(46px);
-}
-.haze-a { transform-origin: 300px 300px; }
-.haze-b { transform-origin: 300px 300px; opacity: 0.8; }
-.haze-c { transform-origin: 300px 300px; opacity: 0.55; }
 
 /* ==========================================================================
    Feature grid
@@ -589,9 +531,9 @@ footer .row { display: flex; justify-content: space-between; gap: 1.5rem; flex-w
 .feature { padding: 1.6rem 1.55rem; }
 .feature .fi {
   width: 34px; height: 34px; border-radius: 11px;
-  background: var(--grad-brand);
+  background: var(--grad-deep);
   display: grid; place-items: center; margin-bottom: 1rem;
-  box-shadow: 0 8px 22px -10px var(--scene-a);
+  box-shadow: 0 0 0 1px rgb(166 240 214 / 0.18) inset, 0 8px 22px -10px var(--scene-a);
 }
 .feature .fi svg { width: 17px; height: 17px; stroke: #fff; fill: none; stroke-width: 1.9; }
 .feature h3 { margin-bottom: 0.45rem; }
@@ -614,7 +556,10 @@ footer .row { display: flex; justify-content: space-between; gap: 1.5rem; flex-w
 }
 .tour-inner { display: grid; gap: 2.2rem; }
 .tour-head { text-align: center; }
-.tour-note { font-size: 0.78rem; color: var(--fg-faint); margin-top: 0.7rem; letter-spacing: 0.02em; }
+.tour-head h2 { margin-inline: auto; }
+/* --fg-dim, not --fg-faint: small print sitting straight on the film, and the
+   veil is measured against --fg-dim. */
+.tour-note { font-size: 0.78rem; color: var(--fg-dim); margin-top: 0.7rem; letter-spacing: 0.02em; }
 
 .tour-screens { position: relative; height: min(56vh, 420px); perspective: 1200px; }
 .tour-screen {
@@ -639,19 +584,19 @@ footer .row { display: flex; justify-content: space-between; gap: 1.5rem; flex-w
 
 /* --- the mock screens ----------------------------------------------------- */
 
-.mock { height: 100%; display: flex; flex-direction: column; background: rgba(3, 8, 16, 0.42); }
+.mock { height: 100%; display: flex; flex-direction: column; background: rgb(2 10 9 / 0.5); }
 .mock-bar {
   display: flex; gap: 6px; padding: 11px 14px;
   border-bottom: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.03);
+  background: rgb(255 255 255 / 0.03);
 }
-.mock-bar span { width: 9px; height: 9px; border-radius: 50%; background: rgba(255, 255, 255, 0.16); }
+.mock-bar span { width: 9px; height: 9px; border-radius: 50%; background: rgb(255 255 255 / 0.16); }
 .mock-body { flex: 1; padding: 1.35rem 1.5rem; display: flex; flex-direction: column; gap: 1rem; min-height: 0; }
 
 .mock-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.7rem; }
 .mock-stat {
   border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.85rem 0.9rem;
-  background: rgba(255, 255, 255, 0.035);
+  background: rgb(255 255 255 / 0.035);
 }
 .mock-stat b { display: block; font-family: var(--font-display); font-size: 1.5rem; font-weight: 660; letter-spacing: -0.03em; }
 .mock-stat i { font-style: normal; font-size: 0.72rem; color: var(--fg-faint); }
@@ -661,14 +606,14 @@ footer .row { display: flex; justify-content: space-between; gap: 1.5rem; flex-w
   display: flex; align-items: center; gap: 0.6rem;
   font-size: 0.83rem; color: var(--fg-dim);
   padding: 0.55rem 0.75rem; border-radius: 9px;
-  background: rgba(255, 255, 255, 0.028);
+  background: rgb(255 255 255 / 0.028);
   border: 1px solid var(--glass-border);
 }
 .mock-row .tick { width: 7px; height: 7px; border-radius: 50%; background: var(--scene-b); flex: none; }
 .mock-row .r-t { font-variant-numeric: tabular-nums; color: var(--fg-faint); flex: none; width: 3.1rem; }
 .mock-row .r-n { flex: none; width: 8.5rem; color: var(--fg); }
 .mock-row .r-s { flex: 1; text-align: right; color: var(--fg-faint); }
-.mock-row.warn { border-color: rgba(251, 191, 120, 0.28); color: #f4d3a4; }
+.mock-row.warn { border-color: rgb(251 191 120 / 0.28); color: #f4d3a4; }
 .mock-row .tick.warn { background: #f0b25f; }
 
 .mock-steps { display: flex; gap: 0.5rem; }
@@ -676,12 +621,12 @@ footer .row { display: flex; justify-content: space-between; gap: 1.5rem; flex-w
   flex: 1; text-align: center; font-size: 0.76rem; padding: 0.5rem 0.4rem;
   border-radius: 999px; border: 1px solid var(--glass-border); color: var(--fg-faint);
 }
-.mock-step.on { border-color: transparent; background: var(--grad-brand); color: #fff; font-weight: 620; }
+.mock-step.on { border-color: transparent; background: var(--grad-deep); color: #fff; font-weight: 620; }
 
 .mock-rec {
   display: flex; align-items: center; gap: 0.8rem;
   padding: 0.9rem 1rem; border-radius: 12px;
-  border: 1px solid var(--glass-border); background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--glass-border); background: rgb(255 255 255 / 0.035);
 }
 .rec-dot { width: 9px; height: 9px; border-radius: 50%; background: #e5484d; flex: none; animation: rec-pulse 1.4s ease-in-out infinite; }
 @keyframes rec-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.8); } }
@@ -693,7 +638,7 @@ footer .row { display: flex; justify-content: space-between; gap: 1.5rem; flex-w
 .mock-transcript {
   flex: 1; min-height: 0;
   border: 1px solid var(--glass-border); border-radius: 12px;
-  background: rgba(255, 255, 255, 0.025);
+  background: rgb(255 255 255 / 0.025);
   padding: 0.85rem 1rem;
   display: flex; flex-direction: column; gap: 0.75rem;
 }
@@ -705,7 +650,7 @@ footer .row { display: flex; justify-content: space-between; gap: 1.5rem; flex-w
 .caret { display: inline-block; width: 2px; height: 0.95em; background: var(--scene-b); margin-left: 3px; vertical-align: -0.12em; animation: caret 1.05s steps(1) infinite; }
 @keyframes caret { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0; } }
 .mock-lines { display: flex; flex-direction: column; gap: 0.55rem; }
-.mock-lines span { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); }
+.mock-lines span { height: 8px; border-radius: 4px; background: rgb(255 255 255 / 0.08); }
 
 .mock-field { display: flex; flex-direction: column; gap: 0.28rem; }
 .mock-field label {
@@ -724,25 +669,25 @@ footer .row { display: flex; justify-content: space-between; gap: 1.5rem; flex-w
   border: 1px solid var(--glass-border); border-radius: 999px; padding: 0.3rem 0.7rem;
 }
 
-.mock.paper { background: rgba(248, 250, 252, 0.93); color: #0c1413; }
-.rx-head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid rgba(12,20,19,0.14); padding-bottom: 0.8rem; }
+.mock.paper { background: rgb(248 250 249 / 0.94); color: #0c1413; }
+.rx-head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid rgb(12 20 19 / 0.14); padding-bottom: 0.8rem; }
 .rx-head b { display: block; font-family: var(--font-display); font-size: 1.05rem; }
 .rx-head i { font-style: normal; font-size: 0.78rem; color: #5a6b68; }
-.rx-mark { width: 30px; height: 30px; border-radius: 9px; background: var(--grad-brand); }
+.rx-mark { width: 30px; height: 30px; border-radius: 9px; background: var(--grad-deep); }
 .rx-meta { display: flex; gap: 1.6rem; flex-wrap: wrap; font-size: 0.82rem; color: #26332f; }
 .rx-meta label { display: block; font-size: 0.62rem; letter-spacing: 0.09em; text-transform: uppercase; color: #7d8c88; margin-bottom: 0.1rem; }
 
 .rx-rx { display: flex; gap: 0.9rem; flex: 1; min-height: 0; }
-.rx-symbol { font-size: 1.5rem; font-weight: 700; color: #1b3a63; line-height: 1; padding-top: 0.1rem; }
+.rx-symbol { font-size: 1.5rem; font-weight: 700; color: #0f4a41; line-height: 1; padding-top: 0.1rem; }
 .rx-rx ol { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.75rem; }
 .rx-rx li { font-size: 0.86rem; color: #16211f; }
 .rx-rx li b { font-weight: 640; }
 .rx-rx li i { display: block; font-style: normal; font-size: 0.79rem; color: #586763; margin-top: 0.1rem; }
 
-.rx-advice { font-size: 0.8rem; color: #3c4b47; border-top: 1px solid rgba(12,20,19,0.1); padding-top: 0.7rem; }
+.rx-advice { font-size: 0.8rem; color: #3c4b47; border-top: 1px solid rgb(12 20 19 / 0.1); padding-top: 0.7rem; }
 .rx-advice label { display: block; font-size: 0.62rem; letter-spacing: 0.09em; text-transform: uppercase; color: #7d8c88; margin-bottom: 0.2rem; }
 
-.rx-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; border-top: 1px dashed rgba(12,20,19,0.2); padding-top: 0.7rem; }
+.rx-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; border-top: 1px dashed rgb(12 20 19 / 0.2); padding-top: 0.7rem; }
 .rx-sign { font-size: 0.74rem; color: #4b5a57; }
 .rx-scribble {
   width: 92px; height: 26px;

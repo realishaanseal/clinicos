@@ -1,17 +1,24 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import BrandMark from "@/components/BrandMark";
 
-export const alt = "ClinicOS. The consultation already happened. The record should too.";
+export const alt = "Varaxis ClinicOS. The consultation already happened. The record should too.";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 /**
  * The preview card shown when a link to the site is shared. Generated once at
- * build time. Satori renders it, not a browser, so layout is flexbox with inline
- * styles only; the glow is two radial gradients rather than a blur filter,
- * which Satori does not support.
+ * build time, over a still from the same film as the site's backdrop.
+ *
+ * Satori renders it, not a browser: layout is flexbox with inline styles only,
+ * and it reads JPEG and PNG but not WebP, which is why scripts/backdrop.py makes
+ * this still as a JPEG. It lives in media/, not public/, because nothing on the
+ * site links to it.
  */
 export default function OpengraphImage() {
+  const still = readFileSync(join(process.cwd(), "media", "og-backdrop.jpg")).toString("base64");
+
   return new ImageResponse(
     (
       <div
@@ -22,46 +29,50 @@ export default function OpengraphImage() {
           flexDirection: "column",
           justifyContent: "space-between",
           padding: "72px 80px",
-          background: "#03060a",
-          color: "#eef4f8",
+          background: "#010604",
+          color: "#eef6f3",
           position: "relative",
         }}
       >
-        <div
-          style={{
-            position: "absolute",
-            top: -300,
-            right: -220,
-            width: 860,
-            height: 860,
-            display: "flex",
-            background: "radial-gradient(circle at 50% 50%, rgba(47,109,246,0.55) 0%, rgba(3,6,10,0) 70%)",
-          }}
+        <img
+          src={`data:image/jpeg;base64,${still}`}
+          alt=""
+          width={1200}
+          height={630}
+          style={{ position: "absolute", top: 0, left: 0, width: 1200, height: 630 }}
         />
+        {/* The same job as the veil on the site: the film shows on the right, and
+            the copy on the left sits on near-black. */}
         <div
           style={{
             position: "absolute",
-            bottom: -360,
-            left: 160,
-            width: 940,
-            height: 760,
+            top: 0,
+            left: 0,
+            width: 1200,
+            height: 630,
             display: "flex",
-            background: "radial-gradient(circle at 50% 50%, rgba(34,211,238,0.26) 0%, rgba(3,6,10,0) 70%)",
+            background: "linear-gradient(90deg, rgba(1,6,4,0.94) 0%, rgba(1,6,4,0.8) 50%, rgba(1,6,4,0.15) 100%)",
           }}
         />
 
         <div style={{ display: "flex", alignItems: "center" }}>
           <BrandMark size={56} />
-          <div style={{ marginLeft: 20, fontSize: 36, letterSpacing: -0.5 }}>ClinicOS</div>
+          <div style={{ display: "flex", marginLeft: 20, fontSize: 38, letterSpacing: -0.8 }}>
+            {/* The renderer ships one regular-weight face, so fontWeight alone does
+                nothing. A hairline stroke in the same colour gives "Varaxis" the
+                heavier weight it has in the lockup on the site. */}
+            <span style={{ fontWeight: 700, color: "#ffffff", WebkitTextStroke: "1.2px #ffffff" }}>Varaxis</span>
+            <span style={{ marginLeft: 12, color: "#a6f0d6" }}>ClinicOS</span>
+          </div>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", fontSize: 70, lineHeight: 1.08, letterSpacing: -2 }}>
+        <div style={{ display: "flex", flexDirection: "column", fontSize: 68, lineHeight: 1.08, letterSpacing: -2 }}>
           <div>The consultation already happened.</div>
-          <div style={{ color: "#67e8f9" }}>The record should too.</div>
+          <div style={{ color: "#a6f0d6" }}>The record should too.</div>
         </div>
 
-        <div style={{ display: "flex", fontSize: 26, color: "#a3b4c4" }}>
-          Local-first clinical documentation · A Varaxis product
+        <div style={{ display: "flex", fontSize: 26, color: "#b4c7c1" }}>
+          Local-first clinical documentation
         </div>
       </div>
     ),

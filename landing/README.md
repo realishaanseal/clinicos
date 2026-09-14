@@ -36,47 +36,90 @@ the contact email and the contact form link. Change them there, nowhere else.
 `icon`, `apple-icon` and `opengraph-image` are generated at build time with
 `next/og` from `src/components/BrandMark.tsx`. That renderer (Satori) supports
 only flexbox, inline styles and gradients, so keep the mark inside that subset.
+The share image is laid over a still from the backdrop film, `media/og-backdrop.jpg`.
 
 ## Design
 
-Morphing light on near-black, with frosted glass panels over it.
+### The film
 
-**The whole scene transforms on scroll** — colour, shape and light together
-(`Stage.tsx`, `scenes.ts`, `shapes.ts`):
+**The ClinicOS film runs behind the whole site**: 3.15 seconds of glass lenses
+turning in green light, scrubbed forward as you scroll. It opens near-black on a
+single rim, light sweeps across the glass, and it ends in a mint-white bloom. So
+the top of the page is the dark opening and "Get in touch" is the bloom. It is
+the real footage, not a WebGL or SVG imitation of it.
 
-- **Colour.** Each section has a scene in `scenes.ts` (ground, three light
-  colours, text accent) and the page cross-fades between them as you scroll. The
-  hero is electric blue, the middle indigo, the foot teal. Nothing on the page
-  hard-codes a colour that takes part in this — everything reads the `--scene-*`
-  variables, including SVG gradient stops via `stop-color`. **Adding a section
-  means adding a scene and nothing else.**
-  Colour is interpolated by hand into the variables (a proxy object plus
-  `gsap.utils.interpolate`) rather than handed to GSAP as a property, because
-  interpolating a custom property's *colour* is not reliable across browsers.
-- **Shape.** Three glass forms morph through six silhouettes via GSAP
-  **MorphSVG** — stacked lenses, lens chain, ribbon swirl, horizon crescent,
-  faceted three-point, liquid teardrop — each offset through the sequence so no
-  two are ever the same shape.
-  `shapes.ts` is **generated**: every silhouette comes from one polar sampler at
-  72 points, so all six share an identical command structure. MorphSVG copes with
-  mismatched paths but has to guess at point correspondence, and you get shapes
-  that fold through the transition. If you add a shape, generate it the same way.
-- **Aurora.** A large conic wash rotating behind everything, recoloured by the
-  scene, plus a light band that sweeps across as each section arrives.
-- **Ambient loops.** Ribbons morph via SVG `d` interpolation in SMIL and the
-  horizon breathes — these keep running when scrolling stops, so the page is
-  never frozen.
-- **Lenis** drives it all, run off `gsap.ticker` rather than its own RAF loop.
-  Two clocks make scroll-linked animation lag the real scroll by a frame or two.
+- **Source and build.** `media/backdrop-source.mp4` is the original (720×1280
+  portrait, 60 fps). `scripts/backdrop.py` turns it into what ships:
+  - `public/backdrop/glass-landscape-v1.mp4`, 1920×1080, for wide screens. It is
+    rotated a quarter-turn rather than cropped: a 16:9 crop kept a third of the
+    frame and blurred it. Clockwise, because that way round the copy side stays
+    darkest through the opening.
+  - `public/backdrop/glass-portrait-v1.mp4`, 1080×1920, the original orientation,
+    for phones.
+  - a poster for each (the video's own first frame), the share-image still, and
+    `src/components/backdrop-frames.ts`.
 
-The glass forms are deliberately held at low opacity with a slight blur. At full
-strength they read as foreground objects, fight the frosted panels, and bleed
-through them enough to hurt the text behind. They are lighting, not subjects.
+  On the way it debands, upscales with Lanczos plus a light unsharp so the rims
+  stay crisp, converts BT.601 to BT.709 (skipping that shifts the greens), and puts
+  a keyframe every six frames so a seek decodes at most five. To rebuild:
+  `pip install imageio-ffmpeg numpy pillow`, then `python scripts/backdrop.py`.
+  **Bump `VERSION` in the script whenever the film changes**, because `/backdrop/*`
+  is cached for a year (`next.config.ts`).
+- **Scrubbing** (`Backdrop.tsx`). The video is never played, only seeked, and a
+  new seek waits for the last one to land; queuing seeks during a fast scroll is
+  what makes scrubbed video stutter. The position eases toward the scroll target,
+  and drifts a few frames either way while the page is still, so the glass keeps
+  turning. On a fresh load at the top, the opening plays in over 2.6 seconds while
+  the headline assembles.
+- **Readability by construction.** For every frame and each of 24 horizontal bands
+  of the screen, the script records the least darkening that text in that band
+  needs to hold 4.5:1: over the copy column (whose veil fades out to the right),
+  across a centred section, and under a glass panel. It measures to 4.8:1 and
+  rounds up, for headroom. The result ships as a small binary table beside each
+  video (`glass-*-v1.bin`), with frame 0 inside `backdrop-frames.ts` for the
+  poster. `Backdrop.tsx` checks which bands have text, panels or the header in them
+  at that moment and sets the veils, `--panel-a` and `--header-a` to what those
+  bands need, so the film is dimmed only where something is being read over it.
+  One figure per frame for the whole column was tried first. Measured over the full
+  height, it dimmed the opening for text nowhere near its light; measured over the
+  middle 80%, a label scrolling in at the screen edge fell to 2.2:1. If the table
+  cannot load, the film is never shown and the poster stays.
+  **The colours in the script must match `--veil`, `--panel-rgb`, `--fg-dim` and
+  `--fg-faint` in `globals.css`.** Change one, re-run the script.
+- **Colour.** Each section has a scene in `scenes.ts`: ground, three light
+  colours, text accent, the moment of the film it holds at, and which veil it
+  wants. The palette is taken from the film. Nothing on the page hard-codes a
+  colour that takes part in this — everything reads the `--scene-*` variables.
+  **Adding a section means adding a scene and its id to `SCENE_ANCHORS`.** Colour
+  is interpolated by hand into the variables, because interpolating a custom
+  property's *colour* is not reliable across browsers.
+- **Fallbacks.** Under reduced motion, or with Save-Data on, the video never loads
+  and the poster stays; it is near-black, so every section reads. iOS Safari will
+  not buffer a video that has never played, so a muted play-and-pause unlocks it.
+  In Low Power Mode that is refused, and the poster stays there too.
+- **Grain.** A static SVG noise layer, the way grain sits on a projected print. It
+  also hides the banding an 8-bit video keeps in near-black. It does not move,
+  because moving grain would redraw the whole screen every frame.
+- **Lenis** smooth scroll runs off `gsap.ticker` rather than its own RAF loop. Two
+  clocks make scroll-linked animation lag the real scroll by a frame or two.
 
-**The product tour** (`ProductTour.tsx`) is a sticky-stage sequence of four app
-screens, each entering on a different transition — 3D card flip, slide-and-unblur,
-drop-back-and-settle — because four identical fades read as one long section
-rather than four screens.
+### The lockup
+
+`Wordmark.tsx`: the ClinicOS tile, "Varaxis" heavy and white, and "ClinicOS"
+lighter in the film's mint — the arrangement every Varaxis product uses. It sits
+in the header and the footer. The tile's mark (three lines of a note, the last
+shorter) must stay in step with `BrandMark.tsx`. The type is the system display
+face; the site loads no webfonts.
+
+The header (`SiteHeader.tsx`) is clear over the film at the top of the page, with
+only the per-frame band behind it. Once the page scrolls it takes a smoked-glass
+bar, faded in on a pseudo-element's opacity.
+
+### The product tour
+
+`ProductTour.tsx` is a sticky-stage sequence of four app screens, each entering on a
+different transition — 3D card flip, slide-and-unblur, drop-back-and-settle —
+because four identical fades read as one long section rather than four screens.
 
 Two things there are load-bearing and easy to break:
 
@@ -96,35 +139,35 @@ and the section says so on the page. An interface picture implying a running
 system it cannot show is the kind of thing that gets noticed in a room full of
 clinicians.
 
-**Cost.** `d` and `border-radius` repaint rather than composite, unlike `transform`
-and `opacity`. That is affordable at this scale — four large elements — and would
-not be at two hundred small ones. None of them sit behind a `backdrop-filter`
-region, which would force a re-blur every frame.
+### Text
 
-**Text** (`AnimatedText.tsx`): words rise out of a blur on a stagger, so a headline
-assembles rather than fading in as a block. Words, not characters — per-character
-animation on a long line reads as a novelty typewriter and wrecks text selection.
-The full string is exposed once via `aria-label` and the animated spans are
-`aria-hidden`, so a screen reader reads one sentence rather than a word list.
-Accent words are marked with `[[double brackets]]` and get a gradient that sweeps
-on a 9s loop.
+`AnimatedText.tsx`: words rise out of a blur on a stagger, so a headline assembles
+rather than fading in as a block. Words, not characters — per-character animation
+on a long line reads as a novelty typewriter and wrecks text selection. The full
+string is exposed once via `aria-label` and the animated spans are `aria-hidden`,
+so a screen reader reads one sentence rather than a word list. Accent words are
+marked with `[[double brackets]]` and get a gradient that sweeps on a 9s loop.
 
-Rules that matter when extending this:
+### Cost
+
+About 2.7 MB of video, and only one orientation loads on a given device. It is
+cached for a year. While the page is still, the film drifts by one frame roughly
+every half second, and the panels' `backdrop-filter` re-blurs only when the frame
+changes.
+
+### Rules that matter when extending this
 
 - **Never animate `backdrop-filter`.** Animate `transform`, `opacity`,
   `border-color` and `box-shadow`. Every hover state here follows that.
+- **Never transition a glass panel's `background`.** Its tint follows the film
+  frame by frame; easing it would leave the panel lighter than the frame needs.
+- Section headlines are capped at 19ch so they stay inside the veiled copy column.
 - Scroll reveals use native CSS scroll-driven animations (`animation-timeline: view()`).
   `Reveal.tsx` attaches an IntersectionObserver *only* where those are unsupported
   (Firefox). The `@supports` test includes `animation-range` on purpose, to exclude
   partial implementations.
-- Everything sits inside `prefers-reduced-motion: no-preference`, including the
-  ribbons — `Stage.tsx` renders static paths rather than `<animate>` elements when
-  reduced motion is set. All motion is decorative; the page reads correctly with
-  every animation disabled.
-- The stage is masked to fade out on its left edge. Without that, blurred children
-  get clipped at the container box and leave a hard vertical seam through the
-  headline. Below 980px it dims and takes a scrim, because readability beats
-  spectacle.
+- All motion is decorative, and all of it respects `prefers-reduced-motion`. The
+  page reads correctly with every animation disabled.
 
 ## Content
 

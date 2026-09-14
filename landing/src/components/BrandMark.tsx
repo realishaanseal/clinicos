@@ -1,16 +1,18 @@
 /**
- * The ClinicOS mark: three lines of a note, the last one shorter, on the brand
- * gradient. A record being written.
+ * The ClinicOS mark: three lines of a note, the last one shorter, on the product's
+ * green glass tile. A record being written.
  *
- * Drawn for next/og, which renders with Satori rather than a browser. Satori
- * understands flexbox, inline styles and gradients, and little else, so this
- * component must stay inside that subset. It is used by icon, apple-icon and
- * opengraph-image, never rendered on the page itself.
+ * The same mark as the tile in Wordmark.tsx, drawn again here for next/og, which
+ * renders with Satori rather than a browser. Satori understands flexbox, inline
+ * styles and gradients, and little else, so this component must stay inside that
+ * subset. It is used by icon, apple-icon and opengraph-image, never on the page.
  */
 export default function BrandMark({ size, rounded = true }: { size: number; rounded?: boolean }) {
-  const bars = [0.56, 0.56, 0.36];
-  const thickness = Math.max(2, Math.round(size * 0.1));
-  const gap = Math.max(2, Math.round(size * 0.08));
+  // Proportions match the 32-unit SVG tile in Wordmark.tsx: bars 16, 16 and 10
+  // units long, 2.6 thick, 4.7 apart, starting 8 units in.
+  const bars = [0.5, 0.5, 0.3125];
+  const thickness = Math.max(2, Math.round(size * 0.082));
+  const gap = Math.max(2, Math.round(size * 0.066));
 
   return (
     <div
@@ -21,9 +23,9 @@ export default function BrandMark({ size, rounded = true }: { size: number; roun
         flexDirection: "column",
         justifyContent: "center",
         alignItems: "flex-start",
-        paddingLeft: Math.round(size * 0.22),
-        background: "linear-gradient(135deg, #2f6df6 0%, #22d3ee 100%)",
-        borderRadius: rounded ? Math.round(size * 0.24) : 0,
+        paddingLeft: Math.round(size * 0.25),
+        background: "linear-gradient(135deg, #13705f 0%, #07302a 55%, #021815 100%)",
+        borderRadius: rounded ? Math.round(size * 0.25) : 0,
       }}
     >
       {bars.map((w, i) => (
@@ -34,7 +36,7 @@ export default function BrandMark({ size, rounded = true }: { size: number; roun
             height: thickness,
             marginTop: i === 0 ? 0 : gap,
             borderRadius: thickness,
-            background: "#ffffff",
+            background: "#e6faf2",
           }}
         />
       ))}
