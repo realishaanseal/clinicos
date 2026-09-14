@@ -20,10 +20,10 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // The backdrop film and its posters carry a version in the file name
-        // (glass-landscape-v1.mp4). A new film gets a new name, so these can be
-        // cached for a year without anyone ever being served a stale one.
-        source: "/backdrop/:file*",
+        // The backdrop's frames, posters and tables live under a versioned folder
+        // (/backdrop/v2/). A new film gets a new folder, so these can be cached for
+        // a year without anyone ever being served a stale one.
+        source: "/backdrop/:path*",
         headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
       },
     ];

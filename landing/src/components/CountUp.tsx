@@ -5,7 +5,12 @@
  * (a "~", a "½", an en-dash range) are passed through untouched, so a value like
  * "48s" animates its number and keeps its unit.
  *
- * Under reduced motion the final value renders immediately.
+ * Under reduced motion the final value renders as soon as the page hydrates.
+ *
+ * The first render is always the zeroed figure, whatever the motion preference.
+ * The server cannot know that preference, so starting from the final value under
+ * reduced motion made the hydrated text differ from the server's and threw React
+ * error 418.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -14,7 +19,7 @@ import { useReducedMotion } from "motion/react";
 export default function CountUp({ value }: { value: string }) {
   const reduced = useReducedMotion();
   const ref = useRef<HTMLSpanElement>(null);
-  const [shown, setShown] = useState(reduced ? value : null);
+  const [shown, setShown] = useState<string | null>(null);
 
   useEffect(() => {
     if (reduced) { setShown(value); return; }

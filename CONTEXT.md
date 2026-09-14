@@ -46,9 +46,10 @@ It is framed differently for different audiences:
 | `.mcp.json` | Optional MCP servers for agent sessions. |
 
 **Branches.** `main` holds everything that is live, and Vercel deploys the public
-website from it. `v1`, `website-contact`, `website-v1`, `site` and
-`website-glass-backdrop` are already merged into `main`; they are history and can be
-deleted. Start new work on a fresh feature branch off `main`.
+website from it. `v1`, `website-contact`, `website-v1`, `site`,
+`website-glass-backdrop` and `website-smooth-film` are already merged into `main`;
+they are history and can be deleted. Start new work on a fresh feature branch off
+`main`.
 
 ---
 
@@ -63,16 +64,22 @@ deleted. Start new work on a fresh feature branch off `main`.
   - Sections: hero, problem, how it works, where the data lives, what is built,
     product tour, who it is for, current status, get in touch. Also `/privacy`, a 404
     page, generated icons and a share image.
-  - **The backdrop is the ClinicOS film** (live since 15 Sep 2026): Ishaan's own
-    footage of glass lenses in green light, scrubbed forward as the page scrolls. Wide
-    screens get it rotated a quarter-turn (a crop threw away two thirds of the frame);
-    phones get the original portrait frame. It is cleaned up and upscaled to 1080p by
-    `landing/scripts/backdrop.py`.
+  - **The backdrop is the ClinicOS film:** Ishaan's own footage of glass lenses in
+    green light, scrubbed forward as the page scrolls. Wide screens get it rotated a
+    quarter-turn (a crop threw away two thirds of the frame); phones get the original
+    portrait frame.
+  - **Smooth scrubbing (15 Sep 2026).** The first version seeked a `<video>` and
+    looked like ten frames a second. Now the film is AI-upscaled (Real-ESRGAN) and
+    AI-interpolated (RIFE) into 491 frames, shipped as AVIF packs and drawn on a canvas
+    on every screen refresh, blending the two nearest frames. Measured in Chromium on a
+    laptop's integrated graphics: 83–85 fps (the window's full refresh rate) at 1×, 2×
+    and phone size, with the film redrawn on 93–100% of refreshes while scrolling. A
+    device downloads 4.4–6.6 MB, and the film starts after the first 489–737 KB.
   - **Readability is built in:** for every frame and every band of the screen, the
     script records how far text must be darkened to hold 4.5:1, and the page darkens
-    only where text is being read. Checked by replaying the page's logic over the real
-    frames at 1440×900, 1100×700 and 375×812: no text below 4.5:1, or 3:1 for large
-    headings.
+    only where text is being read. Checked by replaying the page's logic over the
+    shipped frames at 1440×900, 1100×700 and 375×812: about 59,000 line measurements,
+    none below 4.5:1 (3:1 for large headings).
   - **A site header with the Varaxis ClinicOS lockup**, set like Varaxis Scholar: tile,
     "Varaxis" heavy and white, the product name lighter in its own colour (mint). The
     footer uses it too.
@@ -124,8 +131,8 @@ Windows or `go.sh` on macOS.
   - All passed on 14 September 2026.
   - Don't run it while `npm run dev` is running in that folder.
 - **Website:** `cd landing && npm run build`
-  - After changing the film or the colours it is measured against:
-    `pip install imageio-ffmpeg numpy pillow`, then `python landing/scripts/backdrop.py`.
+  - Rebuilding the film needs the two AI tools, which are not in the repo; the
+    download names and the command are in `landing/README.md` ("Rebuilding it").
 
 ---
 
@@ -145,8 +152,9 @@ Windows or `go.sh` on macOS.
 | 13 Sep 2026 | A shared visit shows exactly the printed prescription. | Never the transcript, audio, AI draft or edit log. It matches the patient-held record direction in blueprint §28 and ABDM. |
 | 13 Sep 2026 | The front desk gets a simple day's list with tokens. | |
 | 14 Sep 2026 | `main` holds everything; all branches were merged into it. | So any assistant opening the repo sees the latest version without switching branch. |
-| 14 Sep 2026 | The website backdrop is Ishaan's own glass film, used as the real footage. Not a WebGL, SVG or AI-generated imitation of it. | Ishaan asked for the video's look itself, not something like it. No video-upscaler connector exists, so clean-up and the 1080p upscale are done locally with ffmpeg. |
+| 14 Sep 2026 | The website backdrop is Ishaan's own glass film, used as the real footage. Not a WebGL, SVG or AI-generated imitation of it. | Ishaan asked for the video's look itself, not something like it. |
 | 14 Sep 2026 | Varaxis product lockup: tile, "Varaxis" heavy and white, the product name lighter in its own colour. ClinicOS's colour is the film's mint. | It matches the Varaxis Scholar lockup, so the products read as one family. It uses the system display face because the site loads no webfonts. |
+| 15 Sep 2026 | The film plays as AI-upscaled, AI-interpolated AVIF frames drawn on a canvas, never as a seeked video. | Seeking read as ten frames a second. Real-ESRGAN (`realesr-animevideov3`) and RIFE v4.6 were chosen by side-by-side tests against Lanczos, `realesrgan-x4plus` and ffmpeg's interpolation. Ishaan approved downloading both open-source tools; they run locally and upload nothing. No upscaler connector exists. |
 | Prototype era | The invariants in CLAUDE.md. | No clinical judgement. Audio deleted at signing. No training on audio. Consent enforced server-side. `draftJson` immutable. Backups via the SQLite backup API. No lock-in. |
 
 ---
@@ -273,7 +281,8 @@ speed pass.
    because the Hobby plan is for non-commercial use, and that applies to the website as
    well.
 4. **Optional:** delete the merged branches (`v1`, `website-contact`, `website-v1`,
-   `site`, `website-glass-backdrop`) and the worktree `.claude/worktrees/website-glass`.
+   `site`, `website-glass-backdrop`, `website-smooth-film`) and the worktree
+   `.claude/worktrees/website-glass`.
 5. **Optional:** if Varaxis has a brand typeface file, add it and the lockup can use it.
    Until then it uses the system display face.
 
@@ -285,8 +294,9 @@ re-authorised for that team.
 
 ## 8. Environment notes
 
-- **Machines:** the development laptop is Windows 11 (PowerShell 5.1); the primary field
-  laptop is a Mac. Keep `go.sh` and `go.ps1` in step.
+- **Machines:** the development laptop is Windows 11 (PowerShell 5.1) with an NVIDIA
+  RTX 5070 Ti laptop GPU (Vulkan device 1; device 0 is the Intel integrated GPU); the
+  primary field laptop is a Mac. Keep `go.sh` and `go.ps1` in step.
 - **PowerShell 5.1 breaks double quotes** in arguments to native programs:
   `git commit -m "…"` (and here-strings) and `node -e "…"` both fail. Write commit
   messages to a file and use `git commit -F <file>`; put scripts in files.
@@ -298,8 +308,13 @@ re-authorised for that team.
   warn about the "workspace root". It is not part of the repo.
 - **The assistant's in-app browser stops painting when its window is covered.**
   Screenshots time out, `requestAnimationFrame` stops and smooth `scrollTo` never
-  arrives, so a scroll-driven page looks frozen. Keep the window in front when checking
-  motion; for readability over the film, the replay approach in §3 does not need it.
+  arrives, so a scroll-driven page looks frozen. Use the Playwright MCP instead for
+  motion and performance checks.
+- **Measuring with Playwright:** measure in its main page, switching screen size and
+  pixel density with CDP `Emulation.setDeviceMetricsOverride`. Pages opened in extra
+  browser contexts ran at about half frame rate, which looked like a performance
+  problem and was not one. The Playwright MCP only reads and writes files under the
+  repo root and `.playwright-mcp/`.
 - **ffmpeg** is not installed on the development laptop. `pip install imageio-ffmpeg`
   brings a static build, which is what `landing/scripts/backdrop.py` uses.
 - **Other tools' config** sits untracked in the main checkout: `.agents/` and `.codex/`.
@@ -317,7 +332,7 @@ re-authorised for that team.
   then could claim it, so run setup as soon as a clinic install starts.
 - **Promises on the website's privacy page:** no cookies, no analytics, no third-party
   scripts, and contact-form responses deleted within 12 months of last contact. Keep
-  all of these true. (The backdrop film and its tables are served from the site itself.)
+  all of these true. (The backdrop frames and tables are served from the site itself.)
 - **Duplicate PDF:** on the development laptop, an untracked
   `ClinicOS_Prototype_Documentation.pdf` sits at the repo root. It is identical to
   `artifacts/ClinicOS_Prototype_Documentation.pdf`.
@@ -341,7 +356,11 @@ re-authorised for that team.
   - Everything was merged into `main`, which puts "Get in touch" live.
   - The website redesign was built on `website-glass-backdrop`: the ClinicOS film as
     the backdrop, the Varaxis ClinicOS lockup in a new header, a green palette.
-- **15 Sep 2026:** the redesign went live. `main` was fast-forwarded to it (`0ada1ee`)
-  and Vercel deployed it; the video, readability tables, poster, icons and share image
-  were all confirmed on the live site. The old morphing stage, and with it the dead
-  `.flow` parallax, is gone.
+- **15 Sep 2026:**
+  - The redesign went live (`main` fast-forwarded to `0ada1ee`).
+  - Ishaan reported the scroll felt like ten frames a second and asked for a higher
+    quality film, then left the rest to the assistant, deploy included. The film was
+    rebuilt on `website-smooth-film`: AI upscale and interpolation, AVIF frame packs,
+    a canvas player with per-refresh blending, a pixel cap for high-density screens,
+    and a fix for an intermittent React hydration error in `CountUp` under reduced
+    motion.

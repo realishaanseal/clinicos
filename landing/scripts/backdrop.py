@@ -2,56 +2,69 @@
 Builds the landing site's backdrop from the source film.
 
     pip install imageio-ffmpeg numpy pillow
-    python landing/scripts/backdrop.py
+    python landing/scripts/backdrop.py --esrgan PATH --rife PATH [--work PATH] [--gpu N]
 
-Input:   landing/media/backdrop-source.mp4      720x1280 portrait, 60 fps, 3.17 s
-Output:  landing/public/backdrop/glass-{landscape,portrait}-v1.mp4    the film
-         landing/public/backdrop/glass-{landscape,portrait}-v1.webp   its first frame, the poster
-         landing/public/backdrop/glass-{landscape,portrait}-v1.bin    the readability table
-         landing/media/og-backdrop.jpg                 still for the share preview
-         landing/src/components/backdrop-frames.ts   (generated, do not hand-edit)
+    --esrgan  folder holding realesrgan-ncnn-vulkan.exe and its models
+              (github.com/xinntao/Real-ESRGAN, release v0.2.5.0)
+    --rife    folder holding rife-ncnn-vulkan.exe and its models
+              (github.com/nihui/rife-ncnn-vulkan, release 20221029)
+    --work    folder for intermediate frames, several GB (default: a temp folder).
+              Finished stages are reused on a re-run; pass --fresh to redo them.
+    --gpu     Vulkan device for both tools (default: the first NVIDIA or AMD GPU found)
+
+Input:   landing/media/backdrop-source.mp4          720x1280 portrait, 60 fps, 3.17 s
+Output:  landing/public/backdrop/v2/                frame packs, posters, readability tables
+         landing/media/og-backdrop.jpg              still for the share preview
+         landing/src/components/backdrop-frames.ts  (generated, do not hand-edit)
 
 Why each step is here:
 
-- Wide screens get the film rotated a quarter-turn clockwise, not cropped. A 16:9
-  crop keeps a third of the frame and enlarges it 2.7x; rotating keeps all of it.
-  Clockwise specifically, because that way round the left side, where the copy
-  sits, stays darkest through the opening second (mean luminance 0.08, against
-  0.22 for the other way). Phones get the original portrait frame.
-- deband runs first. The source is 850 kb/s H.264, and its near-black gradients
-  step visibly once they are enlarged.
-- Lanczos up to 1080p, then a light luma-only unsharp, so the thin glass rims stay
-  crisp instead of smearing. Colour is converted BT.601 -> BT.709 on the way:
-  browsers treat untagged HD video as BT.709, and skipping this shifts the greens.
-- A keyframe every 6 frames. The page scrubs this video with scroll, and a seek
-  lands on a keyframe and decodes forward from it. Every frame a keyframe was 2.4x
-  the size for no visible gain; 6 keeps the worst seek to five decodes.
-- The readability table. For every frame, and for each of 24 horizontal bands of
-  the screen, it holds the least darkening that text in that band needs to reach
+- Upscale with Real-ESRGAN's video model, realesr-animevideov3, at 4x, then scale
+  down to 1440x2560. It was compared with plain Lanczos and with the general
+  realesrgan-x4plus model on a dark, a fast and a bright frame. It sharpens the
+  glass rims and removes the source's compression blocking without moving the
+  colours, where x4plus brightened the whites. It is also built for video, so detail
+  does not shimmer from frame to frame. Rendering at 4x and scaling down keeps edges
+  clean.
+- Interpolate with RIFE v4.6 to eight frames per source frame. The first version
+  scrubbed the 190 source frames and looked like ten frames a second: one frame
+  covered fifty pixels of scroll. On the fastest pair of frames, ffmpeg's
+  motion-compensated interpolation warped the thick rim and RIFE did not.
+- Keep only the frames that differ visibly from the last one kept, and never more
+  than 1/30 s of film apart. The film's motion is almost all in its first 1.2 s; its
+  last second barely changes, and eight frames a source frame there is weight with
+  nothing to show.
+- AVIF stills rather than WebP or a video. A 1440p frame of this film is a fraction
+  of the size as AVIF that it is as WebP, and a decoded still is on screen the moment
+  it is drawn, where a video seek takes the decoder tens of milliseconds.
+- Two sizes per orientation, 1080p and 1440p, landscape rotated a quarter-turn
+  clockwise (a 16:9 crop threw away two thirds of the frame; clockwise keeps the
+  copy side darkest through the opening). The page picks by screen pixels and memory.
+- Five packs per set. The first holds every sixteenth frame plus the opening the page
+  shows on load, and each after it doubles the density, so the film works early and
+  sharpens as the rest arrives.
+- The readability table. For every kept frame, and for each of 24 horizontal bands
+  of the screen, it holds the least darkening that text in that band needs to reach
   4.5:1: over the copy column, across a centred section, and under a glass panel.
-  The page checks which bands have text in them at that moment and darkens only as
-  much as those bands need. So the light across the top of the opening is left
-  alone while the headline sits in the dark middle of the frame.
-  One figure per frame for the whole column was tried first and lost either way.
-  Measured over the full height, it dimmed the opening for text nowhere near the
-  light. Measured over the middle 80%, a label scrolling in at the edge of the
-  screen fell to 2.2:1.
-- How a band is measured: for each pixel, the least veil that makes that pixel dark
-  enough, then the 99th percentile across the band. Each analysis pixel averages a
-  square of about 4.5 CSS px, so a hairline rim barely counts and a band of light
-  counts in full. The target is 4.8:1 rather than 4.5, and values round up, to leave
-  headroom for the difference between this analysis and the browser's own scaling.
-
-If the film changes, bump VERSION so the year-long cache on /backdrop/ never
-serves the old one (see next.config.ts).
+  The page darkens only the bands that have text in them. Per pixel, the least veil
+  that makes that pixel dark enough; then the 99th percentile across the band. The
+  target is 4.8:1 and values round up, for headroom over the browser's own scaling.
 
 The colours below must match globals.css (--veil, --panel-rgb, --fg-dim, --fg-faint).
 """
 
+import argparse
+import hashlib
+import io
+import json
 import os
 import re
+import shutil
+import struct
 import subprocess
 import sys
+import tempfile
+from multiprocessing import Pool
 
 import imageio_ffmpeg
 import numpy as np
@@ -60,41 +73,56 @@ from PIL import Image, ImageFilter
 HERE = os.path.dirname(os.path.abspath(__file__))
 LANDING = os.path.dirname(HERE)
 SRC = os.path.join(LANDING, "media", "backdrop-source.mp4")
-OUT = os.path.join(LANDING, "public", "backdrop")
+OUT = os.path.join(LANDING, "public", "backdrop", "v2")
 OG = os.path.join(LANDING, "media", "og-backdrop.jpg")
 SCENES = os.path.join(LANDING, "src", "components", "scenes.ts")
 MANIFEST = os.path.join(LANDING, "src", "components", "backdrop-frames.ts")
-VERSION = "v1"
+URL = "/backdrop/v2"
 FF = imageio_ffmpeg.get_ffmpeg_exe()
 
-FPS = 60
+SOURCE_FPS = 60
+FACTOR = 8                         # interpolated frames per source frame
+TICKS_PER_SECOND = SOURCE_FPS * FACTOR
+MASTER = (1440, 2560)              # portrait; landscape is this rotated
+SR_MODEL = "realesr-animevideov3-x4"
+RIFE_MODEL = "rife-v4.6"
+# UHD mode estimates motion at half resolution, which RIFE recommends above 2K. On
+# the comparison pair at 720p it matched normal mode; the frames here are 1440x2560.
+RIFE_UHD = True
+KEEP_DIFF = 1.0                    # mean absolute change (0-255, at 180x320) that earns a new frame
+MAX_GAP_TICKS = TICKS_PER_SECOND // 30
+LEVELS = 5
+# The opening shipped whole in the first pack. The page opens at 0.26 s of film
+# (scenes.ts) and drifts 0.05 s either way, so 0.32 s covers every frame of the first
+# view; 0.45 s put 30 more frames into the pack everyone downloads first.
+HERO_SECONDS = 0.32
+OG_SECONDS = 0.35
+
+TIERS = {
+    "portrait": {"hd": (1080, 1920), "uhd": (1440, 2560)},
+    "landscape": {"hd": (1920, 1080), "uhd": (2560, 1440)},
+}
+# Chosen by a sweep over a dark, a fast and a bright frame at both sizes. At 45 the
+# frames measured 44.5-46.3 dB PSNR against lossless, and at 2x zoom were
+# indistinguishable from lossless and from 60 in the near-black gradients, where
+# banding would show first. 60 cost about half as many bytes again for nothing visible.
+AVIF_QUALITY = {"hd": 45, "uhd": 45}
+AVIF_SPEED = 4
+
 ROWS = 24
-OG_TIME = "0.35"                       # seconds into the film for the share-preview still
-TARGET = 4.8                           # 4.5:1 plus headroom, see above
+TARGET = 4.8
 GROUND = np.array([1, 6, 4], float)    # --veil
 PANEL = np.array([3, 11, 10], float)   # --panel-rgb
 FG_DIM = "#b4c7c1"                     # --fg-dim: body copy on the film
 FG_FAINT = "#93aaa3"                   # --fg-faint: small print inside panels
 PANEL_MIN = 0.34                       # below this a panel stops reading as glass
 BLUR_PX = 24                           # backdrop-filter: blur(24px) on .glass
-
-DEBAND = "deband=1thr=0.012:2thr=0.012:3thr=0.012:4thr=0.012:range=16:blur=1"
-SCALE = "flags=lanczos+accurate_rnd+full_chroma_int:in_color_matrix=bt601:out_color_matrix=bt709"
-SHARPEN = "unsharp=luma_msize_x=5:luma_msize_y=5:luma_amount=0.35:chroma_msize_x=3:chroma_msize_y=3:chroma_amount=0"
-
-# "copy" and "even" are the horizontal spans, as fractions of the frame's width, that
-# text can occupy with each veil. Phones centre everything, so both are the same.
-VARIANTS = {
-    "landscape": {"size": (1920, 1080), "pre": "transpose=1,", "analysis": (320, 180),
-                  "copy": (0.05, 0.62), "even": (0.05, 0.95)},
-    "portrait": {"size": (1080, 1920), "pre": "", "analysis": (180, 320),
-                 "copy": (0.06, 0.94), "even": (0.06, 0.94)},
-}
+ANALYSIS = {"portrait": (180, 320), "landscape": (320, 180)}
+SPANS = {"portrait": {"copy": (0.06, 0.94), "even": (0.06, 0.94)},
+         "landscape": {"copy": (0.05, 0.62), "even": (0.05, 0.95)}}
 
 
-def run(args):
-    subprocess.run([FF, "-hide_banner", "-loglevel", "error", "-y", *args], check=True)
-
+# ---------------------------------------------------------------------------- helpers
 
 def rgb(hexstr):
     return np.array([int(hexstr[i:i + 2], 16) for i in (1, 3, 5)], float)
@@ -106,33 +134,29 @@ def luminance(c):
     return 0.2126 * c[..., 0] + 0.7152 * c[..., 1] + 0.0722 * c[..., 2]
 
 
-def encode(name, spec):
-    w, h = spec["size"]
-    vf = f"{DEBAND},{spec['pre']}scale={w}:{h}:{SCALE},{SHARPEN},format=yuv420p"
-    dst = os.path.join(OUT, f"glass-{name}-{VERSION}.mp4")
-    run([
-        "-i", SRC, "-an", "-vf", vf,
-        "-c:v", "libx264", "-preset", "slow", "-crf", "20", "-tune", "film", "-profile:v", "high",
-        "-x264-params", "keyint=6:min-keyint=6:scenecut=0:bframes=0",
-        "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709",
-        "-movflags", "+faststart", dst,
-    ])
-    # The poster is the encoded video's own first frame, so the moment the video
-    # takes over from it there is no shift in colour or sharpness.
-    run(["-i", dst, "-frames:v", "1", "-vf", "scale=in_color_matrix=bt709,format=rgb24",
-         "-c:v", "libwebp", "-quality", "88", os.path.join(OUT, f"glass-{name}-{VERSION}.webp")])
-    return dst
+def pngs(folder):
+    return sorted(os.path.join(folder, f) for f in os.listdir(folder) if f.lower().endswith(".png"))
 
 
-def decode_small(path, w, h):
-    """Every frame of the encoded video, downscaled for measurement, as RGB."""
-    raw = subprocess.run(
-        [FF, "-hide_banner", "-loglevel", "error", "-i", path,
-         "-vf", f"scale={w}:{h}:flags=area:in_color_matrix=bt709,format=rgb24",
-         "-f", "rawvideo", "-"],
-        check=True, capture_output=True,
-    ).stdout
-    return np.frombuffer(raw, dtype=np.uint8).reshape(-1, h, w, 3).astype(np.float64)
+def stage_done(folder, count):
+    return os.path.isdir(folder) and len(pngs(folder)) >= count
+
+
+def fresh_dir(folder):
+    shutil.rmtree(folder, ignore_errors=True)
+    os.makedirs(folder)
+
+
+def detect_gpu(esrgan_exe, sample, scratch):
+    """ncnn lists every Vulkan device when it starts. Prefer a discrete GPU."""
+    out = subprocess.run([esrgan_exe, "-i", sample, "-o", os.path.join(scratch, "probe.png"),
+                          "-n", SR_MODEL, "-s", "4", "-g", "0"],
+                         capture_output=True, text=True, cwd=os.path.dirname(esrgan_exe))
+    devices = re.findall(r"\[(\d+) ([^\]]+)\]", out.stdout + out.stderr)
+    for index, name in devices:
+        if re.search(r"NVIDIA|AMD|Radeon", name):
+            return index, name
+    return (devices[0] if devices else ("0", "default"))
 
 
 def darkest_text_colour():
@@ -156,104 +180,281 @@ def least_veil(frame, over, fg):
     return np.where(luminance(frame) <= limit, 0.0, hi)
 
 
-def blurred(frame, sigma):
-    im = Image.fromarray(frame.astype(np.uint8)).filter(ImageFilter.GaussianBlur(sigma))
-    return np.asarray(im, dtype=np.float64)
+def oriented(im, shape):
+    return im.transpose(Image.Transpose.ROTATE_270) if shape == "landscape" else im
 
 
-def measure(path, spec, text_fg):
-    w, h = spec["analysis"]
-    frames = decode_small(path, w, h)
-    # The panels' blur in analysis pixels, as it would be on a 1440 px wide screen.
-    # Phones blur more per pixel of film than that, so this errs on the safe side.
-    sigma = BLUR_PX * max(w, h) / 1440
-    cx0, cx1 = (int(w * f) for f in spec["copy"])
-    ex0, ex1 = (int(w * f) for f in spec["even"])
-    edges = [round(h * r / ROWS) for r in range(ROWS + 1)]
-    faint = rgb(FG_FAINT)
-    table = np.zeros((len(frames), ROWS, 3), np.uint8)
-    for i, f in enumerate(frames):
+# ------------------------------------------------------------------ pool workers
+
+def work_downscale(job):
+    src, dst = job
+    Image.open(src).convert("RGB").resize(MASTER, Image.LANCZOS, reducing_gap=3.0).save(dst, compress_level=1)
+    return dst
+
+
+def work_thumb(path):
+    """A small greyscale copy of a master frame, for measuring motion."""
+    return np.asarray(Image.open(path).convert("L").resize((180, 320), Image.BOX), dtype=np.float32)
+
+
+def work_encode(job):
+    index, src, avif_dir = job
+    master = Image.open(src).convert("RGB")
+    for shape, tiers in TIERS.items():
+        im = oriented(master, shape)
+        for tier, size in tiers.items():
+            frame = im if im.size == size else im.resize(size, Image.LANCZOS, reducing_gap=3.0)
+            buf = io.BytesIO()
+            # One thread each: the pool already runs one encoder per core.
+            frame.save(buf, "AVIF", quality=AVIF_QUALITY[tier], speed=AVIF_SPEED, max_threads=1)
+            with open(os.path.join(avif_dir, f"{shape}-{tier}", f"{index:05d}.avif"), "wb") as fh:
+                fh.write(buf.getvalue())
+    return index
+
+
+def work_table(job):
+    src, text_fg = job
+    master = Image.open(src).convert("RGB")
+    rows = {}
+    for shape in TIERS:
+        w, h = ANALYSIS[shape]
+        f = np.asarray(oriented(master, shape).resize((w, h), Image.BOX), dtype=np.float64)
+        # The panels' blur in analysis pixels, as on a 1440 px wide screen. Phones
+        # blur more per pixel of film than that, so this errs on the safe side.
+        sigma = BLUR_PX * max(w, h) / 1440
+        blurred = np.asarray(Image.fromarray(f.astype(np.uint8)).filter(ImageFilter.GaussianBlur(sigma)), dtype=np.float64)
         text = least_veil(f, GROUND, text_fg)
-        panel = np.maximum(PANEL_MIN, least_veil(blurred(f, sigma), PANEL, faint))
+        panel = np.maximum(PANEL_MIN, least_veil(blurred, PANEL, rgb(FG_FAINT)))
+        cx0, cx1 = (int(w * v) for v in SPANS[shape]["copy"])
+        ex0, ex1 = (int(w * v) for v in SPANS[shape]["even"])
+        edges = [round(h * r / ROWS) for r in range(ROWS + 1)]
+        out = np.zeros((ROWS, 3), np.uint8)
         for r in range(ROWS):
             band = slice(edges[r], edges[r + 1])
-            values = (
-                np.percentile(text[band, cx0:cx1], 99),
-                np.percentile(text[band, ex0:ex1], 99),
-                np.percentile(panel[band], 99),
-            )
-            table[i, r] = [min(255, int(np.ceil(v * 255))) for v in values]
-    return table
+            values = (np.percentile(text[band, cx0:cx1], 99), np.percentile(text[band, ex0:ex1], 99),
+                      np.percentile(panel[band], 99))
+            out[r] = [min(255, int(np.ceil(v * 255))) for v in values]
+        rows[shape] = out
+    return rows
+
+
+# ------------------------------------------------------------------------- stages
+
+def run_tool(args, cwd):
+    r = subprocess.run(args, capture_output=True, text=True, cwd=cwd)
+    if r.returncode != 0:
+        sys.exit(f"{os.path.basename(args[0])} failed:\n{r.stderr[-2000:]}")
 
 
 def main():
-    if not os.path.exists(SRC):
-        sys.exit(f"missing {SRC}")
-    os.makedirs(OUT, exist_ok=True)
+    p = argparse.ArgumentParser()
+    p.add_argument("--esrgan", default=os.environ.get("CLINICOS_ESRGAN"))
+    p.add_argument("--rife", default=os.environ.get("CLINICOS_RIFE"))
+    p.add_argument("--work", default=os.path.join(tempfile.gettempdir(), "clinicos-backdrop"))
+    p.add_argument("--gpu")
+    p.add_argument("--fresh", action="store_true")
+    a = p.parse_args()
+    if not a.esrgan or not a.rife:
+        sys.exit("pass --esrgan and --rife (see the top of this file)")
+    esrgan = os.path.join(a.esrgan, "realesrgan-ncnn-vulkan.exe" if os.name == "nt" else "realesrgan-ncnn-vulkan")
+    rife = os.path.join(a.rife, "rife-ncnn-vulkan.exe" if os.name == "nt" else "rife-ncnn-vulkan")
+    for tool in (esrgan, rife, SRC):
+        if not os.path.exists(tool):
+            sys.exit(f"missing {tool}")
+    if a.fresh:
+        shutil.rmtree(a.work, ignore_errors=True)
+    os.makedirs(a.work, exist_ok=True)
+    d_source, d_sr, d_master, d_rife = (os.path.join(a.work, n) for n in ("00_source", "01_sr", "02_master", "03_rife"))
+    procs = max(2, (os.cpu_count() or 4) - 2)
 
+    # 1. source frames, lossless
+    if not stage_done(d_source, 190):
+        fresh_dir(d_source)
+        subprocess.run([FF, "-hide_banner", "-loglevel", "error", "-i", SRC,
+                        "-vf", "scale=in_color_matrix=bt601:flags=accurate_rnd+full_chroma_int,format=rgb24",
+                        "-start_number", "0", os.path.join(d_source, "%08d.png")], check=True)
+    sources = pngs(d_source)
+    print(f"source: {len(sources)} frames", flush=True)
+
+    gpu, gpu_name = (a.gpu, "as given") if a.gpu else detect_gpu(esrgan, sources[0], a.work)
+    print(f"gpu: {gpu} {gpu_name}", flush=True)
+
+    # 2. AI upscale, 4x
+    if not stage_done(d_sr, len(sources)):
+        fresh_dir(d_sr)
+        run_tool([esrgan, "-i", d_source, "-o", d_sr, "-n", SR_MODEL, "-s", "4", "-f", "png", "-g", gpu, "-j", "2:4:4"],
+                 cwd=os.path.dirname(esrgan))
+    print(f"upscaled: {len(pngs(d_sr))} frames", flush=True)
+
+    # 3. down to the master size
+    if not stage_done(d_master, len(sources)):
+        fresh_dir(d_master)
+        with Pool(procs) as pool:
+            pool.map(work_downscale, [(s, os.path.join(d_master, os.path.basename(s))) for s in pngs(d_sr)])
+    masters = pngs(d_master)
+    print(f"master: {len(masters)} frames at {MASTER[0]}x{MASTER[1]}", flush=True)
+
+    # 4. AI interpolation. RIFE's folder mode spaces output frames evenly by
+    # input/output count, so asking for count x FACTOR puts output k at source frame
+    # k / FACTOR. Outputs past the last source frame are copies and are dropped.
+    count = (len(masters) - 1) * FACTOR + 1
+    if not stage_done(d_rife, count):
+        fresh_dir(d_rife)
+        run_tool([rife, "-i", d_master, "-o", d_rife, "-m", RIFE_MODEL, "-n", str(len(masters) * FACTOR),
+                  "-g", gpu, "-j", "2:4:4", *(["-u"] if RIFE_UHD else [])], cwd=os.path.dirname(rife))
+    frames = pngs(d_rife)[:count]
+    print(f"interpolated: {len(frames)} frames ({TICKS_PER_SECOND} per second of film)", flush=True)
+
+    with Pool(procs) as pool:
+        thumbs = pool.map(work_thumb, frames, chunksize=16)
+        probes = (1, 60, 120, len(masters) - 1)
+        originals = pool.map(work_thumb, [masters[m] for m in probes])
+    # Trust RIFE's spacing only after checking it: output m x FACTOR must be source frame m.
+    for m, original in zip(probes, originals):
+        err = float(np.abs(thumbs[m * FACTOR] - original).mean())
+        if err > 1.5:
+            sys.exit(f"interpolated frame {m * FACTOR} does not match source frame {m} (difference {err:.2f})")
+    print("interpolation lines up with the source frames", flush=True)
+
+    # 5. keep the frames that differ visibly from the last one kept
+    kept = [0]
+    for k in range(1, len(frames)):
+        moved = float(np.abs(thumbs[k] - thumbs[kept[-1]]).mean())
+        if moved >= KEEP_DIFF or k - kept[-1] >= MAX_GAP_TICKS or k == len(frames) - 1:
+            kept.append(k)
+    step = [float(np.abs(thumbs[kept[i + 1]] - thumbs[kept[i]]).mean()) for i in range(len(kept) - 1)]
+    print(f"kept: {len(kept)} frames, largest change between neighbours {max(step):.2f}", flush=True)
+
+    # 6. AVIF at every size, in parallel. Reused when the frames and the encoder
+    # settings are exactly those of the last run, since this is the slow stage and
+    # packing changes do not need it.
+    avif_dir = os.path.join(a.work, "04_avif")
+    settings = {"kept": hashlib.sha1(",".join(map(str, kept)).encode()).hexdigest(),
+                "quality": AVIF_QUALITY, "speed": AVIF_SPEED, "tiers": {s: {t: list(v) for t, v in ts.items()} for s, ts in TIERS.items()}}
+    marker = os.path.join(avif_dir, "settings.json")
+    reuse = os.path.exists(marker) and json.load(open(marker)) == settings and all(
+        len(os.listdir(os.path.join(avif_dir, f"{s}-{t}"))) == len(kept) for s, ts in TIERS.items() for t in ts)
+    if not reuse:
+        fresh_dir(avif_dir)
+        for shape, tiers in TIERS.items():
+            for tier in tiers:
+                os.makedirs(os.path.join(avif_dir, f"{shape}-{tier}"))
+        with Pool(procs) as pool:
+            pool.map(work_encode, [(i, frames[k], avif_dir) for i, k in enumerate(kept)], chunksize=4)
+        with open(marker, "w") as fh:
+            json.dump(settings, fh)
+    print("encoded" + (" (reused)" if reuse else ""), flush=True)
+
+    # 7. packs
+    shutil.rmtree(OUT, ignore_errors=True)
+    os.makedirs(OUT)
+    ticks = kept
+    n = len(kept)
+
+    def level(i):
+        if i % 16 == 0 or i == n - 1 or ticks[i] <= HERO_SECONDS * TICKS_PER_SECOND:
+            return 0
+        if i % 16 == 8:
+            return 1
+        if i % 8 == 4:
+            return 2
+        if i % 4 == 2:
+            return 3
+        return 4
+
+    sizes = {}
+    for shape, tiers in TIERS.items():
+        for tier in tiers:
+            total = 0
+            for lv in range(LEVELS):
+                members = [i for i in range(n) if level(i) == lv]
+                blobs = [open(os.path.join(avif_dir, f"{shape}-{tier}", f"{i:05d}.avif"), "rb").read() for i in members]
+                offset = 8 + 12 * len(members)
+                index = b""
+                for i, blob in zip(members, blobs):
+                    index += struct.pack("<III", i, offset, len(blob))
+                    offset += len(blob)
+                data = struct.pack("<4sI", b"CSQ1", len(members)) + index + b"".join(blobs)
+                with open(os.path.join(OUT, f"{shape}-{tier}-{lv}.bin"), "wb") as fh:
+                    fh.write(data)
+                total += len(data)
+                if lv == 0:
+                    sizes[f"{shape}-{tier} first pack"] = len(data)
+            sizes[f"{shape}-{tier} all packs"] = total
+
+    # 8. posters: frame 0, as AVIF with a WebP fallback
+    first = Image.open(frames[0]).convert("RGB")
+    for shape in TIERS:
+        im = oriented(first, shape).resize(TIERS[shape]["hd"], Image.LANCZOS, reducing_gap=3.0)
+        im.save(os.path.join(OUT, f"{shape}-poster.avif"), "AVIF", quality=AVIF_QUALITY["hd"], speed=AVIF_SPEED)
+        im.save(os.path.join(OUT, f"{shape}-poster.webp"), "WEBP", quality=88, method=6)
+
+    # 9. readability tables
     text_fg = rgb(darkest_text_colour())
-    tables = {}
-    for name, spec in VARIANTS.items():
-        path = encode(name, spec)
-        tables[name] = measure(path, spec, text_fg)
-        t = tables[name] / 255
-        print(f"{name:9s} {len(t)} frames, video {os.path.getsize(path) // 1024} KB, "
-              f"max veil: copy {t[..., 0].max():.2f}, even {t[..., 1].max():.2f}, panel {t[..., 2].max():.2f}")
+    with Pool(procs) as pool:
+        rows = pool.map(work_table, [(frames[k], text_fg) for k in kept], chunksize=8)
+    tables = {shape: np.stack([r[shape] for r in rows]) for shape in TIERS}
+    for shape, table in tables.items():
+        table.tofile(os.path.join(OUT, f"{shape}-table.bin"))
 
-    # The share preview uses the film too: a frame from the opening, while the left
-    # side is still dark enough to carry the headline. JPEG, because the renderer
-    # behind next/og does not read WebP.
-    run(["-ss", OG_TIME, "-i", os.path.join(OUT, f"glass-landscape-{VERSION}.mp4"), "-frames:v", "1",
-         "-vf", "scale=w=1200:h=675:flags=lanczos:in_color_matrix=bt709:out_color_matrix=bt601:out_range=full,"
-                "crop=1200:630,format=yuvj420p",
-         "-q:v", "3", OG])
+    # 10. share-preview still, from the opening while the left side is still dark
+    og_frame = kept[int(np.argmin([abs(t - OG_SECONDS * TICKS_PER_SECOND) for t in kept]))]
+    og = oriented(Image.open(frames[og_frame]).convert("RGB"), "landscape").resize((1200, 675), Image.LANCZOS, reducing_gap=3.0)
+    og.crop((0, 22, 1200, 652)).save(OG, "JPEG", quality=88, optimize=True)
 
-    n = min(len(t) for t in tables.values())
-    for name, table in tables.items():
-        table[:n].tofile(os.path.join(OUT, f"glass-{name}-{VERSION}.bin"))
-
+    # 11. manifest
     def poster(table):
         return "[" + ", ".join("[" + ",".join(str(int(v)) for v in table[0, :, c]) + "]" for c in range(3)) + "]"
 
     with open(MANIFEST, "w", encoding="utf-8", newline="\n") as fh:
         fh.write(f"""// GENERATED by landing/scripts/backdrop.py. Do not hand-edit; re-run the script.
 //
-// The backdrop film, its poster, and its readability table: for every frame and
-// each of ROWS horizontal bands of the screen, the least darkening that text in
-// that band needs, as bytes (0-255 for opacity 0-1). A frame's entry for a band is
-// [copy column, even veil, glass panel]. See the script for how it is measured.
+// The backdrop film: {n} frames, AI-upscaled and interpolated, not evenly spaced in time.
+// TICKS gives each frame's moment in the film, in 1/{TICKS_PER_SECOND} s. Frames ship as AVIF
+// in LEVELS packs per orientation and size; each table holds, for every frame and each of
+// ROWS bands of the screen, [copy column, even veil, glass panel] as bytes (0-255 for
+// opacity 0-1). See the script for how they are measured.
 
-export const FPS = {FPS};
 export const FRAMES = {n};
 export const ROWS = {ROWS};
+export const LEVELS = {LEVELS};
+export const TICKS_PER_SECOND = {TICKS_PER_SECOND};
+export const TICKS: readonly number[] = [{",".join(str(t) for t in ticks)}];
 
-export const SOURCES = {{
+export const SHAPES = {{
   landscape: {{
-    video: "/backdrop/glass-landscape-{VERSION}.mp4",
-    poster: "/backdrop/glass-landscape-{VERSION}.webp",
-    table: "/backdrop/glass-landscape-{VERSION}.bin",
-    width: 1920,
-    height: 1080,
+    tiers: {{ hd: {{ width: 1920, height: 1080 }}, uhd: {{ width: 2560, height: 1440 }} }},
+    poster: {{ avif: "{URL}/landscape-poster.avif", webp: "{URL}/landscape-poster.webp" }},
+    table: "{URL}/landscape-table.bin",
   }},
   portrait: {{
-    video: "/backdrop/glass-portrait-{VERSION}.mp4",
-    poster: "/backdrop/glass-portrait-{VERSION}.webp",
-    table: "/backdrop/glass-portrait-{VERSION}.bin",
-    width: 1080,
-    height: 1920,
+    tiers: {{ hd: {{ width: 1080, height: 1920 }}, uhd: {{ width: 1440, height: 2560 }} }},
+    poster: {{ avif: "{URL}/portrait-poster.avif", webp: "{URL}/portrait-poster.webp" }},
+    table: "{URL}/portrait-table.bin",
   }},
 }} as const;
+
+export function packUrl(shape: keyof typeof SHAPES, tier: "hd" | "uhd", level: number) {{
+  return `{URL}/${{shape}}-${{tier}}-${{level}}.bin`;
+}}
 
 /**
  * Frame 0 of each table: [copy column, even veil, glass panel], each a list of ROWS
  * bytes. It ships in the bundle so the poster is protected before the table file
  * arrives, and without it at all under reduced motion.
  */
-export const POSTER: Record<keyof typeof SOURCES, readonly (readonly number[])[]> = {{
+export const POSTER: Record<keyof typeof SHAPES, readonly (readonly number[])[]> = {{
   landscape: {poster(tables["landscape"])},
   portrait: {poster(tables["portrait"])},
 }};
 """)
+
+    print("\nsizes:")
+    for k, v in sizes.items():
+        print(f"  {k:32s} {v / 1024:8.0f} KB")
+    t = {s: tables[s] / 255 for s in tables}
+    print(f"max veil, landscape: copy {t['landscape'][..., 0].max():.2f}, even {t['landscape'][..., 1].max():.2f}, "
+          f"panel {t['landscape'][..., 2].max():.2f}")
     print("wrote", os.path.relpath(MANIFEST, LANDING))
 
 

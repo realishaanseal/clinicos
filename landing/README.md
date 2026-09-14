@@ -48,60 +48,93 @@ single rim, light sweeps across the glass, and it ends in a mint-white bloom. So
 the top of the page is the dark opening and "Get in touch" is the bloom. It is
 the real footage, not a WebGL or SVG imitation of it.
 
-- **Source and build.** `media/backdrop-source.mp4` is the original (720×1280
-  portrait, 60 fps). `scripts/backdrop.py` turns it into what ships:
-  - `public/backdrop/glass-landscape-v1.mp4`, 1920×1080, for wide screens. It is
-    rotated a quarter-turn rather than cropped: a 16:9 crop kept a third of the
-    frame and blurred it. Clockwise, because that way round the copy side stays
-    darkest through the opening.
-  - `public/backdrop/glass-portrait-v1.mp4`, 1080×1920, the original orientation,
-    for phones.
-  - a poster for each (the video's own first frame), the share-image still, and
-    `src/components/backdrop-frames.ts`.
+**Source and build.** `media/backdrop-source.mp4` is the original (720×1280
+portrait, 60 fps). `scripts/backdrop.py` turns it into what ships in
+`public/backdrop/v2/`:
 
-  On the way it debands, upscales with Lanczos plus a light unsharp so the rims
-  stay crisp, converts BT.601 to BT.709 (skipping that shifts the greens), and puts
-  a keyframe every six frames so a seek decodes at most five. To rebuild:
-  `pip install imageio-ffmpeg numpy pillow`, then `python scripts/backdrop.py`.
-  **Bump `VERSION` in the script whenever the film changes**, because `/backdrop/*`
-  is cached for a year (`next.config.ts`).
-- **Scrubbing** (`Backdrop.tsx`). The video is never played, only seeked, and a
-  new seek waits for the last one to land; queuing seeks during a fast scroll is
-  what makes scrubbed video stutter. The position eases toward the scroll target,
-  and drifts a few frames either way while the page is still, so the glass keeps
-  turning. On a fresh load at the top, the opening plays in over 2.6 seconds while
-  the headline assembles.
-- **Readability by construction.** For every frame and each of 24 horizontal bands
-  of the screen, the script records the least darkening that text in that band
-  needs to hold 4.5:1: over the copy column (whose veil fades out to the right),
-  across a centred section, and under a glass panel. It measures to 4.8:1 and
-  rounds up, for headroom. The result ships as a small binary table beside each
-  video (`glass-*-v1.bin`), with frame 0 inside `backdrop-frames.ts` for the
-  poster. `Backdrop.tsx` checks which bands have text, panels or the header in them
-  at that moment and sets the veils, `--panel-a` and `--header-a` to what those
-  bands need, so the film is dimmed only where something is being read over it.
-  One figure per frame for the whole column was tried first. Measured over the full
-  height, it dimmed the opening for text nowhere near its light; measured over the
-  middle 80%, a label scrolling in at the screen edge fell to 2.2:1. If the table
-  cannot load, the film is never shown and the poster stays.
-  **The colours in the script must match `--veil`, `--panel-rgb`, `--fg-dim` and
-  `--fg-faint` in `globals.css`.** Change one, re-run the script.
-- **Colour.** Each section has a scene in `scenes.ts`: ground, three light
-  colours, text accent, the moment of the film it holds at, and which veil it
-  wants. The palette is taken from the film. Nothing on the page hard-codes a
-  colour that takes part in this — everything reads the `--scene-*` variables.
-  **Adding a section means adding a scene and its id to `SCENE_ANCHORS`.** Colour
-  is interpolated by hand into the variables, because interpolating a custom
-  property's *colour* is not reliable across browsers.
-- **Fallbacks.** Under reduced motion, or with Save-Data on, the video never loads
-  and the poster stays; it is near-black, so every section reads. iOS Safari will
-  not buffer a video that has never played, so a muted play-and-pause unlocks it.
-  In Low Power Mode that is refused, and the poster stays there too.
-- **Grain.** A static SVG noise layer, the way grain sits on a projected print. It
-  also hides the banding an 8-bit video keeps in near-black. It does not move,
-  because moving grain would redraw the whole screen every frame.
-- **Lenis** smooth scroll runs off `gsap.ticker` rather than its own RAF loop. Two
-  clocks make scroll-linked animation lag the real scroll by a frame or two.
+1. **AI upscale.** Real-ESRGAN's video model, `realesr-animevideov3`, at 4×, then
+   down to 1440×2560. It was compared with plain Lanczos and with the general
+   `realesrgan-x4plus` model on a dark, a fast and a bright frame. It sharpens the
+   glass rims and clears the source's compression blocking without moving the
+   colours (x4plus brightened the whites), and it does not shimmer from frame to
+   frame.
+2. **AI interpolation.** RIFE v4.6, in UHD mode, to eight frames per source frame.
+   On the fastest pair of frames, ffmpeg's motion-compensated interpolation warped
+   the thick rim; RIFE did not. The script checks that RIFE's output lines up with
+   the source frames before it uses any of it.
+3. **Selection.** Only the frames that differ visibly from the last one kept, and
+   never more than 1/30 s apart: 491 frames, most of them in the first 1.2 s, where
+   the film moves.
+4. **AVIF packs.** Every frame at 1080p and at 1440p, landscape rotated a
+   quarter-turn clockwise (a 16:9 crop threw away two thirds of the frame; clockwise
+   keeps the copy side darkest through the opening). Five packs per set: the first
+   holds every sixteenth frame and the whole opening, and each after it doubles the
+   density. A device loads one set: 4.4–6.6 MB in all depending on orientation and
+   size, of which the first pack is 489–737 KB. Quality 45 was picked by a sweep:
+   44.5–46.3 dB against lossless, and indistinguishable from it at 2× zoom in the
+   near-black gradients, where banding shows first.
+5. The posters (AVIF, with WebP for browsers without it), the readability tables,
+   the share-image still, and `src/components/backdrop-frames.ts`.
+
+**Rebuilding it.** The AI tools are not in the repo. Download
+`realesrgan-ncnn-vulkan-20220424-windows.zip` from github.com/xinntao/Real-ESRGAN
+(release v0.2.5.0) and `rife-ncnn-vulkan-20221029-windows.zip` from
+github.com/nihui/rife-ncnn-vulkan, and unzip both. Then
+`pip install imageio-ffmpeg numpy pillow` and
+`python scripts/backdrop.py --esrgan <folder> --rife <folder>`. Any Vulkan GPU
+works. **When the film changes, move it to a new folder (`v3`)**, because
+`/backdrop/*` is cached for a year (`next.config.ts`).
+
+**Playback** (`Backdrop.tsx`) is a canvas, not a video. The first version seeked a
+`<video>`, and scrolling through it looked like ten frames a second: a seek is
+asynchronous and takes the decoder tens of milliseconds, and 190 frames over
+~10,000 px of scroll meant one frame every 50 px. Now:
+
+- Frames are decoded off the main thread with `createImageBitmap` into a small cache
+  around the frame on screen (12 at 1440p, 16 at 1080p, 8 on low-memory devices),
+  leaning in the direction of travel.
+- Every screen refresh draws the exact moment the scroll is at, as a blend of the two
+  nearest frames, so motion never steps at any refresh rate.
+- The 1440p set loads only where the screen has the pixels for it (over 2000 px on its
+  long edge) and the device reports at least 4 GB of memory.
+- While only the drift is moving, redraws are capped at 30 a second, so a 240 Hz
+  screen is not re-blurring every glass panel for nothing.
+- The position eases toward the scroll target, drifts a few frames either way while
+  the page is still, and on a fresh load at the top the opening plays in over 2.6 s.
+
+**Readability by construction.** For every frame and each of 24 horizontal bands of
+the screen, the script records the least darkening that text in that band needs to
+hold 4.5:1: over the copy column (whose veil fades out to the right), across a
+centred section, and under a glass panel. It measures to 4.8:1 and rounds up, for
+headroom. The result ships as a small binary table per orientation
+(`v2/*-table.bin`), with frame 0 inside `backdrop-frames.ts` for the poster.
+`Backdrop.tsx` checks which bands have text, panels or the header in them at that
+moment and sets the veils, `--panel-a` and `--header-a` to what those bands need, so
+the film is dimmed only where something is being read over it. One figure per frame
+for the whole column was tried first. Measured over the full height, it dimmed the
+opening for text nowhere near its light; measured over the middle 80%, a label
+scrolling in at the screen edge fell to 2.2:1. **The colours in the script must match
+`--veil`, `--panel-rgb`, `--fg-dim` and `--fg-faint` in `globals.css`.** Change one,
+re-run the script.
+
+**Colour.** Each section has a scene in `scenes.ts`: ground, three light colours,
+text accent, the moment of the film it holds at, and which veil it wants. The palette
+is taken from the film. Nothing on the page hard-codes a colour that takes part in
+this — everything reads the `--scene-*` variables. **Adding a section means adding a
+scene and its id to `SCENE_ANCHORS`.** Colour is interpolated by hand into the
+variables, because interpolating a custom property's *colour* is not reliable across
+browsers.
+
+**Fallbacks.** Under reduced motion, or with Save-Data on, no frames load and the
+poster stays; it is near-black, so every section reads. If the frame packs or the
+table cannot be fetched or decoded (a browser without AVIF, say), the film is never
+shown and the poster stays.
+
+**Grain.** A static SVG noise layer, the way grain sits on a projected print. It does
+not move, because moving grain would redraw the whole screen every frame.
+
+**Lenis** smooth scroll runs off `gsap.ticker` rather than its own RAF loop. Two
+clocks make scroll-linked animation lag the real scroll by a frame or two.
 
 ### The lockup
 
@@ -148,15 +181,9 @@ string is exposed once via `aria-label` and the animated spans are `aria-hidden`
 so a screen reader reads one sentence rather than a word list. Accent words are
 marked with `[[double brackets]]` and get a gradient that sweeps on a 9s loop.
 
-### Cost
-
-About 2.7 MB of video, and only one orientation loads on a given device. It is
-cached for a year. While the page is still, the film drifts by one frame roughly
-every half second, and the panels' `backdrop-filter` re-blurs only when the frame
-changes.
-
 ### Rules that matter when extending this
 
+- **Do not go back to seeking a `<video>` for scroll-scrubbing.** See Playback.
 - **Never animate `backdrop-filter`.** Animate `transform`, `opacity`,
   `border-color` and `box-shadow`. Every hover state here follows that.
 - **Never transition a glass panel's `background`.** Its tint follows the film
