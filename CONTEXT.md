@@ -7,7 +7,7 @@
 >
 > **Keep it current.** When you finish something, update §3, §6, §7 and §10.
 >
-> Last updated: 14 September 2026.
+> Last updated: 15 September 2026.
 
 ---
 
@@ -46,13 +46,13 @@ It is framed differently for different audiences:
 | `.mcp.json` | Optional MCP servers for agent sessions. |
 
 **Branches.** `main` holds everything that is live, and Vercel deploys the public
-website from it. `v1`, `website-contact`, `website-v1` and `site` are already merged
-into `main`; they are history and can be deleted. Start new work on a fresh feature
-branch off `main`. One branch is waiting to be merged: `website-glass-backdrop` (§3).
+website from it. `v1`, `website-contact`, `website-v1`, `site` and
+`website-glass-backdrop` are already merged into `main`; they are history and can be
+deleted. Start new work on a fresh feature branch off `main`.
 
 ---
 
-## 3. Current state (14 September 2026)
+## 3. Current state (15 September 2026)
 
 ### Live
 
@@ -63,31 +63,26 @@ branch off `main`. One branch is waiting to be merged: `website-glass-backdrop` 
   - Sections: hero, problem, how it works, where the data lives, what is built,
     product tour, who it is for, current status, get in touch. Also `/privacy`, a 404
     page, generated icons and a share image.
-- **Contact form:** Tally form "Talk to ClinicOS", https://tally.so/r/QKbB8k.
-  - Responses land in Ishaan's Tally account.
-  - The form links back to the website's `/privacy`.
-  - It asks for no patient information.
-- **Public contact email:** ishaanseal@gmail.com
-
-### Built, waiting to go live
-
-- **Website redesign** on branch `website-glass-backdrop`. Merging it into `main`
-  deploys it.
-  - **The backdrop is the ClinicOS film:** Ishaan's own footage of glass lenses in
-    green light, scrubbed forward as the page scrolls. It replaces the morphing SVG
-    stage. Wide screens get it rotated a quarter-turn (a crop threw away two thirds of
-    the frame); phones get the original portrait frame. It is cleaned up and upscaled
-    to 1080p by `landing/scripts/backdrop.py`.
+  - **The backdrop is the ClinicOS film** (live since 15 Sep 2026): Ishaan's own
+    footage of glass lenses in green light, scrubbed forward as the page scrolls. Wide
+    screens get it rotated a quarter-turn (a crop threw away two thirds of the frame);
+    phones get the original portrait frame. It is cleaned up and upscaled to 1080p by
+    `landing/scripts/backdrop.py`.
   - **Readability is built in:** for every frame and every band of the screen, the
     script records how far text must be darkened to hold 4.5:1, and the page darkens
     only where text is being read. Checked by replaying the page's logic over the real
     frames at 1440×900, 1100×700 and 375×812: no text below 4.5:1, or 3:1 for large
     headings.
-  - **A site header with the Varaxis ClinicOS lockup** replaces the "A Varaxis product"
-    pill; the footer uses the lockup too. It is set like Varaxis Scholar: tile,
-    "Varaxis" heavy and white, the product name lighter in its own colour (mint).
+  - **A site header with the Varaxis ClinicOS lockup**, set like Varaxis Scholar: tile,
+    "Varaxis" heavy and white, the product name lighter in its own colour (mint). The
+    footer uses it too.
   - **Green palette** taken from the film; favicon, app icon and share image match.
   - How it all works: `landing/README.md`, "Design".
+- **Contact form:** Tally form "Talk to ClinicOS", https://tally.so/r/QKbB8k.
+  - Responses land in Ishaan's Tally account.
+  - The form links back to the website's `/privacy`.
+  - It asks for no patient information.
+- **Public contact email:** ishaanseal@gmail.com
 
 ### Built, and deliberately not deployed
 
@@ -269,20 +264,17 @@ speed pass.
 
 ## 7. Waiting on Ishaan
 
-1. **Website redesign:** look at the `website-glass-backdrop` branch (Vercel builds a
-   preview for it if previews are on for the project), then say whether to merge it into
-   `main`. Merging deploys it to the live site.
-2. **Supabase:** create an account and a project in **Mumbai (ap-south-1)**, then copy
+1. **Supabase:** create an account and a project in **Mumbai (ap-south-1)**, then copy
    the pooler connection string. Needed to start Part C.
-3. **Vercel:** create a project from this repo with Root Directory `portal`, and add the
+2. **Vercel:** create a project from this repo with Root Directory `portal`, and add the
    domain `clinicos-portal.vercel.app`. Paste in the environment variables. The
    assistant generates the random keys; it does not type keys into dashboards.
-4. **Before real patients use the portal:** Supabase Pro ($25/month). Vercel Pro too,
+3. **Before real patients use the portal:** Supabase Pro ($25/month). Vercel Pro too,
    because the Hobby plan is for non-commercial use, and that applies to the website as
    well.
-5. **Optional:** delete the merged branches (`v1`, `website-contact`, `website-v1`,
-   `site`).
-6. **Optional:** if Varaxis has a brand typeface file, add it and the lockup can use it.
+4. **Optional:** delete the merged branches (`v1`, `website-contact`, `website-v1`,
+   `site`, `website-glass-backdrop`) and the worktree `.claude/worktrees/website-glass`.
+5. **Optional:** if Varaxis has a brand typeface file, add it and the lockup can use it.
    Until then it uses the system display face.
 
 The Vercel connector available to assistants cannot see the `Varaxis` team. Project
@@ -310,6 +302,8 @@ re-authorised for that team.
   motion; for readability over the film, the replay approach in §3 does not need it.
 - **ffmpeg** is not installed on the development laptop. `pip install imageio-ffmpeg`
   brings a static build, which is what `landing/scripts/backdrop.py` uses.
+- **Other tools' config** sits untracked in the main checkout: `.agents/` and `.codex/`.
+  They are not part of the repo; leave them out of commits.
 
 ---
 
@@ -317,9 +311,6 @@ re-authorised for that team.
 
 - **Missing favicon:** the clinic app has none, so there is a harmless 404 in the browser
   console.
-- **Dead parallax:** on the live website, GSAP warns ".flow not found".
-  `landing/src/components/Stage.tsx` scopes `gsap.context` to `.stage`, so the `.flow`
-  parallax never runs. Gone on `website-glass-backdrop`, which removes the stage.
 - **Delete list limit:** Clinic admin's delete list shows only the 50 most recent
   patients, the `searchPatients` limit.
 - **Setup is open until the first account exists.** Anyone who reaches the app before
@@ -350,3 +341,7 @@ re-authorised for that team.
   - Everything was merged into `main`, which puts "Get in touch" live.
   - The website redesign was built on `website-glass-backdrop`: the ClinicOS film as
     the backdrop, the Varaxis ClinicOS lockup in a new header, a green palette.
+- **15 Sep 2026:** the redesign went live. `main` was fast-forwarded to it (`0ada1ee`)
+  and Vercel deployed it; the video, readability tables, poster, icons and share image
+  were all confirmed on the live site. The old morphing stage, and with it the dead
+  `.flow` parallax, is gone.
