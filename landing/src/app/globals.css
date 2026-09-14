@@ -207,6 +207,20 @@ section[id] { scroll-margin-top: 4.5rem; }
   .site-header nav { display: none; }
   .site-header-row .btn { margin-left: auto; }
 }
+/* On narrow phones the lockup and "Get in touch" share the whole row. Measured on the
+   live page, the button broke onto two lines at 340-360 px and three at 320 px.
+   Tightened like this it stays on one line from 320 px up, with nothing overflowing. */
+@media (max-width: 420px) {
+  .site-header-row { gap: 0.75rem; }
+  .site-header .lockup { gap: 0.5rem; }
+  .site-header .lockup-tile { width: 1.75rem; height: 1.75rem; }
+  .site-header .lockup-name { font-size: 1.05rem; }
+  .site-header .btn-sm { padding: 0.5rem 0.9rem; font-size: 0.82rem; }
+}
+@media (max-width: 360px) {
+  .site-header .lockup-name { font-size: 0.95rem; }
+  .site-header .btn-sm { padding: 0.45rem 0.75rem; font-size: 0.78rem; }
+}
 
 .lockup-link { display: inline-flex; border-radius: 10px; color: inherit; }
 .lockup { display: inline-flex; align-items: center; gap: 0.62rem; }
@@ -547,7 +561,10 @@ section[id] { scroll-margin-top: 4.5rem; }
    Sticky rather than GSAP `pin` — pin rewrites the element to `position: fixed`
    and computes its offset from ScrollTrigger's own scroll position, which fights
    Lenis. Sticky is the browser's own job and never disagrees. */
-.tour { position: relative; z-index: 1; padding-block: 0; height: 420svh; }
+/* overflow-x: clip, because the screens waiting to slide in sit off to the side and
+   made the page 82 px wider than a 360 px phone. `clip`, not `hidden`: hidden would make
+   this a scroll container and break the sticky stage inside it. */
+.tour { position: relative; z-index: 1; padding-block: 0; height: 420svh; overflow-x: clip; }
 .tour-stage {
   position: sticky; top: 0;
   height: 100svh;
