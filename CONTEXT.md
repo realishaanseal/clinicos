@@ -7,7 +7,7 @@
 >
 > **Keep it current.** When you finish something, update §3, §6, §7 and §10.
 >
-> Last updated: 15 September 2026.
+> Last updated: 16 September 2026.
 
 ---
 
@@ -319,6 +319,23 @@ re-authorised for that team.
   brings a static build, which is what `landing/scripts/backdrop.py` uses.
 - **Other tools' config** sits untracked in the main checkout: `.agents/` and `.codex/`.
   They are not part of the repo; leave them out of commits.
+- **A stray `postcss.config.mjs` in the Mac's home folder breaks both builds.**
+  `/Users/<user>/postcss.config.mjs` declares `{ tailwindcss: {}, autoprefixer: {} }` and
+  belongs to an unrelated project whose files sit loose in the home folder. Next searches
+  *upward* from the app directory for a postcss config, finds it, and fails `clinicos-app`
+  and `landing` alike with `Error: Cannot find module 'tailwindcss'`. Neither app uses
+  Tailwind, so the error is misleading — do not install Tailwind to make it go away. Move
+  that project's files into their own folder. Adding a `postcss.config.mjs` to each app
+  root also stops the search, but an empty `plugins` list discards Next's built-in
+  defaults, autoprefixer included, which matters for the public site. This is the same
+  class of trap as the stray `package-lock.json` above, but a hard failure.
+- **The Mac's toolchain, verified 16 Sep 2026:** Node 24.18.0, npm 11.16.0 (not npm 12, so the
+  install-script gotcha in CLAUDE.md does not bite), Python 3.13.0, `better-sqlite3`
+  13.0.3 loading natively with no compile. Ollama is at `/usr/local/bin/ollama` with
+  `qwen2.5:7b-instruct` pulled, and the Whisper weights are already cached in
+  `~/.cache/huggingface`, so the sidecar does not re-download on first run.
+- **`setsid` does not exist on macOS.** Use `nohup … < /dev/null &` to keep a background
+  server alive between tool calls.
 
 ---
 
@@ -335,7 +352,16 @@ re-authorised for that team.
   all of these true. (The backdrop frames and tables are served from the site itself.)
 - **Duplicate PDF:** on the development laptop, an untracked
   `ClinicOS_Prototype_Documentation.pdf` sits at the repo root. It is identical to
-  `artifacts/ClinicOS_Prototype_Documentation.pdf`.
+  `artifacts/ClinicOS_Prototype_Documentation.pdf`. On the Mac the same untracked copy
+  sits in `Claude outputs/`, byte-identical to the tracked one. Harmless; delete either
+  when convenient.
+- **The Mac's git identity is `ishaan.seal2007@gmail.com`,** not the
+  `ishaanseal@gmail.com` that §5 names. Commits made on that machine will carry the older
+  address until `git config user.email` is changed there.
+- **The Mac's live database is still prototype-era** — `Patient`, `Consult` and `Edit`
+  only, one patient and one consultation, no accounts. The first run of v1 code there will
+  migrate it and open `/setup`. A pre-upgrade snapshot taken through the SQLite backup API
+  sits at `clinicos-app/data/backups/clinicos_pre-v1-upgrade_2026-09-16.db`.
 
 ---
 
@@ -364,3 +390,14 @@ re-authorised for that team.
     a canvas player with per-refresh blending, a pixel cap for high-density screens,
     and a fix for an intermittent React hydration error in `CountUp` under reduced
     motion.
+- **16 Sep 2026:**
+  - The Mac checkout, still on the first prototype commit and twelve behind, was
+    fast-forwarded to `main`. A stale `.git/index.lock` left by a crashed git process on
+    10 September had to be cleared first.
+  - Both apps' dependencies were installed and the Mac environment was verified: the
+    e2e suite passes in full (100 + 39 + 14 checks), `landing` builds, the ASR sidecar
+    loads Whisper `small` and answers `/health`, and the clinic app serves `/setup`
+    with unauthenticated API calls refused. The live `data/` database was left
+    unmigrated, and every check ran against throwaway databases.
+  - The home-folder postcss trap in §8 was found and recorded; it currently blocks every
+    build and `next dev` on that machine.
