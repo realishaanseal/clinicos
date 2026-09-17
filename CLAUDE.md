@@ -23,7 +23,7 @@ it locally, drafts a structured clinical note, and asks the doctor only to revie
 and sign. A branded prescription prints from the signed note.
 
 Everything runs on the clinic's own laptop, with no cloud and no internet required.
-Since v1, people sign in with accounts that also live only on that laptop.
+Since v0.5, people sign in with accounts that also live only on that laptop.
 
 **Owner:** Ishaan Seal — part-time student founder, near-zero capital. Assume
 constrained time and money in every recommendation.
@@ -161,10 +161,10 @@ not call Ollama or Whisper directly from a component or route.
 `PRAGMA table_info` and conditionally runs `ALTER TABLE`. Safe to re-run. Existing
 pilot databases must survive upgrades — never drop and recreate a table.
 
-Tables: `Patient`, `Consult`, `Edit`, and since v1 `User`, `Session`, `AuditEvent`,
+Tables: `Patient`, `Consult`, `Edit`, and since v0.5 `User`, `Session`, `AuditEvent`,
 `Setting`, `QueueEntry`.
 
-**Accounts and permissions (v1).** The first run opens `/setup`, which creates the
+**Accounts and permissions (v0.5).** The first run opens `/setup`, which creates the
 owner account and then refuses forever. Every page calls `requireUser()` and every
 route handler calls `requireApiUser()` with the capability it needs — hiding a link
 is never the control:
@@ -245,15 +245,15 @@ Built and tested:
   lives in `landing/src/site.ts`. Public copy is Varaxis-branded and international
   (clinics of any size up to hospitals). The Krishnanagar field site stays in
   internal docs and pilots, not on the site.
-- **v1 Part A — accounts, roles, permissions, and the activity log (backlog #4).**
+- **v0.5 Part A — accounts, roles, permissions, and the activity log (backlog #4).**
   In `main`. Verified by `npm run test:e2e`: the permission matrix over HTTP against
   a seeded prototype-era database (every existing record unchanged), plus the
   reset-password script and restoring a pre-accounts backup.
-- **v1 Part B — role dashboards, the day's list (backlog #5), search by phone (#8).**
+- **v0.5 Part B — role dashboards, the day's list (backlog #5), search by phone (#8).**
   Front desk Today is the desk (find, register, list); doctor Today has "Waiting
   now" with Start visit; admin sees signed consultations per doctor as raw counts.
 
-Next, in order: v1 Part C (patient portal: a doctor shares a signed visit with the
+Next, in order: v0.5 Part C (patient portal: a doctor shares a signed visit with the
 patient's consent), Part D (invariant 2, consent script and website copy updated
 to match). The full plan is in CONTEXT.md §6. Then #3 speed pass. Backlog numbered
 1–37 across tiers 0–7.

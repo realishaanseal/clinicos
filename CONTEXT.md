@@ -7,7 +7,7 @@
 >
 > **Keep it current.** When you finish something, update §3, §6, §7 and §10.
 >
-> Last updated: 16 September 2026.
+> Last updated: 17 September 2026.
 
 ---
 
@@ -99,7 +99,7 @@ Windows or `go.sh` on macOS.
 - **Consultation flow** (prototype):
   - consent → record → transcribe (faster-whisper) → draft (Ollama, qwen2.5:7b) → review → sign → print
   - crash recovery, a daily automatic backup, restore behind typed `RESTORE`, full export
-- **v1 Part A — accounts and permissions:**
+- **v0.5 Part A — accounts and permissions:**
   - `/setup` creates the owner on first run, then refuses forever.
   - Three roles — doctor, front desk, clinic admin — enforced server-side on every page
     and route.
@@ -107,7 +107,7 @@ Windows or `go.sh` on macOS.
   - An activity log.
   - Clinic details edited in the app.
   - `npm run reset-password -- <username>` for a locked-out owner.
-- **v1 Part B — dashboards:**
+- **v0.5 Part B — dashboards:**
   - Front desk Today: find by name or phone, register onto today's numbered list, and a
     live list.
   - Doctor Today: a "Waiting now" panel with **Start visit**. Signing marks the patient
@@ -116,8 +116,8 @@ Windows or `go.sh` on macOS.
 
 ### Not built yet
 
-- **v1 Part C:** the patient portal (§6).
-- **v1 Part D:** the rules, consent script and website copy, updated for sharing (§6).
+- **v0.5 Part C:** the patient portal (§6).
+- **v0.5 Part D:** the rules, consent script and website copy, updated for sharing (§6).
 
 ### How to verify
 
@@ -143,7 +143,7 @@ Windows or `go.sh` on macOS.
 | 13 Sep 2026 | Public positioning: Varaxis, international, clinics of every size up to hospitals. | No Krishnanagar and no founder name on anything public. |
 | 13 Sep 2026 | The website uses a free `vercel.app` address. | `clinicos-varaxis.vercel.app`. A domain can be added later without rebuilding. |
 | 13 Sep 2026 | The website has no pilot offer; it ends with "Get in touch". | Ishaan wants the product, not pilots. Contact goes through the Tally form and email. |
-| 13 Sep 2026 | Build the v1 product now, before the doctor interviews. | Zero of 20 interviews done. The risk stays recorded in CLAUDE.md's "gate". |
+| 13 Sep 2026 | Build the v0.5 product now, before the doctor interviews. | Zero of 20 interviews done. The risk stays recorded in CLAUDE.md's "gate". |
 | 13 Sep 2026 | Four logins: doctor, front desk, patient, clinic admin. | |
 | 13 Sep 2026 | Full records stay on the clinic computer. Only a signed visit the doctor chooses to share goes online, with the patient's recorded consent. | This changes invariant 2. The rewrite is part of Part D. |
 | 13 Sep 2026 | Transcription and note drafting stay on the clinic computer. | |
@@ -155,6 +155,7 @@ Windows or `go.sh` on macOS.
 | 14 Sep 2026 | The website backdrop is Ishaan's own glass film, used as the real footage. Not a WebGL, SVG or AI-generated imitation of it. | Ishaan asked for the video's look itself, not something like it. |
 | 14 Sep 2026 | Varaxis product lockup: tile, "Varaxis" heavy and white, the product name lighter in its own colour. ClinicOS's colour is the film's mint. | It matches the Varaxis Scholar lockup, so the products read as one family. It uses the system display face because the site loads no webfonts. |
 | 15 Sep 2026 | The film plays as AI-upscaled, AI-interpolated AVIF frames drawn on a canvas, never as a seeked video. | Seeking read as ten frames a second. Real-ESRGAN (`realesr-animevideov3`) and RIFE v4.6 were chosen by side-by-side tests against Lanczos, `realesrgan-x4plus` and ffmpeg's interpolation. Ishaan approved downloading both open-source tools; they run locally and upload nothing. No upscaler connector exists. |
+| 17 Sep 2026 | The release being built — Parts A–D — is called **v0.5**, not v1. | v0.5 is the working prototype, to be tested and changed thoroughly before anything is called finished. v1 is reserved for the first real release, once v0.5 has held up in a clinic. |
 | Prototype era | The invariants in CLAUDE.md. | No clinical judgement. Audio deleted at signing. No training on audio. Consent enforced server-side. `draftJson` immutable. Backups via the SQLite backup API. No lock-in. |
 
 ---
@@ -239,7 +240,7 @@ copy of `Prescription.tsx`.
 - Same security headers as `landing/`; no analytics.
 
 **Clinic onboarding:** `npm run portal:add-clinic "<name>"` prints a clinic key once. The
-clinic admin pastes it into Clinic admin → Portal. There is no portal admin screen in v1.
+clinic admin pastes it into Clinic admin → Portal. There is no portal admin screen in v0.5.
 
 **Tests to add** (extend `clinicos-app/scripts/test/`, and add a portal suite):
 - share → code on the prescription → portal sign-in → visit visible → revoke → gone
@@ -263,7 +264,7 @@ clinic admin pastes it into Clinic admin → Portal. There is no portal admin sc
 - **Pilot agreement:** `docs/ClinicOS_Pilot_Agreement.md` Schedule A lists Vercel and
   Supabase as sub-processors.
 
-### After v1
+### After v0.5
 
 CLAUDE.md's gate still stands: the 20 interviews. The next backlog item is #3, the
 speed pass.
@@ -360,7 +361,7 @@ re-authorised for that team.
   `ishaanseal@gmail.com` that §5 names. Set repo-locally on 16 Sep 2026; the machine's
   global identity is still the GitHub no-reply address, which other repos there keep.
 - **The Mac's live database is still prototype-era** — `Patient`, `Consult` and `Edit`
-  only, one patient and one consultation, no accounts. The first run of v1 code there will
+  only, one patient and one consultation, no accounts. The first run of v0.5 code there will
   migrate it and open `/setup`. A pre-upgrade snapshot taken through the SQLite backup API
   sits at `clinicos-app/data/backups/clinicos_pre-v1-upgrade_2026-09-16.db`.
 
@@ -374,8 +375,8 @@ re-authorised for that team.
   - The website became the real one: pilot section, Tally form, privacy page, icons,
     share image, security headers, `clinicos-varaxis.vercel.app`.
   - The pilot offer was replaced with "Get in touch".
-  - The v1 plan was approved.
-  - v1 Part A (accounts, roles, permissions, activity log) and Part B (role dashboards,
+  - The v0.5 plan was approved.
+  - v0.5 Part A (accounts, roles, permissions, activity log) and Part B (role dashboards,
     the day's list, search by phone) were built.
 - **14 Sep 2026:**
   - The end-to-end test suite moved into the repo (`npm run test:e2e`).
@@ -404,3 +405,18 @@ re-authorised for that team.
     unpacked straight into the Mac's home folder, and its `postcss.config.mjs` broke every
     ClinicOS build and `next dev` there. Moving that project to `~/varaxis-scholar` fixed
     it; both apps then built and the whole suite passed with no workaround.
+- **17 Sep 2026:**
+  - The Mac environment was re-verified before any new work: Node 24.18.0, npm 11.16.0,
+    Python 3.13.0, `better-sqlite3` 13.0.3 loading natively, the ASR virtualenv importing
+    faster-whisper, Ollama already serving `qwen2.5:7b-instruct`, and every e2e suite
+    passing with no failures. The live `data/` database was left prototype-era and
+    untouched, so `/setup` has still not been run on this machine.
+  - **The release in progress was renamed from v1 to v0.5** (§4), in this file, CLAUDE.md
+    and the code comments that name it. On-disk names deliberately keep the old spelling —
+    the snapshot `clinicos_pre-v1-upgrade_2026-09-16.db`, `scripts/test/seed-pre-v1.cjs`
+    and the merged branch `v1` — because renaming a file or a branch gains nothing and
+    breaks references.
+  - Two branches pushed from the Windows laptop were found unmerged: `docs-compact-reference`
+    (a three-page reference PDF) and `fix/backdrop-scroll-performance` (a real scroll fix in
+    `Backdrop.tsx`, deck edits and two new diagrams). Both still await a merge decision, so
+    the scroll fix is not yet live.

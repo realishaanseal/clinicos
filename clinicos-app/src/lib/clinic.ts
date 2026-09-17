@@ -3,7 +3,7 @@ import { getSettings } from "./db";
 /**
  * Clinic identity printed on every prescription.
  *
- * Edited by an admin in the app since v1 (the Setting table). Before that it
+ * Edited by an admin in the app since v0.5 (the Setting table). Before that it
  * lived in .env, so .env is still read as the fallback and existing installs
  * print exactly what they printed before.
  */

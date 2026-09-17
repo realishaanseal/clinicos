@@ -67,7 +67,7 @@ function open(): Database.Database {
     );
     CREATE INDEX IF NOT EXISTS idx_edit_consult ON Edit(consultId);
 
-    -- Accounts, added in v1. Every database from before then has none, so
+    -- Accounts, added in v0.5. Every database from before then has none, so
     -- nothing may assume a row exists: an empty User table means "run setup".
     CREATE TABLE IF NOT EXISTS User (
       id                 TEXT PRIMARY KEY,
@@ -117,7 +117,7 @@ function open(): Database.Database {
       value TEXT NOT NULL
     );
 
-    -- The day's list at the front desk (v1). day is the clinic computer's
+    -- The day's list at the front desk (v0.5). day is the clinic computer's
     -- local date, never a UTC date: in India a UTC date would file the first
     -- five and a half hours of every day under yesterday. Tokens restart at 1
     -- each day, and the unique index makes a duplicate token impossible even
@@ -167,8 +167,8 @@ function open(): Database.Database {
   addColumn("Consult", "workingSavedAt", "TEXT");
   addColumn("Consult", "recordingStartedAt", "TEXT");
   addColumn("Consult", "recordingEndedAt", "TEXT"); // null while a recording is still open
-  addColumn("Consult", "createdBy", "TEXT");        // v1: the account that opened the consultation
-  addColumn("Consult", "doctorId", "TEXT");         // v1: the doctor who signed; NULL on older rows
+  addColumn("Consult", "createdBy", "TEXT");        // v0.5: the account that opened the consultation
+  addColumn("Consult", "doctorId", "TEXT");         // v0.5: the doctor who signed; NULL on older rows
 
   return db;
 }
