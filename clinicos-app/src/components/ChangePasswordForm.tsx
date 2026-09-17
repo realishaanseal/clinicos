@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { IcAlert } from "./Icons";
 import { PASSWORD_MIN } from "@/lib/users";
+import { appPath } from "@/lib/base-path";
 
 export default function ChangePasswordForm() {
   const [form, setForm] = useState({ current: "", next: "", confirm: "" });
@@ -21,14 +22,14 @@ export default function ChangePasswordForm() {
     }
     setBusy(true);
     try {
-      const res = await fetch("/api/auth/password", {
+      const res = await fetch(appPath("/api/auth/password"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ current: form.current, next: form.next }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "The password wasn't changed. Try again.");
-      window.location.assign(data.redirect || "/");
+      window.location.assign(appPath(data.redirect || "/"));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setBusy(false);

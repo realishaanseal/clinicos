@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { IcPlus } from "./Icons";
+import { appPath } from "@/lib/base-path";
 
 export default function NewConsultButton({ patientId }: { patientId: string }) {
   const router = useRouter();
@@ -10,7 +11,7 @@ export default function NewConsultButton({ patientId }: { patientId: string }) {
 
   async function start() {
     setBusy(true);
-    const res = await fetch("/api/consults", {
+    const res = await fetch(appPath("/api/consults"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ patientId }),

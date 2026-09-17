@@ -8,6 +8,7 @@
 
 import { motion, useReducedMotion } from "motion/react";
 import AnimatedText from "./AnimatedText";
+import { APP_PATH } from "@/site";
 
 export default function Hero() {
   const reduced = useReducedMotion();
@@ -33,13 +34,13 @@ export default function Hero() {
 
         <motion.p className="lede" {...rise(0.8)}>
           ClinicOS listens to the consultation you are already having and drafts the
-          clinical note. You review it and sign. Everything runs on your own hardware — no
-          cloud, no account, no patient data leaving the building.
+          clinical note. You review it and sign. Run it on your own hardware and no patient
+          data leaves the building, or sign in to the online prototype and try it now.
         </motion.p>
 
         <motion.div className="cta-row" {...rise(0.95)}>
-          <a className="btn btn-primary" href="#contact">Get in touch</a>
-          <a className="btn btn-ghost" href="#how">See how it works</a>
+          <a className="btn btn-primary" href={APP_PATH}>Sign in</a>
+          <a className="btn btn-ghost" href="#contact">Get in touch</a>
         </motion.div>
       </div>
     </section>

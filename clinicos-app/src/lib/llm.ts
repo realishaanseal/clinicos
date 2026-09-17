@@ -99,7 +99,7 @@ class OpenAiCompatible implements LlmProvider {
     const url = process.env.LLM_OPENAI_URL;
     const key = process.env.LLM_OPENAI_KEY;
     const model = process.env.LLM_OPENAI_MODEL;
-    if (!url || !model) throw new Error("LLM_PROVIDER=openai requires LLM_OPENAI_URL and LLM_OPENAI_MODEL.");
+    if (!url || !model) throw new Error("Note drafting isn't switched on here yet: no note-writing service is set up (LLM_OPENAI_URL, LLM_OPENAI_MODEL).");
 
     const started = Date.now();
     const res = await fetch(url, {
@@ -118,6 +118,13 @@ class OpenAiCompatible implements LlmProvider {
         ],
       }),
     });
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(
+        key
+          ? "The note-writing service turned down this copy of ClinicOS's key. Whoever set it up needs to check LLM_OPENAI_KEY."
+          : "Note drafting isn't switched on here yet: the note-writing service needs an API key (LLM_OPENAI_KEY)."
+      );
+    }
     if (!res.ok) throw new Error(`LLM error (${res.status}): ${await res.text()}`);
     const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
     const raw = data.choices?.[0]?.message?.content ?? "";

@@ -2,7 +2,8 @@
 
 /**
  * The site header: the Varaxis ClinicOS lockup, the three sections worth jumping
- * to, and the one action the site asks for.
+ * to, and the two actions the site offers — sign in to the app, or get in touch.
+ * Phones get only Sign in: the row was measured to fit one button from 320 px.
  *
  * Clear over the film at the top of the page, where the opening frames are dark
  * and the lockup reads on its own. Once the page scrolls it takes a smoked-glass
@@ -16,6 +17,7 @@
 
 import { useEffect, useState } from "react";
 import Wordmark from "./Wordmark";
+import { APP_PATH } from "@/site";
 
 const LINKS = [
   { href: "/#how", label: "How it works" },
@@ -48,7 +50,10 @@ export default function SiteHeader() {
             ))}
           </ul>
         </nav>
-        <a className="btn btn-primary btn-sm" href="/#contact">Get in touch</a>
+        <div className="site-header-cta">
+          <a className="btn btn-ghost btn-sm hide-narrow" href="/#contact">Get in touch</a>
+          <a className="btn btn-primary btn-sm" href={APP_PATH}>Sign in</a>
+        </div>
       </div>
     </header>
   );

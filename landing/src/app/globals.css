@@ -200,12 +200,14 @@ section[id] { scroll-margin-top: 4.5rem; }
 
 .site-header-row { display: flex; align-items: center; gap: 2rem; height: 4.25rem; }
 .site-header nav { margin-left: auto; }
+.site-header-cta { display: flex; align-items: center; gap: 0.6rem; }
 .site-nav { display: flex; gap: 1.9rem; list-style: none; margin: 0; padding: 0; }
 .site-nav a { color: var(--fg-dim); font-size: 0.9rem; font-weight: 520; transition: color var(--dur-fast) var(--ease-out); }
 .site-nav a:hover { color: var(--fg); }
 @media (max-width: 759px) {
   .site-header nav { display: none; }
-  .site-header-row .btn { margin-left: auto; }
+  .site-header-cta { margin-left: auto; }
+  .site-header-cta .hide-narrow { display: none; }
 }
 /* On narrow phones the lockup and "Get in touch" share the whole row. Measured on the
    live page, the button broke onto two lines at 340-360 px and three at 320 px.

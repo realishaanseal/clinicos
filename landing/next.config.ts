@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { APP_PATH, CLINIC_APP_ORIGIN } from "./src/site";
 
 // The landing site is deliberately standalone: no database, no API routes, no
 // access to anything in ../clinicos-app. Nothing deployed from here can reach
@@ -12,7 +13,10 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: "/:path*",
+        // Everything except /app, which is the clinic app passed through from
+        // its own project and sends its own headers. This rule must not reach
+        // it: "microphone=()" here would switch off recording consultations.
+        source: "/((?!app$|app/).*)",
         headers: [
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
@@ -26,6 +30,14 @@ const nextConfig: NextConfig = {
         source: "/backdrop/:path*",
         headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
       },
+    ];
+  },
+
+  // The clinic app lives at /app on this address. See APP_PATH in src/site.ts.
+  async rewrites() {
+    return [
+      { source: APP_PATH, destination: `${CLINIC_APP_ORIGIN}${APP_PATH}` },
+      { source: `${APP_PATH}/:path*`, destination: `${CLINIC_APP_ORIGIN}${APP_PATH}/:path*` },
     ];
   },
 };

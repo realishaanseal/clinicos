@@ -9,6 +9,7 @@ import DeletePatient from "@/components/DeletePatient";
 import ClinicSettingsForm from "@/components/ClinicSettingsForm";
 import { IcArrow, IcShield } from "@/components/Icons";
 import { ONLINE } from "@/lib/deployment";
+import { appPath } from "@/lib/base-path";
 
 export const dynamic = "force-dynamic";
 
@@ -159,7 +160,7 @@ export default async function AdminPage() {
               Download every patient, consultation and correction as one file, readable in any text editor.
             </p>
             <div className="btnrow">
-              <a href="/api/backup/export" download>
+              <a href={appPath("/api/backup/export")} download>
                 <button type="button">Export everything as JSON</button>
               </a>
             </div>

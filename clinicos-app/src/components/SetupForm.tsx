@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { IcAlert } from "./Icons";
 import { PASSWORD_MIN, USERNAME_RULE } from "@/lib/users";
+import { appPath } from "@/lib/base-path";
 
 type Defaults = { clinicName: string; name: string; qualification: string; regNo: string };
 
@@ -33,14 +34,14 @@ export default function SetupForm({ defaults, needsCode }: { defaults: Defaults;
     }
     setBusy(true);
     try {
-      const res = await fetch("/api/setup", {
+      const res = await fetch(appPath("/api/setup"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Setup didn't complete. Try again.");
-      window.location.assign(data.redirect || "/");
+      window.location.assign(appPath(data.redirect || "/"));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setBusy(false);

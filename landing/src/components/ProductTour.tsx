@@ -97,7 +97,7 @@ function Screen({ kind }: { kind: string }) {
             <span className="rec-time">04:12</span>
           </div>
           <div className="mock-transcript">
-            <div className="mt-head">Transcript · staying on this machine</div>
+            <div className="mt-head">Transcript</div>
             <div className="mt-lines">
               <p><b>Doctor</b> How long has the fever been there?</p>
               <p><b>Patient</b> Three days. It comes in the evening mostly.</p>

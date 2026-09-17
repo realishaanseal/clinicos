@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { appPath } from "@/lib/base-path";
 
 /** One-tap "put this patient on today's list", for the front desk's patient list. */
 export default function AddToQueueButton({ patientId, name }: { patientId: string; name: string }) {
@@ -13,7 +14,7 @@ export default function AddToQueueButton({ patientId, name }: { patientId: strin
   async function add() {
     setState({ busy: true, label: null, failed: false });
     try {
-      const res = await fetch("/api/queue", {
+      const res = await fetch(appPath("/api/queue"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ patientId }),

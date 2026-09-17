@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { IcPlus, IcAlert } from "./Icons";
+import { appPath } from "@/lib/base-path";
 
 const EMPTY = { name: "", age: "", sex: "", phone: "", guardianName: "" };
 
@@ -37,7 +38,7 @@ export default function NewPatient({
     setBusy(true);
     setError("");
     try {
-      const res = await fetch("/api/patients", {
+      const res = await fetch(appPath("/api/patients"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, queue }),

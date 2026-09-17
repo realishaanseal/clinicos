@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ClinicalNote } from "./types";
+import { appPath } from "@/lib/base-path";
 
 export type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -30,7 +31,7 @@ export function useAutosave(consultId: string, enabled: boolean) {
     pending.current = null;
     setState("saving");
     try {
-      const res = await fetch(`/api/consults/${consultId}/draft`, {
+      const res = await fetch(appPath(`/api/consults/${consultId}/draft`), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -75,7 +76,7 @@ export function useAutosave(consultId: string, enabled: boolean) {
       if (!dirty.current || !pending.current) return;
       try {
         navigator.sendBeacon?.(
-          `/api/consults/${consultId}/draft?beacon=1`,
+          appPath(`/api/consults/${consultId}/draft?beacon=1`),
           new Blob([JSON.stringify(pending.current)], { type: "application/json" })
         );
       } catch {

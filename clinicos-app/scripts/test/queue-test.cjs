@@ -17,7 +17,7 @@ async function call(method, path, { token, body } = {}) {
     headers["content-type"] = "application/json";
     payload = JSON.stringify(body);
   }
-  const res = await fetch(BASE + path, { method, headers, body: payload, redirect: "manual" });
+  const res = await fetch(BASE + (path === "/" && new URL(BASE).pathname.length > 1 ? "" : path), { method, headers, body: payload, redirect: "manual" });
   const text = await res.text();
   let json = null;
   try { json = JSON.parse(text); } catch { /* html */ }

@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { IcShield, IcDownload, IcAlert, IcCheck } from "./Icons";
 import { fmt } from "@/lib/time";
+import { appPath } from "@/lib/base-path";
 
 type BackupFile = { name: string; bytes: number; createdAt: string; auto: boolean };
 
@@ -36,7 +37,7 @@ export default function BackupPanel({
     setError("");
     setMsg(null);
     try {
-      const res = await fetch("/api/backup/create", { method: "POST" });
+      const res = await fetch(appPath("/api/backup/create"), { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setMsg(`Backup created — ${data.name} (${kb(data.bytes)}).`);
@@ -57,7 +58,7 @@ export default function BackupPanel({
       const form = new FormData();
       form.append("backup", file);
       form.append("confirm", typed);
-      const res = await fetch("/api/backup/restore", { method: "POST", body: form });
+      const res = await fetch(appPath("/api/backup/restore"), { method: "POST", body: form });
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || "Restore failed");
       setMsg(
@@ -130,7 +131,7 @@ export default function BackupPanel({
           </p>
 
           <div className="btnrow">
-            <a href="/api/backup/download" download>
+            <a href={appPath("/api/backup/download")} download>
               <button type="button">
                 <IcDownload size={15} /> Download backup now
               </button>
@@ -138,7 +139,7 @@ export default function BackupPanel({
             <button className="ghost" onClick={backupNow} disabled={!!busy} type="button">
               {busy === "Creating backup…" ? "Working…" : "Save a backup on this machine"}
             </button>
-            <a href="/api/backup/export" download>
+            <a href={appPath("/api/backup/export")} download>
               <button className="ghost" type="button">
                 Export everything as JSON
               </button>
@@ -167,7 +168,7 @@ export default function BackupPanel({
                       {b.auto && " · automatic"}
                     </span>
                   </div>
-                  <a href={`/api/backup/download?name=${encodeURIComponent(b.name)}`} download>
+                  <a href={appPath(`/api/backup/download?name=${encodeURIComponent(b.name)}`)} download>
                     <button className="ghost small" type="button">
                       <IcDownload size={14} /> Download
                     </button>

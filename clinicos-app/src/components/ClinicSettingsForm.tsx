@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { IcAlert, IcCheck } from "./Icons";
+import { appPath } from "@/lib/base-path";
 
 type Clinic = { name: string; address: string; phone: string };
 
@@ -23,7 +24,7 @@ export default function ClinicSettingsForm({ initial }: { initial: Clinic }) {
     setBusy(true);
     setError("");
     try {
-      const res = await fetch("/api/admin/settings", {
+      const res = await fetch(appPath("/api/admin/settings"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),

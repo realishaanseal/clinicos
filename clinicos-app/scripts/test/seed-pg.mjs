@@ -22,7 +22,7 @@ const migrate = spawnSync(process.execPath, [path.join(appDir, "scripts", "migra
 if (migrate.status !== 0) process.exit(1);
 
 const src = new Database(sqlitePath, { readonly: true });
-const sql = postgres(url, { prepare: false, ssl: false, max: 1 });
+const sql = postgres(url, { prepare: false, ssl: /sslmode=disable/.test(url) ? false : "require", max: 1 });
 
 try {
   await sql.begin(async (tx) => {

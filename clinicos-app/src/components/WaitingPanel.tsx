@@ -6,6 +6,7 @@ import { useState } from "react";
 import type { QueueRow } from "@/lib/db";
 import { elapsed, useQueue } from "@/lib/useQueue";
 import { IcAlert, IcArrow } from "./Icons";
+import { appPath } from "@/lib/base-path";
 
 /**
  * The doctor's view of today's list: who is waiting, and a button that calls
@@ -24,7 +25,7 @@ export default function WaitingPanel({ initial, doctorId }: { initial: QueueRow[
     setBusyId(r.id);
     setError("");
     try {
-      const res = await fetch(`/api/queue/${r.id}/start`, { method: "POST" });
+      const res = await fetch(appPath(`/api/queue/${r.id}/start`), { method: "POST" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Couldn't start the visit.");
       router.push(`/consult/${data.consultId}`);

@@ -23,7 +23,7 @@ export default function Privacy() {
 
       <article className="glass glass-lit doc-panel">
         <h1>Privacy</h1>
-        <p className="updated">Last updated 13 September 2026</p>
+        <p className="updated">Last updated 17 September 2026</p>
 
         <h2>The short version</h2>
         <p>
@@ -35,7 +35,8 @@ export default function Privacy() {
         <h2>This website</h2>
         <p>
           The site sets no cookies, runs no analytics and loads no third-party scripts. It is
-          hosted by Vercel. Like any web host, Vercel processes technical details such as your IP
+          hosted by Vercel. The one exception is signing in to ClinicOS itself, at /app: that sets a
+          single cookie to keep you signed in, and only once you sign in. Like any web host, Vercel processes technical details such as your IP
           address to deliver pages and protect the site from abuse.
         </p>
 
@@ -72,9 +73,11 @@ export default function Privacy() {
 
         <h2>Patient information</h2>
         <p>
-          Please don&rsquo;t send patient details through the form or by email. ClinicOS itself runs
-          on the clinic&rsquo;s own hardware, and patient data stays there. How ClinicOS handles
-          patient data is set out in the agreement each clinic signs.
+          Please don&rsquo;t send patient details through the form or by email. ClinicOS can run on
+          the clinic&rsquo;s own hardware, where patient data stays. It also runs online as a
+          prototype, with records kept in a database in India; that version is for trying ClinicOS
+          with made-up patients, not for real patient records yet. How ClinicOS handles patient data
+          is set out in the agreement each clinic signs.
         </p>
 
         <h2>Changes</h2>

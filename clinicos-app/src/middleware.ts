@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, SESSION_SECONDS, isPublicPath } from "@/lib/session-cookie";
+import { BASE_PATH } from "@/lib/base-path";
 
 /**
  * First gate only. This runs on the Edge runtime, where better-sqlite3 cannot
@@ -7,6 +8,20 @@ import { SESSION_COOKIE, SESSION_SECONDS, isPublicPath } from "@/lib/session-coo
  * that session is real, live and allowed to do the thing is decided by
  * requireUser() / requireApiUser() in the page or route itself.
  */
+/**
+ * The address the visitor is actually on. Online, requests reach this app
+ * through the website (vxclinicos.vercel.app/app), so the request's own host is
+ * this app's project address, where the visitor has no session cookie. Vercel
+ * sets x-forwarded-host to the address the visitor used, and overwrites any
+ * value a client sends. Next.js insists middleware redirects are absolute, so
+ * the redirect has to be built on this.
+ */
+function publicOrigin(req: NextRequest): string {
+  const host = req.headers.get("x-forwarded-host") || req.nextUrl.host;
+  const proto = req.headers.get("x-forwarded-proto") || req.nextUrl.protocol.replace(/:$/, "");
+  return `${proto}://${host}`;
+}
+
 export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
   const token = req.cookies.get(SESSION_COOKIE)?.value;
@@ -15,11 +30,8 @@ export function middleware(req: NextRequest) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
     }
-    const url = req.nextUrl.clone();
-    url.pathname = "/login";
-    url.search = "";
-    if (pathname !== "/") url.searchParams.set("next", pathname + search);
-    return NextResponse.redirect(url);
+    const next = pathname !== "/" ? `?next=${encodeURIComponent(pathname + search)}` : "";
+    return NextResponse.redirect(new URL(`${BASE_PATH}/login${next}`, publicOrigin(req)));
   }
 
   const res = NextResponse.next();

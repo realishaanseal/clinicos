@@ -9,6 +9,11 @@
  *   npm run test:e2e:pg              the same suites against Postgres, as the
  *                                    online copy runs (PGlite, nothing to install)
  *
+ *   TEST_DATABASE_URL=… npm run test:e2e:pg
+ *       the same, against a real Postgres (Supabase) for true concurrency. It
+ *       refuses to start unless the clinic tables are empty, and empties them
+ *       again afterwards. Never point it at a database holding real records.
+ *
  * Suites, in order — each relies on the one before:
  *   seed-pre-v1.cjs       a prototype-era database (before accounts) with records
  *   perm-test.cjs         the upgrade keeps every record; the permission matrix
@@ -27,10 +32,15 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const appDir = path.resolve(here, "..", "..");
 const work = path.join(appDir, ".test-data");
 const port = process.env.TEST_PORT || "3100";
-const base = `http://localhost:${port}`;
+const onPostgresEarly = process.argv.includes("--pg");
+// The Postgres run is built the way the online copy is, under /app.
+const basePath = onPostgresEarly ? "/app" : "";
+const base = `http://localhost:${port}${basePath}`;
 const skipBuild = process.argv.includes("--no-build");
 const onPostgres = process.argv.includes("--pg");
 const pgPort = process.env.TEST_PG_PORT || "55432";
+const realPg = onPostgres ? process.env.TEST_DATABASE_URL || "" : "";
+const CLINIC_TABLES = ["AudioChunk", "QueueEntry", "Edit", "Consult", "Session", "AuditEvent", "Setting", "User", "Patient"];
 
 fs.rmSync(work, { recursive: true, force: true });
 fs.mkdirSync(work, { recursive: true });
@@ -54,15 +64,16 @@ const env = {
   DATA_BACKEND: onPostgres ? "postgres" : "sqlite",
   ...(onPostgres
     ? {
-        DATABASE_URL: `postgres://postgres:postgres@127.0.0.1:${pgPort}/postgres?sslmode=disable`,
+        DATABASE_URL: realPg || `postgres://postgres:postgres@127.0.0.1:${pgPort}/postgres?sslmode=disable`,
         NEXT_PUBLIC_CLINIC_TIMEZONE: "Asia/Kolkata",
         NEXT_PUBLIC_CLINICOS_ONLINE: "1",
+        NEXT_PUBLIC_BASE_PATH: basePath,
         // PGlite shares one real connection between all clients, and under a
         // burst of requests it can hand one client's statement another's
         // parameters ("bind message supplies 2 parameters, but prepared
         // statement requires 7"). Real Postgres never does. One connection
         // from the app avoids it; true concurrency is tested against Supabase.
-        PG_POOL_MAX: "1",
+        PG_POOL_MAX: realPg ? "3" : "1",
       }
     : {}),
 };
@@ -113,7 +124,33 @@ async function waitForServer(ms = 90_000) {
 step("Seeding a prototype-era database");
 if (runNode("seed-pre-v1.cjs", [files.db, files.fingerprint, files.preV1]) !== 0) process.exit(1);
 
-if (onPostgres) {
+async function clinicRowCount(sql) {
+  let total = 0;
+  for (const t of CLINIC_TABLES) {
+    const [exists] = await sql`select to_regclass(${`public."${t}"`}) as r`;
+    if (exists.r) total += (await sql`select count(*)::int as n from ${sql(t)}`)[0].n;
+  }
+  return total;
+}
+
+async function withRealPg(fn) {
+  const { default: postgres } = await import("postgres");
+  const sql = postgres(realPg, { prepare: false, ssl: "require", max: 1 });
+  try {
+    return await fn(sql);
+  } finally {
+    await sql.end({ timeout: 5 });
+  }
+}
+
+if (realPg) {
+  step("Checking the real Postgres holds no clinic records");
+  const rows = await withRealPg(clinicRowCount);
+  if (rows > 0) {
+    console.error(`It holds ${rows} clinic rows. This run only uses an empty database, and nothing was changed.`);
+    process.exit(1);
+  }
+} else if (onPostgres) {
   step(`Starting a throwaway Postgres on port ${pgPort}`);
   pgServer = spawn(process.execPath, [path.join(here, "pg-server.mjs"), pgPort], { stdio: ["ignore", "pipe", "inherit"] });
   const ready = await new Promise((resolve) => {
@@ -149,6 +186,25 @@ if (!skipBuild) {
   }
 }
 
+async function emptyRealPg() {
+  if (!realPg) return;
+  step("Emptying the clinic tables the run filled");
+  await withRealPg(async (sql) => {
+    await sql.unsafe(`truncate ${CLINIC_TABLES.map((t) => `"${t}"`).join(", ")}`);
+    console.log(`Clinic rows left: ${await clinicRowCount(sql)}`);
+  });
+}
+
+// Seeded only after a successful build, so a failed build leaves the real
+// database exactly as empty as it was found.
+if (realPg) {
+  step("Copying the seed into the real Postgres");
+  if (runNode("seed-pg.mjs", [files.db]) !== 0) {
+    await emptyRealPg();
+    process.exit(1);
+  }
+}
+
 step(`Starting the app on ${base}`);
 const out = fs.openSync(files.log, "w");
 server = spawn("npm", ["run", "start", "--", "-p", port], {
@@ -161,6 +217,7 @@ server = spawn("npm", ["run", "start", "--", "-p", port], {
 if (!(await waitForServer())) {
   console.error(`The app did not start. See ${files.log}`);
   stopServer();
+  await emptyRealPg();
   process.exit(1);
 }
 
@@ -176,6 +233,7 @@ for (const [script, args] of suites) {
 }
 
 stopServer();
+await emptyRealPg();
 console.log(
   failed.length
     ? `\nFAILED (${onPostgres ? "Postgres" : "SQLite"}): ${failed.join(", ")}`

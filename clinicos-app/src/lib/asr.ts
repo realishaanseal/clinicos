@@ -52,7 +52,8 @@ class HttpWhisper implements AsrProvider {
     const url = process.env.ASR_HTTP_URL;
     const key = process.env.ASR_HTTP_KEY;
     const model = process.env.ASR_HTTP_MODEL || "whisper-1";
-    if (!url) throw new Error("ASR_PROVIDER=http but ASR_HTTP_URL is not set.");
+    // Read by a doctor: say what is missing, not which variable.
+    if (!url) throw new Error("Transcription isn't switched on here yet: no transcription service is set up (ASR_HTTP_URL).");
 
     const form = new FormData();
     form.append("file", new Blob([new Uint8Array(audio)]), filename);
@@ -66,6 +67,14 @@ class HttpWhisper implements AsrProvider {
       headers: key ? { Authorization: `Bearer ${key}` } : undefined,
       body: form,
     });
+    if (res.status === 401 || res.status === 403) {
+      // Seen by a doctor, so it says what is wrong rather than quoting the service.
+      throw new Error(
+        key
+          ? "The transcription service turned down this copy of ClinicOS's key. Whoever set it up needs to check ASR_HTTP_KEY."
+          : "Transcription isn't switched on here yet: the transcription service needs an API key (ASR_HTTP_KEY)."
+      );
+    }
     if (!res.ok) throw new Error(`Transcription failed (${res.status}): ${await res.text()}`);
     const data = (await res.json()) as { text: string };
     return {

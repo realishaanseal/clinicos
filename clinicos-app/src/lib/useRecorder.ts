@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { appPath } from "@/lib/base-path";
 
 export type RecorderState = {
   recording: boolean;
@@ -59,7 +60,7 @@ export function useRecorder(consultId: string) {
           for (let attempt = 0; attempt < 2; attempt++) {
             try {
               const res = await fetch(
-                `/api/consults/${consultId}/audio/chunk${isFirst ? "?first=1" : ""}`,
+                appPath(`/api/consults/${consultId}/audio/chunk${isFirst ? "?first=1" : ""}`),
                 { method: "POST", body: blob, headers: { "Content-Type": "application/octet-stream" } }
               );
               if (!res.ok) throw new Error(await res.text());
@@ -147,7 +148,7 @@ export function useRecorder(consultId: string) {
     await chainRef.current; // every chunk is on disk before we finalise
 
     try {
-      await fetch(`/api/consults/${consultId}/audio/finalize`, {
+      await fetch(appPath(`/api/consults/${consultId}/audio/finalize`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ seconds: elapsedRef.current }),

@@ -6,6 +6,7 @@ import { elapsed, useQueue } from "@/lib/useQueue";
 import NewPatient from "./NewPatient";
 import { IcAlert, IcCheck, IcUsers } from "./Icons";
 import { fmtTime } from "@/lib/time";
+import { appPath } from "@/lib/base-path";
 
 type Found = { id: string; name: string; age: number | null; sex: string | null; phone: string | null; consultCount: number };
 
@@ -82,7 +83,7 @@ function FindPatient({ onQueued }: { onQueued: (message: string) => void }) {
     }
     timer.current = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/patients?q=${encodeURIComponent(term)}`, { cache: "no-store" });
+        const res = await fetch(appPath(`/api/patients?q=${encodeURIComponent(term)}`), { cache: "no-store" });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Search failed");
         setFound(data.patients);
@@ -97,7 +98,7 @@ function FindPatient({ onQueued }: { onQueued: (message: string) => void }) {
     setBusyId(p.id);
     setError("");
     try {
-      const res = await fetch("/api/queue", {
+      const res = await fetch(appPath("/api/queue"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ patientId: p.id }),
@@ -192,7 +193,7 @@ function QueueTable({
     setBusyId(r.id);
     setError("");
     try {
-      const res = await fetch(`/api/queue/${r.id}/left`, { method: "POST" });
+      const res = await fetch(appPath(`/api/queue/${r.id}/left`), { method: "POST" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "That didn't work.");
       onChange();

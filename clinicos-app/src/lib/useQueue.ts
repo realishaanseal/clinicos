@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { QueueRow } from "./db";
+import { appPath } from "@/lib/base-path";
 
 const POLL_MS = 5000;
 
@@ -18,9 +19,9 @@ export function useQueue(initial: QueueRow[]) {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch("/api/queue", { cache: "no-store" });
+      const res = await fetch(appPath("/api/queue"), { cache: "no-store" });
       if (res.status === 401) {
-        window.location.assign("/login");
+        window.location.assign(appPath("/login"));
         return;
       }
       if (!res.ok) throw new Error("queue unavailable");

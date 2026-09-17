@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { IcTrash, IcAlert, IcDownload, IcCheck } from "./Icons";
+import { appPath } from "@/lib/base-path";
 
 type P = { id: string; name: string; consultCount: number };
 
@@ -36,7 +37,7 @@ export default function DeletePatient({ patients }: { patients: P[] }) {
     setBusy(true);
     setError("");
     try {
-      const res = await fetch(`/api/patients/${target.id}`, {
+      const res = await fetch(appPath(`/api/patients/${target.id}`), {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ confirmName: typed }),
@@ -102,7 +103,7 @@ export default function DeletePatient({ patients }: { patients: P[] }) {
                   </span>
                 </div>
                 <div className="btnrow">
-                  <a href={`/api/patients/${p.id}/export`} download>
+                  <a href={appPath(`/api/patients/${p.id}/export`)} download>
                     <button className="ghost small" type="button">
                       <IcDownload size={14} /> Export
                     </button>
@@ -130,7 +131,7 @@ export default function DeletePatient({ patients }: { patients: P[] }) {
                 history, and any audio still on disk.
               </p>
               <p className="muted">
-                <a href={`/api/patients/${target.id}/export`} download>
+                <a href={appPath(`/api/patients/${target.id}/export`)} download>
                   Export this record first
                 </a>{" "}
                 if you may ever need it. Once deleted it cannot be recovered from within ClinicOS.

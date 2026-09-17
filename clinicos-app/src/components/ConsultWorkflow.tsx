@@ -9,6 +9,7 @@ import {
   IcMic, IcRec, IcStop, IcDoc, IcCheck, IcAlert, IcPrint, IcPlus, IcTrash, IcShield,
 } from "./Icons";
 import { fmt, fmtTime } from "@/lib/time";
+import { appPath } from "@/lib/base-path";
 
 type Props = {
   consultId: string;
@@ -62,7 +63,7 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic }:
 
   async function giveConsent(by: "doctor" | "staff") {
     setError("");
-    const res = await fetch(`/api/consults/${consultId}/consent`, {
+    const res = await fetch(appPath(`/api/consults/${consultId}/consent`), {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ by }),
     });
     if (!res.ok) return setError("Could not record consent.");
@@ -115,7 +116,7 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic }:
     setBusy("Transcribing — the first run loads the model, so give it a minute.");
     setError("");
     try {
-      const res = await fetch(`/api/consults/${consultId}/transcribe`, { method: "POST" });
+      const res = await fetch(appPath(`/api/consults/${consultId}/transcribe`), { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setTranscript(data.transcript);
@@ -129,7 +130,7 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic }:
     setBusy("Writing the note…");
     setError("");
     try {
-      const res = await fetch(`/api/consults/${consultId}/note`, {
+      const res = await fetch(appPath(`/api/consults/${consultId}/note`), {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ transcript }),
       });
@@ -146,7 +147,7 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic }:
     setBusy("Signing…");
     setError("");
     try {
-      const res = await fetch(`/api/consults/${consultId}/sign`, {
+      const res = await fetch(appPath(`/api/consults/${consultId}/sign`), {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ note }),
       });
       const data = await res.json();
@@ -176,7 +177,7 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic }:
         </div>
         <div className="btnrow noprint" style={{ marginBottom: 20 }}>
           <button onClick={() => window.print()}><IcPrint size={16} /> Print prescription</button>
-          <a href="/"><button className="ghost">Back to today</button></a>
+          <a href={appPath("/")}><button className="ghost">Back to today</button></a>
         </div>
         <Prescription note={note} patient={patient} clinic={clinic} date={signedAt} visitId={consultId} />
       </>
@@ -246,7 +247,7 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic }:
           <div className="ft">
             <div className="btnrow">
               <button onClick={() => giveConsent("staff")}><IcCheck size={16} /> Consented — form signed</button>
-              <a href="/"><button className="ghost">Declined — go back</button></a>
+              <a href={appPath("/")}><button className="ghost">Declined — go back</button></a>
             </div>
             <p className="muted" style={{ marginTop: 10, marginBottom: 0 }}>
               If the patient declines, the doctor proceeds on paper exactly as before. Log the refusal.

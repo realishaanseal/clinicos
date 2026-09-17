@@ -4,7 +4,9 @@ import { getLlm } from "@/lib/llm";
 import { parseNote } from "@/lib/types";
 import { requireApiUser } from "@/lib/auth";
 
-export const maxDuration = 600;
+// A local model on a laptop can take minutes; a hosted one takes seconds. 300
+// is the most the online host allows on its free plan.
+export const maxDuration = 300;
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireApiUser("clinical");

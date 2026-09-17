@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Mark, IcPulse, IcUsers, IcShield, IcCog, IcDoc } from "./Icons";
 import { describeAccess, type Role } from "@/lib/users";
 import { ONLINE } from "@/lib/deployment";
+import { appPath } from "@/lib/base-path";
 
 type NavUser = { name: string; role: Role; isAdmin: boolean };
 
@@ -38,10 +39,10 @@ export default function SideNav({ user, clinicName }: { user: NavUser; clinicNam
   async function signOut() {
     setLeaving(true);
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await fetch(appPath("/api/auth/logout"), { method: "POST" });
     } finally {
       // A full navigation, so the layout re-renders without the signed-in shell.
-      window.location.assign("/login");
+      window.location.assign(appPath("/login"));
     }
   }
 

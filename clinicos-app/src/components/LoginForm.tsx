@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { IcAlert } from "./Icons";
+import { appPath } from "@/lib/base-path";
 
 export default function LoginForm({ next }: { next: string | null }) {
   const [username, setUsername] = useState("");
@@ -14,7 +15,7 @@ export default function LoginForm({ next }: { next: string | null }) {
     setBusy(true);
     setError("");
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch(appPath("/api/auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password, next }),
@@ -23,7 +24,7 @@ export default function LoginForm({ next }: { next: string | null }) {
       if (!res.ok) throw new Error(data.error || "Could not sign in. Try again.");
       // A full navigation, not router.push: the layout has to render again with
       // the signed-in shell around the page.
-      window.location.assign(data.redirect || "/");
+      window.location.assign(appPath(data.redirect || "/"));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setBusy(false);

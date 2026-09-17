@@ -18,7 +18,7 @@ async function call(method, path, { token, body } = {}) {
     headers["content-type"] = "application/json";
     payload = JSON.stringify(body);
   }
-  const res = await fetch(BASE + path, { method, headers, body: payload, redirect: "manual" });
+  const res = await fetch(BASE + (path === "/" && new URL(BASE).pathname.length > 1 ? "" : path), { method, headers, body: payload, redirect: "manual" });
   const text = await res.text();
   let json = null;
   try { json = JSON.parse(text); } catch { /* html */ }
@@ -30,8 +30,10 @@ async function call(method, path, { token, body } = {}) {
   return { status: res.status, json, text, location: res.headers.get("location"), token: cookies.at(-1) || null };
 }
 
+// Online the app sits under a prefix (/app); a redirect names it, a target does not.
+const BASE_PATH = new URL(BASE).pathname.replace(/\/$/, "");
 const goesTo = (r, target) =>
-  (r.status >= 300 && r.status < 400 && r.location && new URL(r.location, BASE).pathname === target) ||
+  (r.status >= 300 && r.status < 400 && r.location && new URL(r.location, BASE).pathname === BASE_PATH + target) ||
   r.text.includes(`NEXT_REDIRECT;replace;${target};`) ||
   r.text.includes(`NEXT_REDIRECT;push;${target};`);
 
