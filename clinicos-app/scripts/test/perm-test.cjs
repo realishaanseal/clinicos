@@ -242,6 +242,56 @@ const idOf = async (username) => {
   await expectPage("Owner", owner, "/admin", 200);
   await expectStatus("Owner", owner, "GET", "/api/backup/export", 200);
 
+  // ------------------------------------------------ 5b. a recording, and its deletion at signing
+  // Invariant 3: audio is deleted when the doctor signs. On the clinic computer the
+  // recording is a file; online it is AudioChunk rows. Both must be gone after signing.
+  {
+    const slice = (fill) => new Uint8Array(1000).fill(fill);
+    const post = async (path, bytes) => {
+      const url = BASE + path;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { cookie: `clinicos_session=${doc2.token}`, "content-type": "application/octet-stream" },
+        body: bytes,
+      });
+      return { status: res.status, json: await res.json().catch(() => null) };
+    };
+    const first = await post(`/api/consults/${consultAId}/audio/chunk?first=1`, slice(1));
+    const second = await post(`/api/consults/${consultAId}/audio/chunk`, slice(2));
+    check("Recording: slices are accepted once consent is recorded", first.status === 200 && second.status === 200, `${first.status} ${second.status}`);
+    check("Recording: the stored size grows slice by slice", second.json?.total === 2000, JSON.stringify(second.json));
+    const fin = await call("POST", `/api/consults/${consultAId}/audio/finalize`, { token: doc2.token, body: { seconds: 10 } });
+    check("Recording: finalising reports the whole recording", fin.status === 200 && fin.json?.bytes === 2000, JSON.stringify(fin.json));
+
+    const db = peek(dbPath);
+    const c = await db.get(`SELECT "audioPath", "audioBytes", "recordingEndedAt" FROM "Consult" WHERE id = ?`, consultAId);
+    if (db.online) {
+      const rows = await db.all(`SELECT seq, LENGTH(data) AS n FROM "AudioChunk" WHERE "consultId" = ? ORDER BY seq`, consultAId);
+      check("Recording (online): stored as ordered slices in the database", c?.audioPath === `db:${consultAId}` && rows.map((r) => `${r.seq}:${r.n}`).join(",") === "1:1000,2:1000", `${c?.audioPath} ${JSON.stringify(rows)}`);
+    } else {
+      check("Recording (local): stored as one file on disk", !!c?.audioPath && fs.existsSync(c.audioPath) && fs.statSync(c.audioPath).size === 2000, c?.audioPath);
+    }
+    check("Recording: marked as finished, with its size", c?.audioBytes === 2000 && !!c?.recordingEndedAt, JSON.stringify(c));
+    const audioPathBefore = c?.audioPath;
+    await db.close();
+
+    const signedA = await call("POST", `/api/consults/${consultAId}/sign`, {
+      token: doc2.token,
+      body: { note: { chiefComplaint: "Cough", history: "", examination: "", diagnosis: "", medications: [], investigations: [], advice: "", followUp: "" } },
+    });
+    check("Recording: signing reports the audio deleted", signedA.status === 200 && signedA.json?.audioDeleted === true, JSON.stringify(signedA.json));
+    const db2 = peek(dbPath);
+    const after = await db2.get(`SELECT "audioPath", "audioDeletedAt" FROM "Consult" WHERE id = ?`, consultAId);
+    if (db2.online) {
+      const left = (await db2.get(`SELECT CAST(COUNT(*) AS INTEGER) AS n FROM "AudioChunk" WHERE "consultId" = ?`, consultAId)).n;
+      check("Recording (online): no slice is left after signing", left === 0, left);
+    } else {
+      check("Recording (local): the file is gone after signing", !fs.existsSync(audioPathBefore), audioPathBefore);
+    }
+    check("Recording: the consultation records when its audio was deleted", after?.audioPath === null && !!after?.audioDeletedAt, JSON.stringify(after));
+    await db2.close();
+  }
+
   // ------------------------------------------------ 6. signing
   const draft = JSON.parse(fp.consults.find((c) => c.id === "seedconsult2").draftJson);
   const signed = await expectStatus("Doctor", doc2.token, "POST", "/api/consults/seedconsult2/sign", 200, {

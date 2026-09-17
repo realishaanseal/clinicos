@@ -34,8 +34,9 @@ It is framed differently for different audiences:
 
 | Path | What it is |
 |---|---|
-| `clinicos-app/` | The clinical app (Next.js 15 + SQLite). Runs only on the clinic computer. |
-| `landing/` | The public website (static Next.js), deployed to Vercel. See `landing/README.md`. |
+| `clinicos-app/` | The clinical app (Next.js 15). SQLite on a clinic computer; Postgres online at vxclinicos.vercel.app/app. `migrations/pg/` is its Postgres schema. |
+| `landing/` | The public website (static Next.js), deployed to Vercel. See `landing/README.md`. Passes `/app` through to the clinic app. |
+| `portal/` | Part C, the patient portal: so far only its database layer (Supabase migrations). |
 | `docs/` | Launch plan, 37-item backlog, problem statement, discovery script, consent script, pilot agreement, website brief. |
 | `artifacts/` | Decks, the 61-section startup blueprint (.docx), trackers, briefs, prototype documentation PDF. |
 | `CLAUDE.md` | Invariants, architecture, gotchas, house style — for every assistant. |
@@ -97,10 +98,25 @@ they are history and can be deleted. Start new work on a fresh feature branch of
   - It asks for no patient information.
 - **Public contact email:** ishaanseal@gmail.com
 
-### Built, and deliberately not deployed
+- **The clinic app online: https://vxclinicos.vercel.app/app** (live once `app-online`
+  is merged into `main`, which puts the website's rewrite live; the app project itself
+  already serves it at https://vxclinicos-app.vercel.app/app).
+  - Vercel project `vxclinicos-app` (`prj_ntNPybgIgNtEVac0dz8tVurOTUG9`), team
+    `Varaxis`, Root Directory `clinicos-app`, functions in `bom1`, Git-connected with
+    `main` as the production branch.
+  - Database: the Supabase project `clinicos-portal` in Mumbai, next to the portal's
+    tables. Schema applied from `clinicos-app/migrations/pg/001_init.sql`. Empty: no
+    owner has been set up yet.
+  - A prototype banner on every screen asks for made-up patients only.
+  - **Not working online yet: transcription and note drafting**, which need a hosted
+    AI service and its key (§7). Everything else — setup, sign-in, people, the front
+    desk's list, consultations, consent, recording, signing, prescriptions, export — was
+    verified on the live deployment (§10).
 
-The clinic app runs on the clinic computer. Start it with `clinicos-app/go.ps1` on
-Windows or `go.sh` on macOS.
+### Built for the clinic computer
+
+The clinic app also runs on the clinic computer, exactly as before. Start it with
+`clinicos-app/go.ps1` on Windows or `go.sh` on macOS.
 
 - **Consultation flow** (prototype):
   - consent → record → transcribe (faster-whisper) → draft (Ollama, qwen2.5:7b) → review → sign → print
@@ -128,6 +144,8 @@ Windows or `go.sh` on macOS.
 
 ### How to verify
 
+- **Clinic app on Postgres:** `cd clinicos-app && npm run test:e2e:pg` (PGlite, nothing to
+  install). Against Supabase or the deployed app: see CLAUDE.md, Tooling.
 - **Clinic app:** `cd clinicos-app && npm run test:e2e`
   - Builds the app and runs it on port 3100 against a throwaway seeded database in
     `clinicos-app/.test-data/` (git-ignored). It never uses `data/`.
@@ -163,6 +181,10 @@ Windows or `go.sh` on macOS.
 | 14 Sep 2026 | Varaxis product lockup: tile, "Varaxis" heavy and white, the product name lighter in its own colour. ClinicOS's colour is the film's mint. | It matches the Varaxis Scholar lockup, so the products read as one family. It uses the system display face because the site loads no webfonts. |
 | 15 Sep 2026 | The film plays as AI-upscaled, AI-interpolated AVIF frames drawn on a canvas, never as a seeked video. | Seeking read as ten frames a second. Real-ESRGAN (`realesr-animevideov3`) and RIFE v4.6 were chosen by side-by-side tests against Lanczos, `realesrgan-x4plus` and ffmpeg's interpolation. Ishaan approved downloading both open-source tools; they run locally and upload nothing. No upscaler connector exists. |
 | 17 Sep 2026 | The release being built — Parts A–D — is called **v0.5**, not v1. | v0.5 is the working prototype, to be tested and changed thoroughly before anything is called finished. v1 is reserved for the first real release, once v0.5 has held up in a clinic. |
+| 17 Sep 2026 | **The clinic app runs online**, the same code as on the clinic computer. | Ishaan chose it after being told the cost: records and recordings in the cloud, hosted AI, and the consent script, rules and privacy copy changing. It reverses "hosting the clinical app: not built, deliberately". |
+| 17 Sep 2026 | It lives at **vxclinicos.vercel.app/app**, not a second address. | Ishaan asked for the website's own address. The website rewrites `/app` to the `vxclinicos-app` project, built with `basePath: /app`. |
+| 17 Sep 2026 | Online records go in the existing Supabase project in Mumbai, beside the portal's tables. | No second project to create or pay for; no table names collide. |
+| 17 Sep 2026 | Until the consent script covers online use, the online copy is for made-up patients only, with a banner on every screen. | The script still promises patients that nothing leaves the clinic computer. |
 | Prototype era | The invariants in CLAUDE.md. | No clinical judgement. Audio deleted at signing. No training on audio. Consent enforced server-side. `draftJson` immutable. Backups via the SQLite backup API. No lock-in. |
 
 ---
@@ -185,7 +207,7 @@ Windows or `go.sh` on macOS.
 
 ## 6. Plan for what is left (approved 13 September 2026)
 
-### The clinic app online (decided 17 Sep 2026, in progress on `app-online`)
+### The clinic app online (decided 17 Sep 2026, built and verified on `app-online`)
 
 Ishaan chose to put the real v0.5 app online so it can be seen and used from the
 website, after being told what it costs: records and recordings in the cloud, cloud AI
@@ -218,6 +240,13 @@ laptop exactly as before. `DATA_BACKEND=postgres` is the online copy on Vercel.
   Nowhere else." and the privacy page reworded so they stay true.
 - Tests: `npm run test:e2e` keeps running on SQLite; the same suites also run on Postgres
   locally through PGlite, so no Postgres install is needed.
+- Served at vxclinicos.vercel.app/app through a rewrite on the website, the app built
+  with `basePath: /app` online only.
+
+**Left before real patients use it:** a hosted AI service for transcription and notes
+(§7.1); the consent script (English and Bengali), CLAUDE.md invariant 2 and the pilot
+agreement's sub-processors rewritten for online use — Part D's work, now needed for the
+online copy as well as the portal; paid plans with backups (§7).
 
 ### Part C — patient portal
 
@@ -314,34 +343,50 @@ speed pass.
 
 ## 7. Waiting on Ishaan
 
-1. **Supabase: done** on 17 Sep 2026 — organisation `Varaxis`, project `clinicos-portal`,
+1. **Transcription and note drafting online need a hosted AI service.** Create an
+   account with an OpenAI-compatible provider that offers both speech-to-text and chat
+   (Groq is one with a free tier), create an API key, and add four variables to the
+   `vxclinicos-app` project (Settings → Environment Variables, Production and Preview):
+   `ASR_HTTP_URL`, `ASR_HTTP_KEY`, `LLM_OPENAI_URL`, `LLM_OPENAI_KEY`, plus
+   `ASR_HTTP_MODEL` and `LLM_OPENAI_MODEL` for the models it offers. Then redeploy.
+   Consultation audio and transcripts would go to that provider, possibly outside India:
+   check its terms say it does not keep or train on them (invariant 4).
+2. **Set up the online clinic** at https://vxclinicos.vercel.app/app with the setup code.
+   The code is in `~/Desktop/Varaxis/ClinicOS-worktrees/SETUP_CODE-vxclinicos-app.txt` on
+   the Mac (not in git). It only works until the first account exists.
+3. **Supabase: done** on 17 Sep 2026 — organisation `Varaxis`, project `clinicos-portal`,
    South Asia (`ap-south-1`), free plan, Data API off. The schema is applied and
    `portal/.env.local` holds the transaction pooler string.
    **One thing still to do: reset the database password** in Settings → Database, and
    generate the replacement rather than choosing it. The password in use was typed into a
    chat, so it should not stay the credential for a database that will hold patient data.
    Re-encode any `@` or other special character as `%40` when pasting the new string in.
-2. **Tally form:** its link back to `/privacy` still points at
+   **After resetting, the new string must also replace `DATABASE_URL` on the
+   `vxclinicos-app` Vercel project** (Settings → Environment Variables, then redeploy),
+   or the online app stops working.
+4. **Tally form:** its link back to `/privacy` still points at
    `clinicos-varaxis.vercel.app`, which now 404s. Change it to
    `https://vxclinicos.vercel.app/privacy` in the Tally editor.
-3. **Vercel:** create a project from this repo with Root Directory `portal`, and add the
+5. **Vercel:** create a project from this repo with Root Directory `portal`, and add the
    domain `clinicos-portal.vercel.app`. Paste in the environment variables. The
    assistant generates the random keys; it does not type keys into dashboards.
-4. **Before real patients use the portal:** Supabase Pro ($25/month). Vercel Pro too,
-   because the Hobby plan is for non-commercial use, and that applies to the website as
-   well.
-5. **Optional:** delete the merged branches (`v1`, `website-contact`, `website-v1`,
+6. **Before real patients use the portal or the online app:** Supabase Pro ($25/month),
+   which also brings daily backups (the free plan keeps none). Vercel Pro too, because
+   the Hobby plan is for non-commercial use, and that applies to the website and the
+   app as well.
+7. **Optional:** delete the merged branches (`v1`, `website-contact`, `website-v1`,
    `site`, `website-glass-backdrop`, `website-smooth-film`, and now
    `mac-environment-notes`, `docs-compact-reference`, `fix/backdrop-scroll-performance`,
-   and `verify-live-deploy` once merged)
-   and the worktree `.claude/worktrees/website-glass`.
-6. **Optional:** if Varaxis has a brand typeface file, add it and the lockup can use it.
+   and `verify-live-deploy` and `app-online` once merged)
+   and the worktrees `.claude/worktrees/website-glass` (Windows) and
+   `~/Desktop/Varaxis/ClinicOS-worktrees/app-online` (Mac).
+8. **Optional:** if Varaxis has a brand typeface file, add it and the lockup can use it.
    Until then it uses the system display face.
 
 The Vercel **MCP connector** still cannot see the `Varaxis` team — it returns an empty team
 list. The **CLI can**: it was authenticated on the Mac on 17 Sep 2026 as `realishaanseal`,
-and `--scope varaxis` reaches the projects (`demo`, `scholar`, `scholar-l4ix`,
-`kahuproject`). Use the CLI for deploy logs and project state, not the connector.
+and `--scope varaxis` reaches the projects (`demo`, `vxclinicos-app`, `scholar`,
+`scholar-l4ix`, `kahuproject`). Use the CLI for deploy logs and project state, not the connector.
 `vercel api` reads anything the dashboard shows, e.g. the Git link with
 `vercel api "/v9/projects/prj_2KpvcJHlo19NoUWLT35Otewhs3ki?teamId=team_ErYNc38VqbmpJVz0fcQ4z8dD" --scope varaxis`.
 
@@ -406,6 +451,17 @@ and `--scope varaxis` reaches the projects (`demo`, `scholar`, `scholar-l4ix`,
   on 17 Sep 2026, because it also matches `.env.example` and would silently hide every new
   example file, while `.env` and `.env.local` are already ignored. If the CLI is ever
   re-linked, take `.env*` back out.
+- **The Mac's work on `app-online` happened in a git worktree** at
+  `~/Desktop/Varaxis/ClinicOS-worktrees/app-online`, because another session was running
+  the app from the main checkout and a build there would have broken it. Its
+  `clinicos-app/.env` is a copy of the main checkout's; its `data/` is its own.
+- **`vercel curl` quietly creates a protection-bypass token** on the project it reaches
+  ("Generating one now…"). That is a project setting. Revoke it afterwards with
+  `vercel api /v1/projects/<id>/protection-bypass -X PATCH` and a
+  `{"revoke":{"secret":…,"regenerate":false}}` body; one was created and revoked on
+  17 Sep 2026.
+- **`vercel api … /env -X POST` with an array body silently creates nothing.** Send one
+  variable per request. Mark keys and connection strings `"type":"sensitive"`.
 - **Telling a Git deploy from a hand deploy:** in `vercel ls` or `vercel inspect`, a
   Git-triggered production deployment carries the alias `demo-git-main-varaxis.vercel.app`
   and has `source: git`; a CLI one has neither. Prefer letting Git deploy: it uploads the
@@ -439,6 +495,8 @@ and `--scope varaxis` reaches the projects (`demo`, `scholar`, `scholar-l4ix`,
 - **`clinicos-varaxis.vercel.app` is dead** and returns `DEPLOYMENT_NOT_FOUND`. The site is
   `vxclinicos.vercel.app`. The very first address, `demo-ten-tau-97.vercel.app`, still
   serves. Anything printed, sent or linked before 17 Sep 2026 points at the dead one.
+- **`/app/motion-lab` is reachable online** by any signed-in account. It is a development
+  smoke test, safe to delete (CLAUDE.md, Animation dependencies).
 - **A local clicking-around database** lives at `clinicos-app/.local-test/clinicos.db`, a
   copy of `data/` taken through the SQLite backup API and migrated to the v0.5 schema. Start
   the app against it with
@@ -546,12 +604,36 @@ and `--scope varaxis` reaches the projects (`demo`, `scholar`, `scholar-l4ix`,
     `.claude/settings.local.json` did go up; it is only an assistant's command allowlist with
     no secrets in it, and `/.claude` is now in `.vercelignore` so it stops going.
   - The site was verified live (§3). The **Tally form still links to the dead
-    `clinicos-varaxis.vercel.app/privacy`**, confirmed by fetching the form (§7.2).
+    `clinicos-varaxis.vercel.app/privacy`**, confirmed by fetching the form (§7.4).
+  - **The clinic app went online** (branch `app-online`, worked on in a git worktree).
+    Ishaan asked where the v0.5 product was on the website and why only a contact page
+    showed. After being told what hosting it would change, Ishaan chose to put the real app
+    online, then asked for it on vxclinicos.vercel.app itself.
+    - The data layer became async and database-neutral (`sql.ts`, `db.ts`), with
+      Postgres races handled that SQLite's one-at-a-time transactions never allowed.
+    - Recordings online are `AudioChunk` rows, deleted at signing; "today" and every time
+      on screen follow `Asia/Kolkata`; `/setup` needs a code; the sign-in lockout counts
+      from the activity log; a prototype banner asks for made-up patients.
+    - The app is served at `/app` through a rewrite on the website, which also gained
+      Sign in (header, hero, closing section) and honest wording about where data lives.
+      The website's headers now skip `/app`, where `microphone=()` would have stopped
+      recording.
+    - The Vercel project `vxclinicos-app` was created, given its environment and
+      connected to GitHub; its first Git build failed because the root `.vercelignore`
+      hid `clinicos-app` from Git deployments too, which is now fixed.
+    - **Verified:** 110 + 39 + 14 checks pass on SQLite, on PGlite, against Supabase with
+      real concurrency, and against the deployed app itself over HTTPS, including new
+      checks that a recording is stored in order and deleted at signing. Through the
+      website's Preview, `/app` reached the app in Mumbai with its own headers, sign-in
+      answered, and redirects named the website's host. Every test run left the database
+      empty.
 
 ### Where to pick up
 
-1. Ishaan: fix the Tally form's privacy link (§7.2) and reset the Supabase password (§7.1).
-2. Then either v0.5 Part C (the portal app in front of the Supabase schema) or more testing
-   of the dashboards — Ishaan asked to leave the app version until later and get the website
-   right first.
-3. No hand deploys are needed: merging to `main` publishes the website by itself.
+1. Ishaan: set up the online clinic with the setup code (§7.2), and add a hosted AI
+   service so transcription and drafting work online (§7.1).
+2. Ishaan: reset the Supabase password, then update `DATABASE_URL` on `vxclinicos-app`
+   (§7.3); fix the Tally form's privacy link (§7.4).
+3. Before real patients use the online copy: the consent script, invariant 2 and the
+   pilot agreement rewritten for online use, and paid plans with backups (§6, §7.6).
+4. Then v0.5 Part C (the portal) or more testing of the dashboards.

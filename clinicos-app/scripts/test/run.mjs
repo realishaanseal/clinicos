@@ -14,6 +14,10 @@
  *       refuses to start unless the clinic tables are empty, and empties them
  *       again afterwards. Never point it at a database holding real records.
  *
+ *   TEST_DATABASE_URL=… TEST_BASE_URL=https://…/app TEST_SETUP_CODE=… npm run test:e2e:pg
+ *       the same, against an app already deployed on that database: nothing is
+ *       built or started here. The setup code must be the deployment's own.
+ *
  * Suites, in order — each relies on the one before:
  *   seed-pre-v1.cjs       a prototype-era database (before accounts) with records
  *   perm-test.cjs         the upgrade keeps every record; the permission matrix
@@ -35,7 +39,8 @@ const port = process.env.TEST_PORT || "3100";
 const onPostgresEarly = process.argv.includes("--pg");
 // The Postgres run is built the way the online copy is, under /app.
 const basePath = onPostgresEarly ? "/app" : "";
-const base = `http://localhost:${port}${basePath}`;
+const deployedBase = onPostgresEarly ? (process.env.TEST_BASE_URL || "").replace(/\/$/, "") : "";
+const base = deployedBase || `http://localhost:${port}${basePath}`;
 const skipBuild = process.argv.includes("--no-build");
 const onPostgres = process.argv.includes("--pg");
 const pgPort = process.env.TEST_PG_PORT || "55432";
@@ -60,7 +65,7 @@ const env = {
   TEST_BASE: base,
   NEXT_TELEMETRY_DISABLED: "1",
   // Both runs guard /setup with a code, as the online copy must.
-  SETUP_CODE: "test-setup-code",
+  SETUP_CODE: process.env.TEST_SETUP_CODE || "test-setup-code",
   DATA_BACKEND: onPostgres ? "postgres" : "sqlite",
   ...(onPostgres
     ? {
@@ -175,7 +180,12 @@ if (realPg) {
   }
 }
 
-if (!skipBuild) {
+if (deployedBase && !realPg) {
+  console.error("TEST_BASE_URL needs TEST_DATABASE_URL: the suites read the deployment's own database.");
+  process.exit(1);
+}
+
+if (!skipBuild && !deployedBase) {
   step("Building");
   // Built with the test database in env: `next build` imports db.ts, which runs
   // migrations against whatever DB_PATH points at.
@@ -205,9 +215,10 @@ if (realPg) {
   }
 }
 
-step(`Starting the app on ${base}`);
+if (deployedBase) step(`Using the app already running at ${base}`);
+else step(`Starting the app on ${base}`);
 const out = fs.openSync(files.log, "w");
-server = spawn("npm", ["run", "start", "--", "-p", port], {
+if (!deployedBase) server = spawn("npm", ["run", "start", "--", "-p", port], {
   cwd: appDir,
   env,
   shell: true,

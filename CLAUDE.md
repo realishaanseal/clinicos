@@ -41,8 +41,13 @@ trade them away for a feature.
    regulation; software that quantifies a physiological parameter to drive a
    clinical decision does not. Show raw numbers and trends; let the doctor set
    any flag. Backlog items 26–35 are marked risky for exactly this reason.
-2. **Identifiable data never leaves the machine.** No cloud sync of patient data,
-   no telemetry containing consultation content, no exceptions "just for testing".
+2. **Identifiable data never leaves the machine — on the clinic computer.** No cloud
+   sync of patient data, no telemetry containing consultation content, no exceptions
+   "just for testing". Since 17 Sep 2026 there is also an **online copy**, by Ishaan's
+   decision (CONTEXT.md §4): it keeps records in Supabase (Mumbai) and would send audio
+   to a hosted AI service. The consent script does not cover that yet, so the online
+   copy is a prototype for made-up patients only, and says so on every screen. The
+   two never exchange data. Do not let a clinic-computer install reach the cloud.
 3. **Audio is deleted when the doctor signs.** Promised aloud to the patient in the
    consent script, and enforced in `signConsult()`. Do not add audio retention.
 4. **Never train on patient audio.** Settled decision. Pilot Agreement clause 8
@@ -109,16 +114,47 @@ the field laptop and the dev laptop are not the same OS.
 
 ---
 
+### Online (vxclinicos.vercel.app/app)
+
+The same code runs online. The website project (`demo`) owns the address and rewrites
+`/app` to the app's own Vercel project, `vxclinicos-app` (Root Directory
+`clinicos-app`, functions in `bom1`). What makes it the online copy is environment
+variables on that project, never a code branch:
+
+| Variable | Online value | Effect |
+|---|---|---|
+| `DATA_BACKEND` | `postgres` | Postgres instead of the SQLite file; recordings in `AudioChunk` |
+| `DATABASE_URL` | Supabase transaction pooler (6543) | the database |
+| `SETUP_CODE` | random, given to the owner | `/setup` needs it; with Postgres and no code, setup is refused |
+| `NEXT_PUBLIC_BASE_PATH` | `/app` | Next.js `basePath`; `appPath()` for hand-written paths |
+| `NEXT_PUBLIC_CLINIC_TIMEZONE` | `Asia/Kolkata` | "today" and every time on screen (Vercel runs on UTC) |
+| `NEXT_PUBLIC_CLINICOS_ONLINE` | `1` | wording only: prototype banner, no "running locally" |
+| `ASR_PROVIDER` / `LLM_PROVIDER` | `http` / `openai` | hosted AI; needs URLs, models and keys |
+
+Schema changes for the online copy are numbered files in
+`clinicos-app/migrations/pg/`, applied with `npm run migrate:pg`. Every SQLite change
+in `sql.ts` needs its Postgres twin there, and the other way round.
+
+---
+
 ## Architecture
 
-Next.js 15 App Router, React 19, TypeScript. SQLite via `better-sqlite3` with
-hand-written SQL. **There is no ORM.** Prisma was removed early — its engine
-downloads were blocked — and it is not coming back.
+Next.js 15 App Router, React 19, TypeScript. SQLite via `better-sqlite3` on the clinic
+computer, Postgres via `postgres` online, hand-written SQL for both. **There is no
+ORM.** Prisma was removed early — its engine downloads were blocked — and it is not
+coming back.
 
 ```
 clinicos-app/
   src/lib/
-    db.ts            all storage. schema, migrations, every query. no ORM.
+    sql.ts           the only file that knows SQLite from Postgres: connections,
+                     transactions (AsyncLocalStorage), SQLite schema + migrations
+    db.ts            every query, async, written once for both databases. no ORM.
+    time.ts          the clinic's day and clock (CLINIC_TIMEZONE); fmt/fmtDate/fmtTime
+    audio-store.ts   recordings: a file locally, AudioChunk rows online
+    base-path.ts     appPath() for paths written by hand under /app online
+    deployment.ts    ONLINE flag — wording only, never a security control
+    setup-code.ts    the /setup code check
     auth.ts          passwords (scrypt), sessions, requireUser / requireApiUser, roles
     session-cookie.ts  cookie name + idle limit shared with middleware (no Node imports)
     users.ts         role labels and account validation, safe for client components
@@ -157,9 +193,18 @@ artifacts/                decks, trackers, briefs
 endpoint can replace the local one through env vars alone. Keep it that way — do
 not call Ollama or Whisper directly from a component or route.
 
-**Schema migrations:** SQLite has no `ADD COLUMN IF NOT EXISTS`. `db.ts` reads
+**Schema migrations:** SQLite has no `ADD COLUMN IF NOT EXISTS`. `sql.ts` reads
 `PRAGMA table_info` and conditionally runs `ALTER TABLE`. Safe to re-run. Existing
-pilot databases must survive upgrades — never drop and recreate a table.
+pilot databases must survive upgrades — never drop and recreate a table. Postgres
+changes go in `migrations/pg/` as new numbered files; never edit an applied one.
+
+**One SQL for two databases** (the rules are at the top of `sql.ts`): `?`
+placeholders; double-quote every identifier with a capital letter (`"Consult"`,
+`"patientId"`), because Postgres folds unquoted names to lowercase and rows would come
+back as `patientid`; `CAST(COUNT(*) AS INTEGER)`; `LOWER()` for case-insensitive
+matches instead of SQLite's `LIKE`/`COLLATE NOCASE`; ISO-string timestamps and 0/1
+flags in both. A race SQLite cannot have (its transactions run one at a time) can
+happen on Postgres — see `addToQueue`, `startQueueEntry` and `createFirstAccount`.
 
 Tables: `Patient`, `Consult`, `Edit`, and since v0.5 `User`, `Session`, `AuditEvent`,
 `Setting`, `QueueEntry`.
@@ -223,6 +268,25 @@ is never the control:
   `DB_PATH` when testing, as `npm run test:e2e` does.
 - **Never test against `data/`.** It is the clinic's real database. Test accounts
   created there would become the clinic's accounts.
+- **Every function in `db.ts` is async, and a missing `await` still compiles.**
+  `recordAudit(...)` without `await` type-checks, and online the request can end
+  before it runs. Also `await x().y` awaits `y`, not `x()`: write `(await x()).y`.
+- **Paths written by hand need `appPath()`.** Online the app lives under `/app`.
+  Next.js prefixes `<Link>`, `redirect()` and `router.push`; it cannot see
+  `fetch("/api/…")`, `<a href>` or `window.location`.
+- **Middleware redirects must be absolute URLs** — Next.js throws "Invalid URL" on a
+  relative `Location`. Build them on `x-forwarded-host`, as `middleware.ts` does:
+  behind the website the request's own host is the app project's address, where the
+  visitor has no cookie. (Vercel then sends it on as a relative path.)
+- **The website's `headers()` must skip `/app`.** Its `Permissions-Policy:
+  microphone=()` would reach the app through the rewrite and stop recording.
+- **The root `.vercelignore` applies to Git deployments of both projects**, not only
+  CLI uploads. Excluding `/clinicos-app` whole made the app build from an empty
+  folder. Exclude the places patient data and keys live, by name.
+- **Local Postgres tests share one connection.** PGlite multiplexes every client over
+  one session and, under a burst, can hand one client's statement another's
+  parameters. `test:e2e:pg` sets `PG_POOL_MAX=1`, so its race tests prove correctness,
+  not concurrency; those are real only against Supabase (`TEST_DATABASE_URL`).
 
 ---
 
@@ -258,9 +322,11 @@ patient's consent), Part D (invariant 2, consent script and website copy updated
 to match). The full plan is in CONTEXT.md §6. Then #3 speed pass. Backlog numbered
 1–37 across tiers 0–7.
 
-**Not built and deliberately so:** hosting or deploying the clinical app,
-standalone desktop packaging, multi-clinic accounts, any AI beyond transcription
-and note drafting.
+**Online since 17 Sep 2026** (Ishaan's decision, reversing "not hosted"): the same
+app at vxclinicos.vercel.app/app, on Postgres, as a prototype for made-up patients.
+
+**Not built and deliberately so:** standalone desktop packaging, multi-clinic
+accounts, any AI beyond transcription and note drafting.
 
 ---
 
@@ -272,6 +338,18 @@ the suites in `scripts/test/` over real HTTP: upgrade safety and the permission
 matrix, the day's list, and the recovery tools. Run it after any change to the
 clinic app, and add checks when you add routes. Don't run it while `npm run dev` is
 running in the same folder — both use `.next/`. Add `-- --no-build` to reuse a build.
+
+`npm run test:e2e:pg` runs the same suites on Postgres the way the online copy runs —
+built under `/app`, with the setup code and clinic time zone — against PGlite, so
+nothing needs installing. Two more targets, both refusing to start unless the clinic
+tables are empty and emptying them afterwards:
+
+- `TEST_DATABASE_URL=<Supabase pooler>` builds locally against the real database, for
+  true concurrency.
+- add `TEST_BASE_URL=https://vxclinicos-app.vercel.app/app TEST_SETUP_CODE=<code>` to
+  test the deployed app itself; nothing is built.
+
+Never point either at a database holding real records.
 
 `.mcp.json` at the repo root configures MCP servers for any agent session opened
 here. None of them are required to build or run the app — delete the file and
