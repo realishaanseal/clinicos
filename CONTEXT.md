@@ -281,21 +281,30 @@ speed pass.
    generate the replacement rather than choosing it. The password in use was typed into a
    chat, so it should not stay the credential for a database that will hold patient data.
    Re-encode any `@` or other special character as `%40` when pasting the new string in.
-2. **Vercel:** create a project from this repo with Root Directory `portal`, and add the
+2. **Tally form:** its link back to `/privacy` still points at
+   `clinicos-varaxis.vercel.app`, which now 404s. Change it to
+   `https://vxclinicos.vercel.app/privacy` in the Tally editor.
+3. **Vercel deploys are not triggering from GitHub.** Nothing was built for the pushes to
+   `main` on 17 Sep; the newest Production deployment predates them, and every other recent
+   deployment is a Preview. Check Settings → Git on the `demo` project and reconnect the
+   repository. Until that is fixed, a deploy has to be run by hand from the CLI.
+4. **Vercel:** create a project from this repo with Root Directory `portal`, and add the
    domain `clinicos-portal.vercel.app`. Paste in the environment variables. The
    assistant generates the random keys; it does not type keys into dashboards.
-3. **Before real patients use the portal:** Supabase Pro ($25/month). Vercel Pro too,
+5. **Before real patients use the portal:** Supabase Pro ($25/month). Vercel Pro too,
    because the Hobby plan is for non-commercial use, and that applies to the website as
    well.
-4. **Optional:** delete the merged branches (`v1`, `website-contact`, `website-v1`,
-   `site`, `website-glass-backdrop`, `website-smooth-film`) and the worktree
-   `.claude/worktrees/website-glass`.
-5. **Optional:** if Varaxis has a brand typeface file, add it and the lockup can use it.
+6. **Optional:** delete the merged branches (`v1`, `website-contact`, `website-v1`,
+   `site`, `website-glass-backdrop`, `website-smooth-film`, and now
+   `mac-environment-notes`, `docs-compact-reference`, `fix/backdrop-scroll-performance`)
+   and the worktree `.claude/worktrees/website-glass`.
+7. **Optional:** if Varaxis has a brand typeface file, add it and the lockup can use it.
    Until then it uses the system display face.
 
-The Vercel connector available to assistants cannot see the `Varaxis` team. Project
-settings and deploy logs have to be checked in the Vercel dashboard, or the connector
-re-authorised for that team.
+The Vercel **MCP connector** still cannot see the `Varaxis` team — it returns an empty team
+list. The **CLI can**: it was authenticated on the Mac on 17 Sep 2026 as `realishaanseal`,
+and `--scope varaxis` reaches the projects (`demo`, `scholar`, `scholar-l4ix`,
+`kahuproject`). Use the CLI for deploy logs and project state, not the connector.
 
 ---
 
@@ -344,6 +353,19 @@ re-authorised for that team.
   `~/.cache/huggingface`, so the sidecar does not re-download on first run.
 - **`setsid` does not exist on macOS.** Use `nohup … < /dev/null &` to keep a background
   server alive between tool calls.
+- **The Vercel CLI is authenticated on the Mac** (17 Sep 2026), as `realishaanseal`, with
+  the token in `~/Library/Application Support/com.vercel.cli/auth.json`. `npx vercel` will
+  re-download the ~50 MB package on most runs, which takes minutes; call the cached binary
+  directly instead: `$(ls -d ~/.npm/_npx/*/node_modules/.bin/vercel | head -1)`. Every
+  command needs `--scope varaxis`.
+- **`.vercelignore` at the repo root is a safety device, not tidiness.** A CLI deploy
+  uploads the working tree, not a git commit, so without it `clinicos-app/data/` — the
+  patient database — would be sent to Vercel and break invariant 2. Anything new at the top
+  level that must not be published has to be added to it.
+- **`vercel link` rewrites `.gitignore`.** It appended `.vercel` and `.env*` and created a
+  root `.env.local` holding a `VERCEL_OIDC_TOKEN`. The `.env*` pattern also matches
+  `.env.example`, so a new example file will not be picked up by git unless forced;
+  `portal/.env.example` was committed before that and stays tracked.
 
 ---
 
@@ -370,6 +392,17 @@ re-authorised for that team.
   only, one patient and one consultation, no accounts. The first run of v0.5 code there will
   migrate it and open `/setup`. A pre-upgrade snapshot taken through the SQLite backup API
   sits at `clinicos-app/data/backups/clinicos_pre-v1-upgrade_2026-09-16.db`.
+- **`clinicos-varaxis.vercel.app` is dead** and returns `DEPLOYMENT_NOT_FOUND`. The site is
+  `vxclinicos.vercel.app`. The very first address, `demo-ten-tau-97.vercel.app`, still
+  serves. Anything printed, sent or linked before 17 Sep 2026 points at the dead one.
+- **A local clicking-around database** lives at `clinicos-app/.local-test/clinicos.db`, a
+  copy of `data/` taken through the SQLite backup API and migrated to the v0.5 schema. Start
+  the app against it with
+  `DB_PATH=./.local-test/clinicos.db AUDIO_DIR=./.local-test/audio ./go.sh` — Next does not
+  override an environment variable that is already set, so `.env` loses to those. The owner
+  account created in it is `realishaanseal`, **role `admin`**, which by design sees no
+  clinical screens at all; add a doctor account in People admin to test the consultation
+  side.
 
 ---
 
@@ -443,4 +476,26 @@ re-authorised for that team.
   - **`main` now holds everything again.** `mac-environment-notes`, `docs-compact-reference`
     and `fix/backdrop-scroll-performance` were merged into it, which puts the scroll fix
     live and adds the three-page reference PDF, the consultation flowchart and the system
-    blueprint to `artifacts/`.
+    blueprint to `artifacts/`. Verified before pushing: `landing` builds clean and all three
+    e2e suites pass. (Running both builds at once makes the suite fail with "database is
+    locked" — `next build` runs the migrations, so build them one at a time.)
+  - **The website's address changed to `vxclinicos.vercel.app`**, matching `vxscholar.com`.
+    `SITE_URL` still named the old one, so robots.txt, the sitemap and every share preview
+    were resolving against a host that 404s. Fixed in `landing/src/site.ts`.
+  - **Vercel deploys were found not to be triggering from GitHub** (§7.3). The site is still
+    serving a build from before the merge, so the scroll fix is live in `main` but not yet
+    on the web. The Vercel CLI was authenticated on the Mac to work around this, and the
+    repo was linked to the `demo` project (`prj_2KpvcJHlo19NoUWLT35Otewhs3ki`, org
+    `team_ErYNc38VqbmpJVz0fcQ4z8dD`). **A production deploy had not been run when this
+    session ended.**
+
+### Where to pick up
+
+1. Run the production deploy: from the repo root,
+   `$(ls -d ~/.npm/_npx/*/node_modules/.bin/vercel | head -1) --prod --scope varaxis`.
+   Confirm it worked by checking that `https://vxclinicos.vercel.app/robots.txt` names
+   `vxclinicos.vercel.app`, not the old host.
+2. Then fix the Git integration (§7.3) so hand-deploys are not needed again.
+3. Then either v0.5 Part C (the portal app in front of the Supabase schema) or more testing
+   of the dashboards — Ishaan asked to leave the app version until later and get the website
+   right first.
