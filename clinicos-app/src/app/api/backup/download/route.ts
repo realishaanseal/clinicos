@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
 
   const buf = await readFile(filePath);
   // Every copy of the whole database that leaves this machine is logged.
-  recordAudit(auth.user, "backup_download", "backup", null, fileName);
+  await recordAudit(auth.user, "backup_download", "backup", null, fileName);
 
   return new NextResponse(new Uint8Array(buf), {
     headers: {

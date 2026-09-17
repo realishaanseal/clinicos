@@ -8,7 +8,7 @@ import { Mark } from "@/components/Icons";
 export const dynamic = "force-dynamic";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
-  if (countUsers() === 0) redirect("/setup");
+  if (await countUsers() === 0) redirect("/setup");
   const user = await getCurrentUser();
   if (user) redirect(homeFor(user));
 
@@ -23,7 +23,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           </span>
           <div>
             <div className="name">ClinicOS</div>
-            <div className="tag">{getClinic().name}</div>
+            <div className="tag">{(await getClinic()).name}</div>
           </div>
         </div>
         <h1>Sign in</h1>

@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   const current = String(body.current ?? "");
   const next = String(body.next ?? "");
 
-  const row = getUserRow(user.id);
+  const row = await getUserRow(user.id);
   if (!row || !(await verifyPassword(current, row.passwordHash))) {
     return NextResponse.json({ error: "Your current password isn't right." }, { status: 400 });
   }
@@ -22,10 +22,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Choose a password different from the current one." }, { status: 400 });
   }
 
-  setUserPassword(user.id, await hashPassword(next), false);
+  await setUserPassword(user.id, await hashPassword(next), false);
   // Anyone else signed in as this person is signed out; this browser stays in.
-  deleteSessionsForUser(user.id, await currentTokenHash());
-  recordAudit(user, "password_change", "user", user.id);
+  await deleteSessionsForUser(user.id, await currentTokenHash());
+  await recordAudit(user, "password_change", "user", user.id);
 
   return NextResponse.json({ ok: true, redirect: homeFor({ ...user, mustChangePassword: false }) });
 }

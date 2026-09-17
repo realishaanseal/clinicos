@@ -11,10 +11,10 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   if (auth.denied) return auth.denied;
 
   const { id } = await params;
-  if (!getConsult(id)) return NextResponse.json({ error: "Consult not found" }, { status: 404 });
+  if (!await getConsult(id)) return NextResponse.json({ error: "Consult not found" }, { status: 404 });
 
   // Record who actually took consent, from the session, not from what the
   // browser claims.
-  setConsent(id, `${auth.user.name} (${describeAccess(auth.user.role, auth.user.isAdmin)})`);
+  await setConsent(id, `${auth.user.name} (${describeAccess(auth.user.role, auth.user.isAdmin)})`);
   return NextResponse.json({ ok: true });
 }

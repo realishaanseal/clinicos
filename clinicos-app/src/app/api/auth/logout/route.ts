@@ -6,8 +6,8 @@ import { SESSION_COOKIE } from "@/lib/session-cookie";
 export async function POST() {
   const user = await getCurrentUser();
   const tokenHash = await currentTokenHash();
-  if (tokenHash) deleteSession(tokenHash);
-  if (user) recordAudit(user, "logout", "user", user.id);
+  if (tokenHash) await deleteSession(tokenHash);
+  if (user) await recordAudit(user, "logout", "user", user.id);
 
   const res = NextResponse.json({ ok: true });
   res.cookies.set({ name: SESSION_COOKIE, value: "", path: "/", maxAge: 0 });

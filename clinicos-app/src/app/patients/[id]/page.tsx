@@ -12,9 +12,9 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
   await requireUser("clinical");
 
   const { id } = await params;
-  const patient = getPatient(id);
+  const patient = await getPatient(id);
   if (!patient) notFound();
-  const consults = consultsForPatient(id);
+  const consults = await consultsForPatient(id);
   const signed = consults.filter((c) => c.signedAt);
 
   return (

@@ -27,16 +27,16 @@ export async function POST(req: NextRequest) {
   // accounts the backup held. A backup from before accounts existed holds none,
   // which would leave nobody able to sign in and /setup open to whoever reaches
   // the laptop first. Keep the person doing the restore.
-  const restorer = getUserRow(auth.user.id);
+  const restorer = await getUserRow(auth.user.id);
 
   const buf = Buffer.from(await file.arrayBuffer());
   const result = await restoreFromBuffer(buf);
 
   if (result.ok) {
-    if (countUsers() === 0 && restorer) reinsertUserRow(restorer);
+    if (await countUsers() === 0 && restorer) await reinsertUserRow(restorer);
     // Written into the restored database, so the log that survives the restore
     // still records that it happened.
-    recordAudit(auth.user, "backup_restore", "backup", null, file.name);
+    await recordAudit(auth.user, "backup_restore", "backup", null, file.name);
   }
 
   return NextResponse.json(result, { status: result.ok ? 200 : 400 });

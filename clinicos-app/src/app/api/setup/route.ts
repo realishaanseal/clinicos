@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   const problem = passwordProblem(password);
   if (problem) return NextResponse.json({ error: problem }, { status: 400 });
 
-  const user = createFirstAccount(
+  const user = await createFirstAccount(
     {
       name,
       username,
@@ -41,8 +41,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "ClinicOS is already set up. Sign in instead." }, { status: 409 });
   }
 
-  const token = startSession(user.id);
-  recordAudit(user, "setup", "user", user.id);
+  const token = await startSession(user.id);
+  await recordAudit(user, "setup", "user", user.id);
 
   const res = NextResponse.json({ ok: true, redirect: homeFor(toSessionUser(user)) });
   res.cookies.set(sessionCookie(token, req.nextUrl.protocol === "https:"));

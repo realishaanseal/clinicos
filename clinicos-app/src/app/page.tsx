@@ -37,17 +37,17 @@ export default async function Home() {
           <h1>Today</h1>
           <p className="sub">Find or register patients, and keep the day&apos;s list moving.</p>
         </div>
-        <FrontDeskToday initial={todaysQueue()} />
+        <FrontDeskToday initial={await todaysQueue()} />
       </div>
     );
   }
 
-  const consults = recentConsults(20);
-  const unfinished = unfinishedConsults();
-  const signed = countSignedConsults();
-  const edits = countEdits();
+  const consults = await recentConsults(20);
+  const unfinished = await unfinishedConsults();
+  const signed = await countSignedConsults();
+  const edits = await countEdits();
   const editsPerNote = signed ? (edits / signed).toFixed(1) : "—";
-  const saved = minutesSaved();
+  const saved = await minutesSaved();
 
   return (
     <div className="page">
@@ -60,12 +60,12 @@ export default async function Home() {
       <div className="stats">
         <div className="stat hero">
           <div className="k">Consultations today</div>
-          <div className="v">{countConsultsToday()}</div>
+          <div className="v">{await countConsultsToday()}</div>
           <div className="n">{signed} signed all time</div>
         </div>
         <div className="stat">
           <div className="k">Patients</div>
-          <div className="v">{countPatients()}</div>
+          <div className="v">{await countPatients()}</div>
           <div className="n">on this machine</div>
         </div>
         <div className="stat">
@@ -83,7 +83,7 @@ export default async function Home() {
         </div>
       </div>
 
-      <WaitingPanel initial={todaysQueue()} doctorId={user.id} />
+      <WaitingPanel initial={await todaysQueue()} doctorId={user.id} />
 
       {unfinished.length > 0 && (
         <div className="card flush resume">

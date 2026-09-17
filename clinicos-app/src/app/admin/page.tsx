@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { databaseStats, listUsers, localDay, searchPatients, signedConsultsSince } from "@/lib/db";
+import { clinicDayAt, fmtDate, localDayBounds } from "@/lib/time";
 import { getClinic } from "@/lib/clinic";
 import { listBackups } from "@/lib/backup";
 import BackupPanel from "@/components/BackupPanel";
@@ -12,16 +13,12 @@ export const dynamic = "force-dynamic";
 
 /** Signed consultations per doctor for the last seven local days. Raw counts:
  *  no averages, no rankings, nothing that reads as a performance score. */
-function signedByDoctor() {
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() - (6 - i));
-    return d;
-  });
+async function signedByDoctor() {
+  // The clinic's last seven days, not the server's: online the server is on UTC.
+  const days = Array.from({ length: 7 }, (_, i) => clinicDayAt(i - 6));
   const dayKeys = days.map((d) => localDay(d));
   const counts = new Map<string, number[]>();
-  for (const s of signedConsultsSince(days[0].toISOString())) {
+  for (const s of await signedConsultsSince(localDayBounds(days[0])[0])) {
     const idx = dayKeys.indexOf(localDay(new Date(s.signedAt)));
     if (idx < 0) continue;
     const who = s.doctorName ?? "Signed before accounts";
@@ -34,11 +31,11 @@ function signedByDoctor() {
 export default async function AdminPage() {
   await requireUser("admin");
 
-  const stats = databaseStats();
+  const stats = await databaseStats();
   const backups = await listBackups();
-  const patients = searchPatients("");
-  const activePeople = listUsers().filter((u) => u.active).length;
-  const week = signedByDoctor();
+  const patients = await searchPatients("");
+  const activePeople = (await listUsers()).filter((u) => u.active).length;
+  const week = await signedByDoctor();
 
   return (
     <div className="page page-narrow">
@@ -54,7 +51,7 @@ export default async function AdminPage() {
           <span className="muted">printed on every prescription</span>
         </div>
         <div className="card-body">
-          <ClinicSettingsForm initial={getClinic()} />
+          <ClinicSettingsForm initial={await getClinic()} />
         </div>
       </div>
 
@@ -105,8 +102,8 @@ export default async function AdminPage() {
                   <th>Doctor</th>
                   {week.days.map((d) => (
                     <th key={d.toISOString()} className="num">
-                      {d.toLocaleDateString("en-IN", { weekday: "short" })}
-                      <div className="sub">{d.getDate()}</div>
+                      {fmtDate(d, { weekday: "short" })}
+                      <div className="sub">{fmtDate(d, { day: "numeric" })}</div>
                     </th>
                   ))}
                   <th className="num">Total</th>

@@ -12,14 +12,14 @@ export default async function ConsultPage({ params }: { params: Promise<{ id: st
   const user = await requireUser("clinical");
 
   const { id } = await params;
-  const c = getConsultWithPatient(id);
+  const c = await getConsultWithPatient(id);
   if (!c) notFound();
 
   // The letterhead names the doctor who signed. While unsigned, that is the
   // doctor working on it now. Notes signed before accounts existed have no
   // doctor recorded and keep the old .env doctor.
-  const signer = c.doctorId ? getUserPublic(c.doctorId) ?? null : null;
-  const identity = prescriptionIdentity(c.signedAt ? signer : user);
+  const signer = c.doctorId ? await getUserPublic(c.doctorId) ?? null : null;
+  const identity = await prescriptionIdentity(c.signedAt ? signer : user);
 
   return (
     <div className="page">

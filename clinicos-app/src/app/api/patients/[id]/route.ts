@@ -16,7 +16,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
   const { id } = await params;
 
-  const patient = getPatient(id);
+  const patient = await getPatient(id);
   if (!patient) return NextResponse.json({ error: "Patient not found" }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
@@ -31,7 +31,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     );
   }
 
-  const report = deletePatientCascade(id);
+  const report = await deletePatientCascade(id);
   if (!report) return NextResponse.json({ error: "Patient not found" }, { status: 404 });
 
   // The database cannot remove files; clear any audio left on disk.
@@ -47,7 +47,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
   // Deliberately no name in the log. This is often an erasure request, and the
   // activity log must not become the one place the patient still exists.
-  recordAudit(
+  await recordAudit(
     auth.user,
     "patient_delete",
     "patient",

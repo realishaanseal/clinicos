@@ -33,7 +33,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <div className="shell">
           <SideNav
             user={{ name: user.name, role: user.role, isAdmin: user.isAdmin }}
-            clinicName={getClinic().name}
+            clinicName={(await getClinic()).name}
           />
           <div className="main">{children}</div>
         </div>

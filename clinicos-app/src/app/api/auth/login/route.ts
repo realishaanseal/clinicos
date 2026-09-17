@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const user = getUserByUsername(username);
+  const user = await getUserByUsername(username);
   let ok = false;
   if (user && user.active) ok = await verifyPassword(password, user.passwordHash);
   else await burnPasswordCheck(password);
@@ -42,15 +42,15 @@ export async function POST(req: NextRequest) {
   if (!user || !ok) {
     const prev = failures.get(username);
     failures.set(username, { count: (prev?.count ?? 0) + 1, since: prev?.since ?? Date.now() });
-    recordAudit(null, "login_failed", "user", user?.id ?? null, `username: ${username}`);
+    await recordAudit(null, "login_failed", "user", user?.id ?? null, `username: ${username}`);
     return NextResponse.json({ error: "That username and password don't match." }, { status: 401 });
   }
 
   failures.delete(username);
-  pruneExpiredSessions();
-  const token = startSession(user.id);
-  touchLogin(user.id);
-  recordAudit(user, "login", "user", user.id);
+  await pruneExpiredSessions();
+  const token = await startSession(user.id);
+  await touchLogin(user.id);
+  await recordAudit(user, "login", "user", user.id);
 
   const redirectTo = user.mustChangePassword
     ? "/account/password"

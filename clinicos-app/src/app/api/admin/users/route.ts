@@ -19,14 +19,14 @@ export async function POST(req: NextRequest) {
   if (!name) return NextResponse.json({ error: "Enter their full name." }, { status: 400 });
   if (!username) return NextResponse.json({ error: `Usernames are ${USERNAME_RULE}.` }, { status: 400 });
   if (!role) return NextResponse.json({ error: "Choose what they do here." }, { status: 400 });
-  if (getUserByUsername(username)) {
+  if (await getUserByUsername(username)) {
     return NextResponse.json({ error: "That username is already taken. Pick another." }, { status: 409 });
   }
 
   const tempPassword = generateTempPassword();
   let user;
   try {
-    user = createUser({
+    user = await createUser({
       name,
       username,
       role,
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "That username is already taken. Pick another." }, { status: 409 });
   }
 
-  recordAudit(auth.user, "user_create", "user", user.id, `${user.name}, ${describeAccess(user.role, !!user.isAdmin)}`);
+  await recordAudit(auth.user, "user_create", "user", user.id, `${user.name}, ${describeAccess(user.role, !!user.isAdmin)}`);
   return NextResponse.json({
     user: { id: user.id, name: user.name, username: user.username, role: user.role },
     tempPassword,

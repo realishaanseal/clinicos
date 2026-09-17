@@ -17,7 +17,7 @@ export default async function PatientsPage({
   const canOpen = can(user, "clinical");
 
   const { q } = await searchParams;
-  const patients = searchPatients(q || "");
+  const patients = await searchPatients(q || "");
 
   return (
     <div className="page">

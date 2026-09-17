@@ -6,7 +6,7 @@ import { Mark } from "@/components/Icons";
 export const dynamic = "force-dynamic";
 
 export default async function SetupPage() {
-  if (countUsers() > 0) redirect("/login");
+  if (await countUsers() > 0) redirect("/login");
 
   // An upgraded prototype already has its clinic and doctor in .env; start
   // from those rather than making someone type them again.
@@ -18,7 +18,7 @@ export default async function SetupPage() {
     qualification: process.env.DOCTOR_QUALIFICATION || "",
     regNo: process.env.DOCTOR_REGNO || "",
   };
-  const existingPatients = countPatients();
+  const existingPatients = await countPatients();
 
   return (
     <main className="auth">

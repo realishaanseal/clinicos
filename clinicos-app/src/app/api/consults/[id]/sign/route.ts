@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getConsult, addEdits, signConsult, recordAudit, markQueueDoneForConsult } from "@/lib/db";
 import { parseNote, NOTE_FIELDS, ClinicalNote } from "@/lib/types";
 import { requireApiUser } from "@/lib/auth";
-import { unlink } from "fs/promises";
+import { removeAudio } from "@/lib/audio-store";
 
 function asText(v: unknown): string {
   if (v == null) return "";
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (auth.denied) return auth.denied;
 
   const { id } = await params;
-  const consult = getConsult(id);
+  const consult = await getConsult(id);
   if (!consult) return NextResponse.json({ error: "Consult not found" }, { status: 404 });
   if (consult.signedAt) return NextResponse.json({ error: "Already signed" }, { status: 409 });
 
@@ -38,22 +38,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return before === after ? null : { field: String(field), before, after };
   }).filter(Boolean) as { field: string; before: string; after: string }[];
 
-  addEdits(id, edits);
+  await addEdits(id, edits);
 
   let audioDeleted = false;
   if (consult.audioPath) {
-    try {
-      await unlink(consult.audioPath);
-    } catch {
-      // already gone — record it as deleted either way, the file is not there
-    }
+    // Already gone counts as deleted: either way the recording is not there.
+    await removeAudio(consult.audioPath);
     audioDeleted = true;
   }
 
-  signConsult(id, JSON.stringify(final), audioDeleted, auth.user.id);
+  await signConsult(id, JSON.stringify(final), audioDeleted, auth.user.id);
   // Signing is what tells the front desk the patient has been seen.
-  markQueueDoneForConsult(id);
-  recordAudit(
+  await markQueueDoneForConsult(id);
+  await recordAudit(
     auth.user,
     "consult_sign",
     "consult",

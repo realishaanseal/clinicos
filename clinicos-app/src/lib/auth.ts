@@ -101,9 +101,9 @@ export function hashToken(token: string): string {
 const expiry = () => new Date(Date.now() + SESSION_SECONDS * 1000).toISOString();
 
 /** Create a session and return the raw token for the cookie. Only its hash is stored. */
-export function startSession(userId: string): string {
+export async function startSession(userId: string): Promise<string> {
   const token = randomBytes(32).toString("base64url");
-  insertSession(hashToken(token), userId, expiry());
+  await insertSession(hashToken(token), userId, expiry());
   return token;
 }
 
@@ -139,10 +139,10 @@ export function toSessionUser(row: SessionJoin | UserRow): SessionUser {
 export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
-  const row = getSessionUser(hashToken(token));
+  const row = await getSessionUser(hashToken(token));
   if (!row) return null;
   // Slide the idle expiry, but write at most every five minutes.
-  if (Date.now() - Date.parse(row.lastSeenAt) > 5 * 60 * 1000) touchSession(row.tokenHash, expiry());
+  if (Date.now() - Date.parse(row.lastSeenAt) > 5 * 60 * 1000) await touchSession(row.tokenHash, expiry());
   return toSessionUser(row);
 });
 

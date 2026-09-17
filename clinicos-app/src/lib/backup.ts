@@ -1,11 +1,21 @@
-import Database from "better-sqlite3";
-import { getDb, reopenDatabase, DB_PATH } from "./db";
+import type BetterSqlite3 from "better-sqlite3";
+import { BACKEND, DB_PATH, reopenSqlite, sqlite } from "./sql";
 import fs from "fs";
 import fsp from "fs/promises";
 import path from "path";
 
 export const BACKUP_DIR = path.resolve(process.env.BACKUP_DIR || "./data/backups");
 const KEEP = 14;
+
+/**
+ * Backup files are copies of the SQLite database on the clinic computer. The
+ * online copy runs on Postgres, where there is no such file to copy or swap,
+ * so these tools stand down there and say so; "Export everything" still works
+ * everywhere.
+ */
+export const BACKUP_FILES_AVAILABLE = BACKEND === "sqlite";
+const ONLINE_MESSAGE =
+  "Backup files are for ClinicOS on the clinic computer. The online copy keeps its records in a hosted database; use Export everything to take a full copy.";
 
 export type BackupFile = {
   name: string;
@@ -31,11 +41,12 @@ function stamp(d = new Date()) {
  * run while the app is being used.
  */
 export async function createBackup(auto = false): Promise<BackupFile> {
+  if (!BACKUP_FILES_AVAILABLE) throw new Error(ONLINE_MESSAGE);
   await fsp.mkdir(BACKUP_DIR, { recursive: true });
   const name = `clinicos_${stamp()}${auto ? "_auto" : ""}.db`;
   const dest = path.join(BACKUP_DIR, name);
 
-  await getDb().backup(dest);
+  await sqlite().backup(dest);
 
   const st = await fsp.stat(dest);
   if (auto) await prune();
@@ -44,6 +55,7 @@ export async function createBackup(auto = false): Promise<BackupFile> {
 }
 
 export async function listBackups(): Promise<BackupFile[]> {
+  if (!BACKUP_FILES_AVAILABLE) return [];
   try {
     const names = await fsp.readdir(BACKUP_DIR);
     const files = await Promise.all(
@@ -80,6 +92,7 @@ async function prune() {
 /** Run at most one automatic backup a day. Called on page load rather than
  *  from a scheduler, because a scheduler is one more thing that can be off. */
 export async function maybeAutoBackup(): Promise<void> {
+  if (!BACKUP_FILES_AVAILABLE) return;
   try {
     const all = await listBackups();
     const last = all[0];
@@ -110,6 +123,7 @@ export type RestoreResult = {
  *   4. only then close the live connection and swap the file
  */
 export async function restoreFromBuffer(buf: Buffer): Promise<RestoreResult> {
+  if (!BACKUP_FILES_AVAILABLE) return { ok: false, error: ONLINE_MESSAGE };
   await fsp.mkdir(BACKUP_DIR, { recursive: true });
   const tmp = path.join(BACKUP_DIR, `.incoming_${Date.now()}.db`);
 
@@ -119,6 +133,8 @@ export async function restoreFromBuffer(buf: Buffer): Promise<RestoreResult> {
     // --- 1 & 2: is this actually one of ours? -------------------------------
     let counts: { patients: number; consults: number; edits: number };
     try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const Database = require("better-sqlite3") as typeof BetterSqlite3;
       const probe = new Database(tmp, { readonly: true, fileMustExist: true });
       const tables = new Set(
         (probe.prepare(`SELECT name FROM sqlite_master WHERE type='table'`).all() as { name: string }[])
@@ -142,10 +158,10 @@ export async function restoreFromBuffer(buf: Buffer): Promise<RestoreResult> {
 
     // --- 3: snapshot what is about to be replaced --------------------------
     const safetyName = `clinicos_${stamp()}_before-restore.db`;
-    await getDb().backup(path.join(BACKUP_DIR, safetyName));
+    await sqlite().backup(path.join(BACKUP_DIR, safetyName));
 
     // --- 4: swap ------------------------------------------------------------
-    getDb().close();
+    sqlite().close();
     for (const suffix of ["-wal", "-shm"]) {
       try {
         await fsp.unlink(DB_PATH + suffix);
@@ -154,13 +170,13 @@ export async function restoreFromBuffer(buf: Buffer): Promise<RestoreResult> {
       }
     }
     await fsp.copyFile(tmp, DB_PATH);
-    reopenDatabase();
+    reopenSqlite();
 
     return { ok: true, safetyCopy: safetyName, counts };
   } catch (e) {
     // Attempt to get the app back on its feet whatever happened.
     try {
-      reopenDatabase();
+      reopenSqlite();
     } catch {
       /* the restart instruction in the UI covers this */
     }

@@ -11,11 +11,11 @@ export async function POST(req: NextRequest) {
   const name = cleanText(body.name);
   if (!name) return NextResponse.json({ error: "The clinic needs a name." }, { status: 400 });
 
-  setSettings({
+  await setSettings({
     clinic_name: name,
     clinic_address: cleanText(body.address, 300),
     clinic_phone: cleanText(body.phone, 40),
   });
-  recordAudit(auth.user, "settings_update", "clinic");
+  await recordAudit(auth.user, "settings_update", "clinic");
   return NextResponse.json({ ok: true });
 }

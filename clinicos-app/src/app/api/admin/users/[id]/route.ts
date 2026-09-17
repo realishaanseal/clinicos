@@ -22,7 +22,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (auth.denied) return auth.denied;
 
   const { id } = await params;
-  const target = getUserPublic(id);
+  const target = await getUserPublic(id);
   if (!target) return NextResponse.json({ error: "That person no longer exists." }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
@@ -70,20 +70,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       { status: 400 }
     );
   }
-  if (managesNow && (!willManage || !willBeActive) && countActiveAdmins() <= 1) {
+  if (managesNow && (!willManage || !willBeActive) && await countActiveAdmins() <= 1) {
     return NextResponse.json(
       { error: "This is the only person who can manage the clinic. Give someone else that access first." },
       { status: 400 }
     );
   }
 
-  updateUser(id, patch);
+  await updateUser(id, patch);
   // A deactivated account is signed out everywhere at once. Other changes take
   // effect on the next request, because permissions are read fresh every time.
-  if (patch.active === false) deleteSessionsForUser(id);
+  if (patch.active === false) await deleteSessionsForUser(id);
 
-  const after = getUserPublic(id)!;
-  recordAudit(
+  const after = (await getUserPublic(id))!;
+  await recordAudit(
     auth.user,
     "user_update",
     "user",

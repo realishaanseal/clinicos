@@ -24,7 +24,7 @@ const WHAT: Record<string, string> = {
 
 export default async function AuditPage() {
   await requireUser("admin");
-  const events = listAudit(300);
+  const events = await listAudit(300);
 
   return (
     <div className="page">

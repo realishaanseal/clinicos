@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getConsult, setAudio } from "@/lib/db";
 import { requireApiUser } from "@/lib/auth";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
+import { writeWhole } from "@/lib/audio-store";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireApiUser("clinical");
   if (auth.denied) return auth.denied;
 
   const { id } = await params;
-  const consult = getConsult(id);
+  const consult = await getConsult(id);
   if (!consult) return NextResponse.json({ error: "Consult not found" }, { status: 404 });
 
   // Hard gate. Without recorded consent there is no lawful basis to store this.
@@ -25,14 +24,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!file) return NextResponse.json({ error: "No audio supplied" }, { status: 400 });
 
   const seconds = Number(form.get("seconds") || 0);
-  const dir = path.resolve(process.env.AUDIO_DIR || "./data/audio");
-  await mkdir(dir, { recursive: true });
-
   const ext = file.type.includes("mp4") ? "mp4" : file.type.includes("ogg") ? "ogg" : "webm";
-  const filePath = path.join(dir, `${id}.${ext}`);
   const buf = Buffer.from(await file.arrayBuffer());
-  await writeFile(filePath, buf);
+  const audioPath = await writeWhole(id, buf, ext);
 
-  setAudio(id, filePath, buf.length, seconds || null);
+  await setAudio(id, audioPath, buf.length, seconds || null);
   return NextResponse.json({ ok: true, bytes: buf.length });
 }

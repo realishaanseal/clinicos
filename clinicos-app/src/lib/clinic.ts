@@ -9,8 +9,8 @@ import { getSettings } from "./db";
  */
 export type ClinicIdentity = { name: string; address: string; phone: string };
 
-export function getClinic(): ClinicIdentity {
-  const s = getSettings();
+export async function getClinic(): Promise<ClinicIdentity> {
+  const s = await getSettings();
   return {
     name: s.clinic_name || process.env.CLINIC_NAME || "Demo Clinic",
     address: s.clinic_address ?? process.env.CLINIC_ADDRESS ?? "",
@@ -29,10 +29,10 @@ export type PrescriptionIdentity = ClinicIdentity & {
  * consultation is signed, the doctor working on it. Consultations signed
  * before accounts existed have no doctor on record and keep the .env doctor.
  */
-export function prescriptionIdentity(
+export async function prescriptionIdentity(
   doctor: { name: string; qualification: string | null; regNo: string | null } | null
-): PrescriptionIdentity {
-  const clinic = getClinic();
+): Promise<PrescriptionIdentity> {
+  const clinic = await getClinic();
   if (doctor) {
     return {
       ...clinic,

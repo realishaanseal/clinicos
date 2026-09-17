@@ -14,7 +14,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (auth.denied) return auth.denied;
 
   const { id } = await params;
-  const consult = getConsult(id);
+  const consult = await getConsult(id);
   if (!consult) return NextResponse.json({ error: "Consult not found" }, { status: 404 });
   if (consult.signedAt) return NextResponse.json({ error: "Already signed" }, { status: 409 });
 
@@ -24,7 +24,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   if (transcript === null && note === null) return NextResponse.json({ ok: true });
 
-  saveWorking(id, transcript, note);
+  await saveWorking(id, transcript, note);
   return NextResponse.json({ ok: true, savedAt: new Date().toISOString() });
 }
 
