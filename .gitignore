@@ -28,6 +28,7 @@ clinicos-app/.env
 
 # Dependencies and build output
 node_modules/
+.vercel/
 .next/
 out/
 build/

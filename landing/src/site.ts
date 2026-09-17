@@ -7,7 +7,7 @@
  * links back to `${SITE_URL}/privacy`, so if this changes, update the form too.
  */
 
-export const SITE_URL = "https://clinicos-varaxis.vercel.app";
+export const SITE_URL = "https://vxclinicos.vercel.app";
 
 export const CONTACT_EMAIL = "ishaanseal@gmail.com";
 

@@ -57,7 +57,7 @@ they are history and can be deleted. Start new work on a fresh feature branch of
 
 ### Live
 
-- **Website:** https://clinicos-varaxis.vercel.app
+- **Website:** https://vxclinicos.vercel.app
   - Vercel project `demo`, team `Varaxis`, Hobby plan, Root Directory `landing`.
   - Production deploys from `main`.
   - The first address, `demo-ten-tau-97.vercel.app`, still works.
@@ -142,7 +142,7 @@ Windows or `go.sh` on macOS.
 | When | Decision | Why, or the detail |
 |---|---|---|
 | 13 Sep 2026 | Public positioning: Varaxis, international, clinics of every size up to hospitals. | No Krishnanagar and no founder name on anything public. |
-| 13 Sep 2026 | The website uses a free `vercel.app` address. | `clinicos-varaxis.vercel.app`. A domain can be added later without rebuilding. |
+| 13 Sep 2026 | The website uses a free `vercel.app` address. | `vxclinicos.vercel.app` since 17 Sep 2026, matching `vxscholar.com`. It was `clinicos-varaxis.vercel.app` until then, and that address now 404s. A real domain can be added later without rebuilding. |
 | 13 Sep 2026 | The website has no pilot offer; it ends with "Get in touch". | Ishaan wants the product, not pilots. Contact goes through the Tally form and email. |
 | 13 Sep 2026 | Build the v0.5 product now, before the doctor interviews. | Zero of 20 interviews done. The risk stays recorded in CLAUDE.md's "gate". |
 | 13 Sep 2026 | Four logins: doctor, front desk, patient, clinic admin. | |
