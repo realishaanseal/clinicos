@@ -1,14 +1,34 @@
-# The website in landing/ is the only thing that is ever uploaded to a host.
+# What never goes to a host, from any deploy of this repository.
 #
-# Everything else here either runs on the clinic's own computer or is internal.
-# clinicos-app/data/ holds patient records, and uploading it would break
-# invariant 2 in CLAUDE.md — identifiable data never leaves the machine.
+# Vercel applies this file to Git deployments as well as CLI uploads, for both
+# projects: the website (Root Directory landing) and, since 17 Sep 2026, the
+# online clinic app (Root Directory clinicos-app). So clinicos-app itself can no
+# longer be excluded whole — the app project would build from an empty folder.
+# Instead every place its patient data or secrets can live is excluded by name.
+#
+# clinicos-app/data/ holds patient records on a clinic computer, and uploading it
+# would break invariant 2 in CLAUDE.md — identifiable data never leaves the
+# machine. Anything new that holds records, recordings or keys must be added here.
 #
 # This exists as well as .gitignore, not instead of it: a CLI deploy uploads the
 # working tree rather than a git commit, so anything untracked but present on
 # disk would otherwise go too.
 
-/clinicos-app
+# Patient data and recordings on a clinic computer, and test copies of them
+/clinicos-app/data
+/clinicos-app/.local-test
+/clinicos-app/.test-data
+/clinicos-app/logs
+
+# Local transcription: the Python environment and the downloaded model weights
+/clinicos-app/asr/.venv
+/clinicos-app/asr/models
+
+# Build output and dependencies are rebuilt by the host
+/clinicos-app/.next
+/clinicos-app/node_modules
+
+# Internal, never part of either site
 /portal
 /docs
 /artifacts
@@ -20,5 +40,5 @@
 *.db-shm
 *.db-wal
 *.zip
-.env
-.env.local
+.env*
+!.env.example
