@@ -52,3 +52,8 @@ _to_delete/
 # macOS
 .DS_Store
 .AppleDouble
+
+# The Vercel CLI's link to the `demo` project. `vercel link` also appends `.env*`
+# here; that is left out on purpose, because it silently ignores every future
+# .env.example, and `.env` / `.env.local` above already cover the real files.
+.vercel

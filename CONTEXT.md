@@ -53,13 +53,19 @@ they are history and can be deleted. Start new work on a fresh feature branch of
 
 ---
 
-## 3. Current state (15 September 2026)
+## 3. Current state (17 September 2026)
 
 ### Live
 
 - **Website:** https://vxclinicos.vercel.app
   - Vercel project `demo`, team `Varaxis`, Hobby plan, Root Directory `landing`.
-  - Production deploys from `main`.
+  - Production deploys from `main`, automatically: the project is linked to
+    `realishaanseal/clinicos` with `main` as the production branch, and a push reaches
+    production in about 5 seconds plus a ~40 s build. Other branches get Preview builds.
+  - **Verified live on 17 Sep 2026** at commit `b467afc`: every page answers (404 page
+    included), the security headers and the year-long backdrop cache are served, the
+    scroll fix from that morning is in the served JavaScript, and robots.txt, the sitemap
+    and share previews all name `vxclinicos.vercel.app`.
   - The first address, `demo-ten-tau-97.vercel.app`, still works.
   - Sections: hero, problem, how it works, where the data lives, what is built,
     product tour, who it is for, current status, get in touch. Also `/privacy`, a 404
@@ -284,27 +290,26 @@ speed pass.
 2. **Tally form:** its link back to `/privacy` still points at
    `clinicos-varaxis.vercel.app`, which now 404s. Change it to
    `https://vxclinicos.vercel.app/privacy` in the Tally editor.
-3. **Vercel deploys are not triggering from GitHub.** Nothing was built for the pushes to
-   `main` on 17 Sep; the newest Production deployment predates them, and every other recent
-   deployment is a Preview. Check Settings → Git on the `demo` project and reconnect the
-   repository. Until that is fixed, a deploy has to be run by hand from the CLI.
-4. **Vercel:** create a project from this repo with Root Directory `portal`, and add the
+3. **Vercel:** create a project from this repo with Root Directory `portal`, and add the
    domain `clinicos-portal.vercel.app`. Paste in the environment variables. The
    assistant generates the random keys; it does not type keys into dashboards.
-5. **Before real patients use the portal:** Supabase Pro ($25/month). Vercel Pro too,
+4. **Before real patients use the portal:** Supabase Pro ($25/month). Vercel Pro too,
    because the Hobby plan is for non-commercial use, and that applies to the website as
    well.
-6. **Optional:** delete the merged branches (`v1`, `website-contact`, `website-v1`,
+5. **Optional:** delete the merged branches (`v1`, `website-contact`, `website-v1`,
    `site`, `website-glass-backdrop`, `website-smooth-film`, and now
-   `mac-environment-notes`, `docs-compact-reference`, `fix/backdrop-scroll-performance`)
+   `mac-environment-notes`, `docs-compact-reference`, `fix/backdrop-scroll-performance`,
+   and `verify-live-deploy` once merged)
    and the worktree `.claude/worktrees/website-glass`.
-7. **Optional:** if Varaxis has a brand typeface file, add it and the lockup can use it.
+6. **Optional:** if Varaxis has a brand typeface file, add it and the lockup can use it.
    Until then it uses the system display face.
 
 The Vercel **MCP connector** still cannot see the `Varaxis` team — it returns an empty team
 list. The **CLI can**: it was authenticated on the Mac on 17 Sep 2026 as `realishaanseal`,
 and `--scope varaxis` reaches the projects (`demo`, `scholar`, `scholar-l4ix`,
 `kahuproject`). Use the CLI for deploy logs and project state, not the connector.
+`vercel api` reads anything the dashboard shows, e.g. the Git link with
+`vercel api "/v9/projects/prj_2KpvcJHlo19NoUWLT35Otewhs3ki?teamId=team_ErYNc38VqbmpJVz0fcQ4z8dD" --scope varaxis`.
 
 ---
 
@@ -362,10 +367,15 @@ and `--scope varaxis` reaches the projects (`demo`, `scholar`, `scholar-l4ix`,
   uploads the working tree, not a git commit, so without it `clinicos-app/data/` — the
   patient database — would be sent to Vercel and break invariant 2. Anything new at the top
   level that must not be published has to be added to it.
-- **`vercel link` rewrites `.gitignore`.** It appended `.vercel` and `.env*` and created a
-  root `.env.local` holding a `VERCEL_OIDC_TOKEN`. The `.env*` pattern also matches
-  `.env.example`, so a new example file will not be picked up by git unless forced;
-  `portal/.env.example` was committed before that and stays tracked.
+- **`vercel link` rewrites `.gitignore`.** It appends `.vercel` and `.env*` and creates a
+  root `.env.local` holding a `VERCEL_OIDC_TOKEN`. `.vercel` is kept; `.env*` was removed
+  on 17 Sep 2026, because it also matches `.env.example` and would silently hide every new
+  example file, while `.env` and `.env.local` are already ignored. If the CLI is ever
+  re-linked, take `.env*` back out.
+- **Telling a Git deploy from a hand deploy:** in `vercel ls` or `vercel inspect`, a
+  Git-triggered production deployment carries the alias `demo-git-main-varaxis.vercel.app`
+  and has `source: git`; a CLI one has neither. Prefer letting Git deploy: it uploads the
+  commit, not whatever happens to be on disk.
 
 ---
 
@@ -482,20 +492,32 @@ and `--scope varaxis` reaches the projects (`demo`, `scholar`, `scholar-l4ix`,
   - **The website's address changed to `vxclinicos.vercel.app`**, matching `vxscholar.com`.
     `SITE_URL` still named the old one, so robots.txt, the sitemap and every share preview
     were resolving against a host that 404s. Fixed in `landing/src/site.ts`.
-  - **Vercel deploys were found not to be triggering from GitHub** (§7.3). The site is still
-    serving a build from before the merge, so the scroll fix is live in `main` but not yet
-    on the web. The Vercel CLI was authenticated on the Mac to work around this, and the
-    repo was linked to the `demo` project (`prj_2KpvcJHlo19NoUWLT35Otewhs3ki`, org
-    `team_ErYNc38VqbmpJVz0fcQ4z8dD`). **A production deploy had not been run when this
-    session ended.**
+  - **Vercel deploys were thought not to be triggering from GitHub** (wrong; see below).
+    The site was still serving a build from before the merge, so the scroll fix was in
+    `main` but not yet on the web. The Vercel CLI was authenticated on the Mac to work
+    around this, and the repo was linked to the `demo` project
+    (`prj_2KpvcJHlo19NoUWLT35Otewhs3ki`, org `team_ErYNc38VqbmpJVz0fcQ4z8dD`). **A
+    production deploy had not been run when this session ended.**
+  - **The production deploy was checked, and it was already done.** Pushing the handoff
+    commit `b467afc` built production from Git at 12:35, and a hand-run CLI deploy of the
+    same commit followed at 12:37; that one is what `vxclinicos.vercel.app` serves.
+  - **That was a false alarm: Vercel's Git integration works.** The project is linked to
+    the repo with `main` as the production branch and deployments enabled. Every push from
+    15 to 17 Sep went to a feature branch, which correctly builds Previews only, so the list
+    looked as if production had stalled. The first push to `main` (`93f76d0`, 11:55) reached
+    production 5 seconds later, and so did the next two.
+  - **A CLI deploy uploads the working tree, so what went up was checked** through Vercel's
+    file listing for the live deployment: `landing/`, the root docs and `.claude/` only. No
+    database, no patient data, no `.env` and nothing from `portal/`, so invariant 2 held.
+    `.claude/settings.local.json` did go up; it is only an assistant's command allowlist with
+    no secrets in it, and `/.claude` is now in `.vercelignore` so it stops going.
+  - The site was verified live (§3). The **Tally form still links to the dead
+    `clinicos-varaxis.vercel.app/privacy`**, confirmed by fetching the form (§7.2).
 
 ### Where to pick up
 
-1. Run the production deploy: from the repo root,
-   `$(ls -d ~/.npm/_npx/*/node_modules/.bin/vercel | head -1) --prod --scope varaxis`.
-   Confirm it worked by checking that `https://vxclinicos.vercel.app/robots.txt` names
-   `vxclinicos.vercel.app`, not the old host.
-2. Then fix the Git integration (§7.3) so hand-deploys are not needed again.
-3. Then either v0.5 Part C (the portal app in front of the Supabase schema) or more testing
+1. Ishaan: fix the Tally form's privacy link (§7.2) and reset the Supabase password (§7.1).
+2. Then either v0.5 Part C (the portal app in front of the Supabase schema) or more testing
    of the dashboards — Ishaan asked to leave the app version until later and get the website
    right first.
+3. No hand deploys are needed: merging to `main` publishes the website by itself.
