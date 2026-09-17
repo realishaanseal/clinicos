@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getUserByUsername, pruneExpiredSessions, recordAudit, touchLogin } from "@/lib/db";
+import { failedLoginsSince, getUserByUsername, pruneExpiredSessions, recordAudit, touchLogin } from "@/lib/db";
 import {
   burnPasswordCheck,
   homeFor,
@@ -10,12 +10,12 @@ import {
   verifyPassword,
 } from "@/lib/auth";
 
-// Failed attempts per username, in memory. Enough to stop someone on the clinic
-// Wi-Fi guessing a password all afternoon; it resets if the app restarts, which
-// on one laptop is an acceptable trade for not adding a table.
+// Wrong passwords per username in the last 15 minutes, counted from the
+// activity log. It used to be a counter in memory, which is fine on one laptop
+// but useless online, where each of many short-lived server copies starts with
+// an empty one. A successful sign-in starts the count again.
 const WINDOW_MS = 15 * 60 * 1000;
 const MAX_FAILS = 10;
-const failures = new Map<string, { count: number; since: number }>();
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
@@ -25,28 +25,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Enter your username and password." }, { status: 400 });
   }
 
-  const f = failures.get(username);
-  if (f && Date.now() - f.since > WINDOW_MS) failures.delete(username);
-  else if (f && f.count >= MAX_FAILS) {
+  const user = await getUserByUsername(username);
+  const windowStart = new Date(Date.now() - WINDOW_MS).toISOString();
+  const since = user?.lastLoginAt && user.lastLoginAt > windowStart ? user.lastLoginAt : windowStart;
+  if ((await failedLoginsSince(username, since)) >= MAX_FAILS) {
     return NextResponse.json(
       { error: "Too many wrong attempts. Wait 15 minutes, or ask whoever manages the clinic to reset your password." },
       { status: 429 }
     );
   }
 
-  const user = await getUserByUsername(username);
   let ok = false;
   if (user && user.active) ok = await verifyPassword(password, user.passwordHash);
   else await burnPasswordCheck(password);
 
   if (!user || !ok) {
-    const prev = failures.get(username);
-    failures.set(username, { count: (prev?.count ?? 0) + 1, since: prev?.since ?? Date.now() });
     await recordAudit(null, "login_failed", "user", user?.id ?? null, `username: ${username}`);
     return NextResponse.json({ error: "That username and password don't match." }, { status: 401 });
   }
 
-  failures.delete(username);
   await pruneExpiredSessions();
   const token = await startSession(user.id);
   await touchLogin(user.id);

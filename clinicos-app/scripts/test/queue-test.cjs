@@ -2,7 +2,7 @@
 // races a busy clinic will actually produce. Run by run.mjs after perm-test.cjs,
 // whose accounts it signs in with:
 //   node scripts/test/queue-test.cjs <test.db>
-const Database = require("better-sqlite3");
+const { peek } = require("./peek.cjs");
 
 const BASE = process.env.TEST_BASE || "http://localhost:3000";
 const [dbPath] = process.argv.slice(2);
@@ -115,11 +115,11 @@ async function call(method, path, { token, body } = {}) {
   r = await call("POST", `/api/queue/${entryA}/left`, { token: desk });
   check("A patient with the doctor can't be marked as gone", r.status === 409, r.status);
   {
-    const db = new Database(dbPath, { readonly: true });
-    const c = db.prepare(`SELECT patientId, createdBy FROM Consult WHERE id = ?`).get(consultA);
-    const ownerId = db.prepare(`SELECT id FROM User WHERE username = 'owner'`).get().id;
+    const db = peek(dbPath);
+    const c = await db.get(`SELECT "patientId", "createdBy" FROM "Consult" WHERE id = ?`, consultA);
+    const ownerId = (await db.get(`SELECT id FROM "User" WHERE username = 'owner'`)).id;
     check("The consultation belongs to the right patient and doctor", c?.patientId === patientA && c?.createdBy === ownerId, JSON.stringify(c));
-    db.close();
+    await db.close();
   }
 
   const race = await Promise.all([
@@ -153,12 +153,12 @@ async function call(method, path, { token, body } = {}) {
 
   // ------------------------------------------------------------- day boundary
   {
-    const db = new Database(dbPath);
-    db.prepare(
-      `INSERT INTO QueueEntry (id, patientId, day, token, status, addedAt)
+    const db = peek(dbPath);
+    await db.run(
+      `INSERT INTO "QueueEntry" (id, "patientId", day, token, status, "addedAt")
        VALUES ('old-entry-1', 'seedpatient2', '2026-01-01', 1, 'waiting', '2026-01-01T04:00:00.000Z')`
-    ).run();
-    db.close();
+    );
+    await db.close();
   }
   r = await call("GET", "/api/queue", { token: desk });
   check("An old day's list doesn't appear today", !r.json?.queue?.some((x) => x.id === "old-entry-1"));

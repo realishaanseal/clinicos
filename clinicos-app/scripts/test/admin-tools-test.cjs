@@ -1,8 +1,11 @@
 // The tools for bad days: the reset-password script a locked-out owner runs at
 // the laptop, and restoring a backup made before accounts existed. Run last by
 // run.mjs — it resets the owner's password and replaces the database.
+//
+// Online (Postgres) there is no database file to restore, so that run checks
+// the restore is refused and leaves everything as it was.
 //   node scripts/test/admin-tools-test.cjs <test.db> <pre-v1-backup.db>
-const Database = require("better-sqlite3");
+const { peek, ONLINE } = require("./peek.cjs");
 const { execFileSync } = require("child_process");
 const fs = require("fs");
 
@@ -44,6 +47,13 @@ const resetScript = (username) => {
   }
 };
 
+function report() {
+  const failed = results.filter((x) => !x.ok);
+  for (const x of results) console.log(`${x.ok ? "PASS" : "FAIL"}  ${x.name}${x.ok ? "" : `  [${x.info}]`}`);
+  console.log(`\n${results.length - failed.length} passed, ${failed.length} failed`);
+  process.exit(failed.length ? 1 : 0);
+}
+
 (async () => {
   // ---------------------------------------------------- reset-password script
   const out = resetScript("owner");
@@ -57,10 +67,10 @@ const resetScript = (username) => {
   const change = await call("POST", "/api/auth/password", { token: r.token, body: { current: temp, next: "owner-pass-2" } });
   check("Owner sets a new password", change.status === 200, change.status);
   {
-    const db = new Database(dbPath, { readonly: true });
-    const n = db.prepare(`SELECT COUNT(*) n FROM AuditEvent WHERE action = 'user_password_reset' AND userName = 'reset-password script'`).get().n;
+    const db = peek(dbPath);
+    const n = (await db.get(`SELECT CAST(COUNT(*) AS INTEGER) AS n FROM "AuditEvent" WHERE action = 'user_password_reset' AND "userName" = 'reset-password script'`)).n;
     check("Script's reset is in the activity log", n === 1, n);
-    db.close();
+    await db.close();
   }
 
   const wrongName = resetScript("no-such-person");
@@ -82,15 +92,34 @@ const resetScript = (username) => {
   form.append("backup", new Blob([bytes]), "pre-v1.db");
   form.append("confirm", "RESTORE");
   r = await call("POST", "/api/backup/restore", { token: owner, form });
+
+  if (ONLINE) {
+    check("Online: restoring a backup file is refused, with the reason", r.status === 400 && /clinic computer/.test(r.json?.error || ""), JSON.stringify(r.json));
+    const db = peek(dbPath);
+    const users = (await db.all(`SELECT username FROM "User"`)).map((u) => u.username);
+    check("Online: the refused restore changed no accounts", users.includes("owner") && users.includes("desk"), users.join(","));
+    await db.close();
+    r = await call("GET", "/api/patients", { token: owner });
+    check("Online: the owner stays signed in", r.status === 200, r.status);
+    r = await call("GET", "/api/backup/download", { token: owner });
+    check("Online: downloading a backup file is refused, not a crash", r.status >= 400 && r.status < 500, r.status);
+    r = await call("GET", "/api/backup/export", { token: owner });
+    check("Online: Export everything still works", r.status === 200 && r.json?.format === "clinicos-full-export", r.status);
+    const setup = await fetch(BASE + "/setup", { redirect: "manual" });
+    check("/setup stays closed", setup.status >= 300 && setup.status < 400, setup.status);
+    report();
+    return;
+  }
+
   check("Restore of a pre-accounts backup succeeds", r.status === 200 && r.json?.ok, JSON.stringify(r.json));
 
   {
-    const db = new Database(dbPath, { readonly: true });
-    const users = db.prepare(`SELECT username FROM User`).all().map((u) => u.username);
+    const db = peek(dbPath);
+    const users = (await db.all(`SELECT username FROM "User"`)).map((u) => u.username);
     check("Only the person restoring is kept, so setup is not left open", users.length === 1 && users[0] === "owner", users.join(","));
-    const restoreLogged = db.prepare(`SELECT COUNT(*) n FROM AuditEvent WHERE action = 'backup_restore'`).get().n;
+    const restoreLogged = (await db.get(`SELECT CAST(COUNT(*) AS INTEGER) AS n FROM "AuditEvent" WHERE action = 'backup_restore'`)).n;
     check("The restore is recorded in the restored log", restoreLogged === 1, restoreLogged);
-    db.close();
+    await db.close();
   }
 
   r = await call("GET", "/api/patients", { token: owner });
@@ -100,10 +129,7 @@ const resetScript = (username) => {
   const setup = await fetch(BASE + "/setup", { redirect: "manual" });
   check("/setup stays closed after the restore", setup.status >= 300 && setup.status < 400, setup.status);
 
-  const failed = results.filter((x) => !x.ok);
-  for (const x of results) console.log(`${x.ok ? "PASS" : "FAIL"}  ${x.name}${x.ok ? "" : `  [${x.info}]`}`);
-  console.log(`\n${results.length - failed.length} passed, ${failed.length} failed`);
-  process.exit(failed.length ? 1 : 0);
+  report();
 })().catch((e) => {
   console.error(e);
   process.exit(2);

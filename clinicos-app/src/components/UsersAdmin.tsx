@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { IcAlert, IcCheck, IcPlus } from "./Icons";
 import { describeAccess, ROLE_HELP, ROLE_LABEL, ROLES, USERNAME_RULE, type Role } from "@/lib/users";
+import { fmtDate, fmtTime } from "@/lib/time";
 
 export type AdminUserRow = {
   id: string;
@@ -226,10 +227,10 @@ export default function UsersAdmin({ users, currentUserId }: { users: AdminUserR
                   {u.lastLoginAt ? (
                     <>
                       <span className="nowrap">
-                        {new Date(u.lastLoginAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                        {fmtDate(new Date(u.lastLoginAt), { day: "numeric", month: "short" })}
                       </span>
                       <div className="sub nowrap">
-                        {new Date(u.lastLoginAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}
+                        {fmtTime(new Date(u.lastLoginAt), { hour: "numeric", minute: "2-digit" })}
                       </div>
                     </>
                   ) : (

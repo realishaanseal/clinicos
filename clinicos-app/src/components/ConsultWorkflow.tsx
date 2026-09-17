@@ -8,6 +8,7 @@ import Prescription from "./Prescription";
 import {
   IcMic, IcRec, IcStop, IcDoc, IcCheck, IcAlert, IcPrint, IcPlus, IcTrash, IcShield,
 } from "./Icons";
+import { fmt, fmtTime } from "@/lib/time";
 
 type Props = {
   consultId: string;
@@ -82,7 +83,7 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic }:
     if (localTime > serverTime + 1000) {
       if (local.transcript) setTranscript(local.transcript);
       if (local.note) setNote(local.note);
-      setRestored(`Restored unsaved work from ${new Date(local.at).toLocaleTimeString("en-IN")}`);
+      setRestored(`Restored unsaved work from ${fmtTime(new Date(local.at))}`);
     }
   }, [consultId, initial.workingSavedAt, signedAt]);
 
@@ -169,7 +170,7 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic }:
         <div className="note ok noprint">
           <IcShield size={17} />
           <span>
-            Signed {new Date(signedAt).toLocaleString("en-IN")}.
+            Signed {fmt(new Date(signedAt))}.
             {audioDeleted && " The audio recording has been deleted, as promised to the patient."}
           </span>
         </div>
@@ -374,7 +375,7 @@ function NoteEditor({
           {saveState === "saving" && "saving…"}
           {saveState === "saved" && (
             <>
-              <IcCheck size={12} /> saved {savedAt?.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}
+              <IcCheck size={12} /> saved {savedAt && fmtTime(savedAt, { hour: "numeric", minute: "2-digit" })}
             </>
           )}
           {saveState === "error" && (

@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { listAudit } from "@/lib/db";
 import { IcDoc } from "@/components/Icons";
+import { fmt } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +58,7 @@ export default async function AuditPage() {
               {events.map((e) => (
                 <tr key={e.id}>
                   <td className="dim" style={{ whiteSpace: "nowrap" }}>
-                    {new Date(e.at).toLocaleString("en-IN", {
+                    {fmt(new Date(e.at), {
                       day: "numeric", month: "short", hour: "numeric", minute: "2-digit",
                     })}
                   </td>

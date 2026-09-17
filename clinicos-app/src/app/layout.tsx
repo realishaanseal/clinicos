@@ -4,6 +4,7 @@ import SideNav from "@/components/SideNav";
 import { getCurrentUser } from "@/lib/auth";
 import { getClinic } from "@/lib/clinic";
 import { maybeAutoBackup } from "@/lib/backup";
+import { ONLINE } from "@/lib/deployment";
 
 export const metadata: Metadata = {
   title: "ClinicOS",
@@ -35,7 +36,18 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             user={{ name: user.name, role: user.role, isAdmin: user.isAdmin }}
             clinicName={(await getClinic()).name}
           />
-          <div className="main">{children}</div>
+          <div className="main">
+            {ONLINE && (
+              // The consent script still promises patients that nothing leaves the
+              // clinic computer. Until it is rewritten for the online copy, the
+              // online copy is for trying ClinicOS, not for real patients.
+              <div className="prototype-banner" role="note">
+                <strong>Online prototype.</strong> Use made-up patients only — real patient details belong on the
+                clinic computer until the consent script covers online use.
+              </div>
+            )}
+            {children}
+          </div>
         </div>
       </body>
     </html>

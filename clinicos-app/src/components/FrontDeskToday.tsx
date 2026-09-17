@@ -5,6 +5,7 @@ import type { QueueRow } from "@/lib/db";
 import { elapsed, useQueue } from "@/lib/useQueue";
 import NewPatient from "./NewPatient";
 import { IcAlert, IcCheck, IcUsers } from "./Icons";
+import { fmtTime } from "@/lib/time";
 
 type Found = { id: string; name: string; age: number | null; sex: string | null; phone: string | null; consultCount: number };
 
@@ -255,7 +256,7 @@ function QueueTable({
                     {r.status === "waiting" && elapsed(r.addedAt)}
                     {r.status === "with-doctor" && elapsed(r.calledAt)}
                     {(r.status === "done" || r.status === "left") &&
-                      (r.doneAt ? new Date(r.doneAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }) : "")}
+                      (r.doneAt ? fmtTime(new Date(r.doneAt), { hour: "numeric", minute: "2-digit" }) : "")}
                   </td>
                   <td style={{ textAlign: "right" }}>
                     {r.status === "waiting" && (

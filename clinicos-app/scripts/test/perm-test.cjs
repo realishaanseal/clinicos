@@ -2,7 +2,7 @@
 //   node scripts/test/perm-test.cjs <test.db> <fingerprint.json>
 // Expects a freshly seeded database with no accounts yet, and the app running
 // at TEST_BASE against it.
-const Database = require("better-sqlite3");
+const { peek, ONLINE } = require("./peek.cjs");
 const fs = require("fs");
 
 const BASE = process.env.TEST_BASE || "http://localhost:3000";
@@ -35,22 +35,20 @@ const goesTo = (r, target) =>
   r.text.includes(`NEXT_REDIRECT;replace;${target};`) ||
   r.text.includes(`NEXT_REDIRECT;push;${target};`);
 
-const fingerprintOf = (db) => ({
-  patients: db.prepare(`SELECT id, name, age, sex, phone, guardianName, createdAt FROM Patient WHERE id LIKE 'seed%' ORDER BY id`).all(),
-  consults: db
-    .prepare(
-      `SELECT id, patientId, consentGiven, consentAt, consentBy, transcript, draftJson, finalJson,
-              signedAt, audioDeletedAt, createdAt
-       FROM Consult WHERE id LIKE 'seed%' ORDER BY id`
-    )
-    .all(),
-  edits: db.prepare(`SELECT * FROM Edit WHERE id LIKE 'seed%' ORDER BY id`).all(),
+const fingerprintOf = async (db) => ({
+  patients: await db.all(`SELECT id, name, age, sex, phone, "guardianName", "createdAt" FROM "Patient" WHERE id LIKE 'seed%' ORDER BY id`),
+  consults: await db.all(
+    `SELECT id, "patientId", "consentGiven", "consentAt", "consentBy", transcript, "draftJson", "finalJson",
+            "signedAt", "audioDeletedAt", "createdAt"
+     FROM "Consult" WHERE id LIKE 'seed%' ORDER BY id`
+  ),
+  edits: await db.all(`SELECT id, "consultId", field, before, after, "createdAt" FROM "Edit" WHERE id LIKE 'seed%' ORDER BY id`),
 });
 
-const idOf = (username) => {
-  const db = new Database(dbPath, { readonly: true });
-  const id = db.prepare(`SELECT id FROM User WHERE username = ?`).get(username)?.id;
-  db.close();
+const idOf = async (username) => {
+  const db = peek(dbPath);
+  const id = (await db.get(`SELECT id FROM "User" WHERE username = ?`, username))?.id;
+  await db.close();
   return id;
 };
 
@@ -59,14 +57,14 @@ const idOf = (username) => {
   await call("GET", "/login"); // make sure the server has opened (and migrated) the database
   const fp = JSON.parse(fs.readFileSync(fingerprintPath, "utf8"));
   {
-    const db = new Database(dbPath, { readonly: true });
-    const now = fingerprintOf(db);
+    const db = peek(dbPath);
+    const now = await fingerprintOf(db);
     check("Upgrade: patients unchanged", JSON.stringify(now.patients) === JSON.stringify(fp.patients));
     check("Upgrade: consultations unchanged", JSON.stringify(now.consults) === JSON.stringify(fp.consults));
     check("Upgrade: edits unchanged", JSON.stringify(now.edits) === JSON.stringify(fp.edits));
-    const tables = db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all().map((r) => r.name);
+    const tables = await db.tables();
     check("Upgrade: account and queue tables added", ["User", "Session", "AuditEvent", "Setting", "QueueEntry"].every((t) => tables.includes(t)), tables.join(","));
-    db.close();
+    await db.close();
   }
 
   // ------------------------------------------------ 1. before anyone exists
@@ -104,12 +102,23 @@ const idOf = (username) => {
   check(`Forged cookie: all ${everyApi.length} API routes → 401 (checked in the handler)`, forgedNot401.length === 0, forgedNot401.join("; "));
 
   // ------------------------------------------------ 2. setup
+  const setupCode = process.env.SETUP_CODE;
+  if (setupCode) {
+    r = await call("POST", "/api/setup", {
+      body: { clinicName: "X", name: "Stranger", username: "stranger", password: "stranger-pass", isDoctor: true },
+    });
+    check("Setup refuses without the setup code", r.status === 403 && !r.token, r.status);
+    r = await call("POST", "/api/setup", {
+      body: { setupCode: "not-the-code", clinicName: "X", name: "Stranger", username: "stranger", password: "stranger-pass", isDoctor: true },
+    });
+    check("Setup refuses a wrong setup code", r.status === 403 && !r.token, r.status);
+  }
   r = await call("POST", "/api/setup", {
-    body: { clinicName: "Test Clinic", name: "Dr Owner", username: "owner", password: "owner-pass-1", isDoctor: true, qualification: "MBBS", regNo: "WB-1" },
+    body: { setupCode, clinicName: "Test Clinic", name: "Dr Owner", username: "owner", password: "owner-pass-1", isDoctor: true, qualification: "MBBS", regNo: "WB-1" },
   });
   const owner = r.token;
   check("Setup creates the owner and signs them in", r.status === 200 && owner, r.status);
-  r = await call("POST", "/api/setup", { body: { clinicName: "X", name: "Intruder", username: "intruder", password: "intruder-pass", isDoctor: true } });
+  r = await call("POST", "/api/setup", { body: { setupCode, clinicName: "X", name: "Intruder", username: "intruder", password: "intruder-pass", isDoctor: true } });
   check("Setup refuses a second owner", r.status === 409, r.status);
   r = await call("GET", "/setup");
   check("/setup → /login once set up", goesTo(r, "/login"), `${r.status} ${r.location}`);
@@ -143,12 +152,12 @@ const idOf = (username) => {
   check("Temp password: admin and doctor changed theirs", mgr.change.status === 200 && doc2.change.status === 200, `${mgr.change.status},${doc2.change.status}`);
 
   {
-    const db = new Database(dbPath, { readonly: true });
-    const deskRow = db.prepare(`SELECT isAdmin FROM User WHERE username = 'desk'`).get();
+    const db = peek(dbPath);
+    const deskRow = await db.get(`SELECT "isAdmin" FROM "User" WHERE username = 'desk'`);
     check("Staff can never be an admin, even if asked", deskRow?.isAdmin === 0, JSON.stringify(deskRow));
-    const hashes = db.prepare(`SELECT passwordHash FROM User`).all().map((u) => u.passwordHash);
+    const hashes = (await db.all(`SELECT "passwordHash" FROM "User"`)).map((u) => u.passwordHash);
     check("Passwords stored only as scrypt hashes", hashes.every((h) => h.startsWith("scrypt$") && !h.includes("pass-123")));
-    db.close();
+    await db.close();
   }
 
   // ------------------------------------------------ 5. permission matrix
@@ -203,10 +212,10 @@ const idOf = (username) => {
   check("Staff patient list has no links into clinical records", !deskList.text.includes('href="/patients/seedpatient1"'));
 
   {
-    const db = new Database(dbPath, { readonly: true });
-    const consentBy = db.prepare(`SELECT consentBy FROM Consult WHERE id = ?`).get(consultAId)?.consentBy;
+    const db = peek(dbPath);
+    const consentBy = (await db.get(`SELECT "consentBy" FROM "Consult" WHERE id = ?`, consultAId))?.consentBy;
     check("Consent records who actually took it", consentBy === "Front Desk (Front desk)", consentBy);
-    db.close();
+    await db.close();
   }
 
   // non-clinical admin
@@ -238,14 +247,14 @@ const idOf = (username) => {
   });
   check("Signing logs the correction", signed.json?.editCount === 1, JSON.stringify(signed.json));
   {
-    const db = new Database(dbPath, { readonly: true });
-    const c = db.prepare(`SELECT doctorId, draftJson FROM Consult WHERE id = 'seedconsult2'`).get();
-    const doc2Id = db.prepare(`SELECT id FROM User WHERE username = 'doc2'`).get().id;
+    const db = peek(dbPath);
+    const c = await db.get(`SELECT "doctorId", "draftJson" FROM "Consult" WHERE id = 'seedconsult2'`);
+    const doc2Id = (await db.get(`SELECT id FROM "User" WHERE username = 'doc2'`)).id;
     check("Signed note records the signing doctor", c.doctorId === doc2Id, c.doctorId);
     check("draftJson is untouched by signing", c.draftJson === fp.consults.find((x) => x.id === "seedconsult2").draftJson);
-    const audit = db.prepare(`SELECT COUNT(*) n FROM AuditEvent WHERE action = 'consult_sign' AND targetId = 'seedconsult2' AND userId = ?`).get(doc2Id).n;
+    const audit = (await db.get(`SELECT CAST(COUNT(*) AS INTEGER) AS n FROM "AuditEvent" WHERE action = 'consult_sign' AND "targetId" = 'seedconsult2' AND "userId" = ?`, doc2Id)).n;
     check("Signature is in the activity log", audit === 1, audit);
-    db.close();
+    await db.close();
   }
   const rx = await call("GET", "/consult/seedconsult2", { token: owner });
   check("Prescription prints the signing doctor, not the viewer", rx.text.includes("Dr Second") && rx.text.includes("WB-2"), rx.status);
@@ -254,9 +263,9 @@ const idOf = (username) => {
   check("Pre-v1 signed note still renders", oldRx.status === 200 && oldRx.text.includes("Viral fever, resolving"), oldRx.status);
 
   // ------------------------------------------------ 7. account safety
-  const ownerId = idOf("owner");
-  const deskId = idOf("desk");
-  const doc2Id = idOf("doc2");
+  const ownerId = await idOf("owner");
+  const deskId = await idOf("desk");
+  const doc2Id = await idOf("doc2");
 
   await expectStatus("Owner", owner, "PATCH", `/api/admin/users/${ownerId}`, 400, { active: false });
   await expectStatus("Owner", owner, "PATCH", `/api/admin/users/${ownerId}`, 400, { isAdmin: false });
@@ -300,16 +309,16 @@ const idOf = (username) => {
   check("Signing out one browser leaves the other signed in", r.status === 200, r.status);
 
   {
-    const db = new Database(dbPath, { readonly: true });
-    const actions = new Set(db.prepare(`SELECT DISTINCT action FROM AuditEvent`).all().map((a) => a.action));
+    const db = peek(dbPath);
+    const actions = new Set((await db.all(`SELECT DISTINCT action FROM "AuditEvent"`)).map((a) => a.action));
     const want = ["setup", "login", "login_failed", "logout", "password_change", "user_create", "user_update", "user_password_reset", "settings_update", "consult_sign", "export_all", "patient_export"];
     const missing = want.filter((a) => !actions.has(a));
     check("Activity log recorded every kind of event exercised", missing.length === 0, `missing: ${missing.join(",")}`);
-    const leaks = db.prepare(`SELECT COUNT(*) n FROM AuditEvent WHERE detail LIKE '%Seed Patient%'`).get().n;
+    const leaks = (await db.get(`SELECT CAST(COUNT(*) AS INTEGER) AS n FROM "AuditEvent" WHERE detail LIKE '%Seed Patient%'`)).n;
     check("Activity log holds no patient names", leaks === 0, leaks);
-    const tokens = db.prepare(`SELECT tokenHash FROM Session`).all();
+    const tokens = await db.all(`SELECT "tokenHash" FROM "Session"`);
     check("Sessions stored only as hashes", tokens.every((t) => /^[0-9a-f]{64}$/.test(t.tokenHash)));
-    db.close();
+    await db.close();
   }
 
   // ------------------------------------------------ report

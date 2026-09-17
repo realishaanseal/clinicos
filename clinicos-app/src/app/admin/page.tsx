@@ -7,7 +7,8 @@ import { listBackups } from "@/lib/backup";
 import BackupPanel from "@/components/BackupPanel";
 import DeletePatient from "@/components/DeletePatient";
 import ClinicSettingsForm from "@/components/ClinicSettingsForm";
-import { IcArrow } from "@/components/Icons";
+import { IcArrow, IcShield } from "@/components/Icons";
+import { ONLINE } from "@/lib/deployment";
 
 export const dynamic = "force-dynamic";
 
@@ -134,16 +135,39 @@ export default async function AdminPage() {
             <div><dt>Patients</dt><dd>{stats.patients}</dd></div>
             <div><dt>Consultations</dt><dd>{stats.consults} ({stats.signed} signed)</dd></div>
             <div><dt>Edit records</dt><dd>{stats.edits}</dd></div>
-            <div><dt>Database file</dt><dd className="mono" style={{ wordBreak: "break-all" }}>{stats.path}</dd></div>
+            <div><dt>{ONLINE ? "Database" : "Database file"}</dt><dd className="mono" style={{ wordBreak: "break-all" }}>{stats.path}</dd></div>
           </dl>
           <p className="muted" style={{ marginBottom: 0 }}>
-            Everything lives in that one file. Back it up with the buttons below rather than copying it by
-            hand: a plain copy can quietly miss the most recent consultations.
+            {ONLINE
+              ? "This is the online prototype. Its database keeps no backups, so use made-up patients only."
+              : "Everything lives in that one file. Back it up with the buttons below rather than copying it by hand: a plain copy can quietly miss the most recent consultations."}
           </p>
         </div>
       </div>
 
-      <BackupPanel backups={backups} lastBackupAt={backups[0]?.createdAt ?? null} />
+      {ONLINE ? (
+        // Backup files are copies of the clinic computer's SQLite database. There
+        // is no such file online, so only the export is offered.
+        <div className="card">
+          <div className="card-head">
+            <span className="title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <IcShield size={16} /> Take a copy
+            </span>
+          </div>
+          <div className="card-body">
+            <p className="muted" style={{ marginTop: 0 }}>
+              Download every patient, consultation and correction as one file, readable in any text editor.
+            </p>
+            <div className="btnrow">
+              <a href="/api/backup/export" download>
+                <button type="button">Export everything as JSON</button>
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <BackupPanel backups={backups} lastBackupAt={backups[0]?.createdAt ?? null} />
+      )}
 
       <DeletePatient
         patients={patients.map((p) => ({ id: p.id, name: p.name, consultCount: p.consultCount }))}

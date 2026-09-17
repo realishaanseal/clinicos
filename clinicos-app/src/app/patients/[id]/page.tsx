@@ -5,6 +5,7 @@ import Link from "next/link";
 import NewConsultButton from "@/components/NewConsultButton";
 import { IcDoc, IcArrow } from "@/components/Icons";
 import { requireUser } from "@/lib/auth";
+import { fmtDate } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +54,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 10 }}>
                     <div>
                       <strong style={{ fontSize: 15 }}>
-                        {new Date(c.signedAt || c.createdAt).toLocaleDateString("en-IN", {
+                        {fmtDate(new Date(c.signedAt || c.createdAt), {
                           day: "numeric", month: "long", year: "numeric",
                         })}
                       </strong>

@@ -6,6 +6,8 @@
  *   cd clinicos-app
  *   npm run test:e2e                 build, start, run every suite, stop
  *   npm run test:e2e -- --no-build   reuse the last build
+ *   npm run test:e2e:pg              the same suites against Postgres, as the
+ *                                    online copy runs (PGlite, nothing to install)
  *
  * Suites, in order — each relies on the one before:
  *   seed-pre-v1.cjs       a prototype-era database (before accounts) with records
@@ -27,6 +29,8 @@ const work = path.join(appDir, ".test-data");
 const port = process.env.TEST_PORT || "3100";
 const base = `http://localhost:${port}`;
 const skipBuild = process.argv.includes("--no-build");
+const onPostgres = process.argv.includes("--pg");
+const pgPort = process.env.TEST_PG_PORT || "55432";
 
 fs.rmSync(work, { recursive: true, force: true });
 fs.mkdirSync(work, { recursive: true });
@@ -45,6 +49,22 @@ const env = {
   AUDIO_DIR: path.join(work, "audio"),
   TEST_BASE: base,
   NEXT_TELEMETRY_DISABLED: "1",
+  // Both runs guard /setup with a code, as the online copy must.
+  SETUP_CODE: "test-setup-code",
+  DATA_BACKEND: onPostgres ? "postgres" : "sqlite",
+  ...(onPostgres
+    ? {
+        DATABASE_URL: `postgres://postgres:postgres@127.0.0.1:${pgPort}/postgres?sslmode=disable`,
+        NEXT_PUBLIC_CLINIC_TIMEZONE: "Asia/Kolkata",
+        NEXT_PUBLIC_CLINICOS_ONLINE: "1",
+        // PGlite shares one real connection between all clients, and under a
+        // burst of requests it can hand one client's statement another's
+        // parameters ("bind message supplies 2 parameters, but prepared
+        // statement requires 7"). Real Postgres never does. One connection
+        // from the app avoids it; true concurrency is tested against Supabase.
+        PG_POOL_MAX: "1",
+      }
+    : {}),
 };
 
 const step = (title) => console.log(`\n=== ${title} ===`);
@@ -55,7 +75,9 @@ function runNode(script, args) {
 }
 
 let server = null;
+let pgServer = null;
 function stopServer() {
+  if (pgServer && pgServer.exitCode === null) pgServer.kill("SIGTERM");
   if (!server || server.exitCode !== null) return;
   if (process.platform === "win32") {
     // npm starts node as a child; /T takes the whole tree down.
@@ -91,12 +113,40 @@ async function waitForServer(ms = 90_000) {
 step("Seeding a prototype-era database");
 if (runNode("seed-pre-v1.cjs", [files.db, files.fingerprint, files.preV1]) !== 0) process.exit(1);
 
+if (onPostgres) {
+  step(`Starting a throwaway Postgres on port ${pgPort}`);
+  pgServer = spawn(process.execPath, [path.join(here, "pg-server.mjs"), pgPort], { stdio: ["ignore", "pipe", "inherit"] });
+  const ready = await new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(false), 60_000);
+    pgServer.stdout.on("data", (d) => {
+      if (String(d).includes("ready")) {
+        clearTimeout(timer);
+        resolve(true);
+      }
+    });
+    pgServer.on("exit", () => resolve(false));
+  });
+  if (!ready) {
+    console.error("The test Postgres did not start.");
+    stopServer();
+    process.exit(1);
+  }
+  step("Copying the seed into Postgres");
+  if (runNode("seed-pg.mjs", [files.db]) !== 0) {
+    stopServer();
+    process.exit(1);
+  }
+}
+
 if (!skipBuild) {
   step("Building");
   // Built with the test database in env: `next build` imports db.ts, which runs
   // migrations against whatever DB_PATH points at.
   const build = spawnSync("npm", ["run", "build"], { cwd: appDir, env, stdio: "inherit", shell: true });
-  if (build.status !== 0) process.exit(1);
+  if (build.status !== 0) {
+    stopServer();
+    process.exit(1);
+  }
 }
 
 step(`Starting the app on ${base}`);
@@ -126,5 +176,9 @@ for (const [script, args] of suites) {
 }
 
 stopServer();
-console.log(failed.length ? `\nFAILED: ${failed.join(", ")}` : "\nAll suites passed.");
+console.log(
+  failed.length
+    ? `\nFAILED (${onPostgres ? "Postgres" : "SQLite"}): ${failed.join(", ")}`
+    : `\nAll suites passed on ${onPostgres ? "Postgres" : "SQLite"}.`
+);
 process.exit(failed.length ? 1 : 0);

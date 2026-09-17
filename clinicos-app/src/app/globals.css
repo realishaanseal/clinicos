@@ -770,3 +770,16 @@ input[type="radio"], input[type="checkbox"] {
   .livedot { animation: none !important; opacity: 1; }
   .wave i { animation: none !important; height: 12px; opacity: 0.85; }
 }
+
+/* The online prototype's standing reminder. Calm, not alarming: it is read
+   every time a page opens. */
+.prototype-banner {
+  margin: 0;
+  padding: 9px 22px;
+  background: var(--amber-50);
+  border-bottom: 1px solid #fcd9a8;
+  color: var(--amber-600);
+  font-size: 13px;
+  line-height: 1.45;
+}
+@media print { .prototype-banner { display: none; } }

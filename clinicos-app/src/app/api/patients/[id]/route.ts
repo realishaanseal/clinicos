@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPatient, deletePatientCascade, recordAudit } from "@/lib/db";
 import { requireApiUser } from "@/lib/auth";
-import { unlink } from "fs/promises";
+import { removeAudio } from "@/lib/audio-store";
 
 /**
  * Permanent deletion of a patient and their entire record.
@@ -34,15 +34,12 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const report = await deletePatientCascade(id);
   if (!report) return NextResponse.json({ error: "Patient not found" }, { status: 404 });
 
-  // The database cannot remove files; clear any audio left on disk.
+  // The database cannot remove files; clear any recording left on disk. One
+  // held in the database has already gone with the consultation.
   let audioDeleted = 0;
   for (const p of report.audioPaths) {
-    try {
-      await unlink(p);
-      audioDeleted++;
-    } catch {
-      /* already gone */
-    }
+    await removeAudio(p);
+    audioDeleted++;
   }
 
   // Deliberately no name in the log. This is often an erasure request, and the

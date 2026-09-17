@@ -14,7 +14,7 @@ const KEEP = 14;
  * everywhere.
  */
 export const BACKUP_FILES_AVAILABLE = BACKEND === "sqlite";
-const ONLINE_MESSAGE =
+export const BACKUP_FILES_ONLINE_MESSAGE =
   "Backup files are for ClinicOS on the clinic computer. The online copy keeps its records in a hosted database; use Export everything to take a full copy.";
 
 export type BackupFile = {
@@ -41,7 +41,7 @@ function stamp(d = new Date()) {
  * run while the app is being used.
  */
 export async function createBackup(auto = false): Promise<BackupFile> {
-  if (!BACKUP_FILES_AVAILABLE) throw new Error(ONLINE_MESSAGE);
+  if (!BACKUP_FILES_AVAILABLE) throw new Error(BACKUP_FILES_ONLINE_MESSAGE);
   await fsp.mkdir(BACKUP_DIR, { recursive: true });
   const name = `clinicos_${stamp()}${auto ? "_auto" : ""}.db`;
   const dest = path.join(BACKUP_DIR, name);
@@ -123,7 +123,7 @@ export type RestoreResult = {
  *   4. only then close the live connection and swap the file
  */
 export async function restoreFromBuffer(buf: Buffer): Promise<RestoreResult> {
-  if (!BACKUP_FILES_AVAILABLE) return { ok: false, error: ONLINE_MESSAGE };
+  if (!BACKUP_FILES_AVAILABLE) return { ok: false, error: BACKUP_FILES_ONLINE_MESSAGE };
   await fsp.mkdir(BACKUP_DIR, { recursive: true });
   const tmp = path.join(BACKUP_DIR, `.incoming_${Date.now()}.db`);
 

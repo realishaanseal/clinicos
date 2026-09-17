@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createBackup, backupPathFor, BACKUP_DIR } from "@/lib/backup";
+import { createBackup, backupPathFor, BACKUP_DIR, BACKUP_FILES_AVAILABLE, BACKUP_FILES_ONLINE_MESSAGE } from "@/lib/backup";
 import { recordAudit } from "@/lib/db";
 import { requireApiUser } from "@/lib/auth";
 import { readFile } from "fs/promises";
@@ -9,6 +9,7 @@ import path from "path";
 export async function GET(req: NextRequest) {
   const auth = await requireApiUser("admin");
   if (auth.denied) return auth.denied;
+  if (!BACKUP_FILES_AVAILABLE) return NextResponse.json({ error: BACKUP_FILES_ONLINE_MESSAGE }, { status: 400 });
 
   const name = req.nextUrl.searchParams.get("name");
 

@@ -10,7 +10,9 @@
     "setup": "bash scripts/setup.sh",
     "asr:win": "asr\\.venv\\Scripts\\python.exe asr\\server.py",
     "reset-password": "node scripts/reset-password.mjs",
-    "test:e2e": "node scripts/test/run.mjs"
+    "test:e2e": "node scripts/test/run.mjs",
+    "migrate:pg": "node scripts/migrate-pg.mjs",
+    "test:e2e:pg": "node scripts/test/run.mjs --pg"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",

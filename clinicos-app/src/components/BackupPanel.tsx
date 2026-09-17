@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { IcShield, IcDownload, IcAlert, IcCheck } from "./Icons";
+import { fmt } from "@/lib/time";
 
 type BackupFile = { name: string; bytes: number; createdAt: string; auto: boolean };
 
@@ -162,7 +163,7 @@ export default function BackupPanel({
                   <div>
                     <span className="mono" style={{ fontSize: 12.5 }}>{b.name}</span>
                     <span className="dim" style={{ marginLeft: 10, fontSize: 12.5 }}>
-                      {kb(b.bytes)} · {new Date(b.createdAt).toLocaleString("en-IN")}
+                      {kb(b.bytes)} · {fmt(new Date(b.createdAt))}
                       {b.auto && " · automatic"}
                     </span>
                   </div>

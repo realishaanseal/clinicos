@@ -6,8 +6,9 @@ import { PASSWORD_MIN, USERNAME_RULE } from "@/lib/users";
 
 type Defaults = { clinicName: string; name: string; qualification: string; regNo: string };
 
-export default function SetupForm({ defaults }: { defaults: Defaults }) {
+export default function SetupForm({ defaults, needsCode }: { defaults: Defaults; needsCode: boolean }) {
   const [form, setForm] = useState({
+    setupCode: "",
     clinicName: defaults.clinicName,
     name: defaults.name,
     username: "",
@@ -48,9 +49,26 @@ export default function SetupForm({ defaults }: { defaults: Defaults }) {
 
   return (
     <form onSubmit={submit}>
+      {needsCode && (
+        <div className="field">
+          <label htmlFor="setupCode">Setup code</label>
+          <input
+            id="setupCode"
+            value={form.setupCode}
+            onChange={set("setupCode")}
+            autoComplete="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            required
+            autoFocus
+          />
+          <p className="hint">The code you were given for setting up this clinic. It only works once.</p>
+        </div>
+      )}
+
       <div className="field">
         <label htmlFor="clinicName">Clinic name</label>
-        <input id="clinicName" value={form.clinicName} onChange={set("clinicName")} required autoFocus />
+        <input id="clinicName" value={form.clinicName} onChange={set("clinicName")} required autoFocus={!needsCode} />
         <p className="hint">Printed at the top of every prescription. You can change it later.</p>
       </div>
 

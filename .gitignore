@@ -57,3 +57,6 @@ _to_delete/
 # here; that is left out on purpose, because it silently ignores every future
 # .env.example, and `.env` / `.env.local` above already cover the real files.
 .vercel
+
+# TypeScript incremental cache
+*.tsbuildinfo

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Mark, IcPulse, IcUsers, IcShield, IcCog, IcDoc } from "./Icons";
 import { describeAccess, type Role } from "@/lib/users";
+import { ONLINE } from "@/lib/deployment";
 
 type NavUser = { name: string; role: Role; isAdmin: boolean };
 
@@ -68,10 +69,17 @@ export default function SideNav({ user, clinicName }: { user: NavUser; clinicNam
         <div className="nav-foot">
           <div className="privacy">
             <IcShield size={15} />
-            <span>
-              <strong>Running locally</strong>
-              Consultation audio never leaves this machine, and is deleted when you sign.
-            </span>
+            {ONLINE ? (
+              <span>
+                <strong>Online prototype</strong>
+                Use made-up patients only. Audio is deleted when you sign.
+              </span>
+            ) : (
+              <span>
+                <strong>Running locally</strong>
+                Consultation audio never leaves this machine, and is deleted when you sign.
+              </span>
+            )}
           </div>
 
           <div className="whoami">

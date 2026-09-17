@@ -2,6 +2,7 @@
 
 import { ClinicalNote } from "@/lib/types";
 import { Mark } from "./Icons";
+import { fmt, fmtDate } from "@/lib/time";
 
 type Props = {
   note: ClinicalNote;
@@ -82,7 +83,7 @@ export default function Prescription({ note, patient, clinic, date, visitId }: P
           <div className="f">
             <div className="k">Date</div>
             <div className="v">
-              {d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+              {fmtDate(d, { day: "2-digit", month: "short", year: "numeric" })}
             </div>
           </div>
         </div>
@@ -200,7 +201,7 @@ export default function Prescription({ note, patient, clinic, date, visitId }: P
           </div>
           <span className="mono" style={{ fontSize: 9 }}>
             {visitId.slice(-8).toUpperCase()} ·{" "}
-            {d.toLocaleString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+            {fmt(d, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
           </span>
         </footer>
       </div>

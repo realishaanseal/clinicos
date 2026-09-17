@@ -15,13 +15,14 @@ import Link from "next/link";
 import { parseNote } from "@/lib/types";
 import { IcDoc, IcArrow, IcAlert } from "@/components/Icons";
 import { requireUser } from "@/lib/auth";
+import { fmt, fmtDate, fmtTime } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const user = await requireUser("frontdesk");
 
-  const today = new Date().toLocaleDateString("en-IN", {
+  const today = fmtDate(new Date(), {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -98,7 +99,7 @@ export default async function Home() {
               <div>
                 <strong>{c.patient.name}</strong>
                 <span className="dim" style={{ marginLeft: 8, fontSize: 13 }}>
-                  {new Date(c.createdAt).toLocaleString("en-IN", {
+                  {fmt(new Date(c.createdAt), {
                     day: "numeric", month: "short", hour: "numeric", minute: "2-digit",
                   })}
                 </span>
@@ -150,10 +151,10 @@ export default async function Home() {
                       {c.patient.age !== null && <span className="dim" style={{ fontWeight: 400 }}> · {c.patient.age}</span>}
                     </td>
                     <td className="dim">
-                      {d.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                      {fmtDate(d, { day: "numeric", month: "short" })}
                       <span style={{ opacity: 0.6 }}>
                         {" "}
-                        {d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}
+                        {fmtTime(d, { hour: "numeric", minute: "2-digit" })}
                       </span>
                     </td>
                     <td>{n.diagnosis || <span className="dim">—</span>}</td>
