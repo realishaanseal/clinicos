@@ -1,0 +1,190 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>ClinicOS Flowchart — print</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{background:#fff;margin:0}
+  body{
+    color:#20262b;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+  }
+  .page{
+    width:1280px;
+    height:720px;
+    padding:24px 30px 18px;
+    display:flex;
+    flex-direction:column;
+    margin:0 auto;
+  }
+  header{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    border-bottom:2px solid #1f3d52;
+    padding-bottom:8px;
+    margin-bottom:6px;
+    flex:0 0 auto;
+  }
+  h1{
+    font-size:22px;
+    margin:0;
+    font-weight:800;
+    letter-spacing:.2px;
+  }
+  .sub{
+    font-size:11.5px;
+    color:#5c6b70;
+    max-width:62ch;
+  }
+  .stamp{
+    font-size:9.5px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    color:#8a8a8a;
+    text-align:right;
+  }
+  .diagram-wrap{
+    flex:1 1 auto;
+    position:relative;
+    overflow:hidden;
+  }
+  #scaler{
+    transform-origin:top center;
+    position:absolute;
+    left:50%;
+  }
+  .legend{
+    flex:0 0 auto;
+    display:flex;
+    gap:22px;
+    justify-content:center;
+    align-items:center;
+    padding-top:6px;
+    margin-top:4px;
+    border-top:1px solid #d8d2c2;
+    font-size:11px;
+    color:#3a4247;
+  }
+  .legend .chip{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+  }
+  .legend .swatch{
+    width:16px;height:16px;border-radius:3px;display:inline-block;border:1px solid rgba(0,0,0,.25);
+  }
+  @page{
+    size: 13.333in 7.5in;
+    margin:0;
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <header>
+    <div>
+      <h1>ClinicOS — how a visit actually flows</h1>
+      <div class="sub">Front desk, doctor and the software's own steps, in one continuous path — from a patient walking in to a signed, printed prescription.</div>
+    </div>
+    <div class="stamp">ClinicOS · Rev. 2026-09-17</div>
+  </header>
+
+  <div class="diagram-wrap">
+    <div id="scaler">
+      <pre class="mermaid">
+flowchart TD
+    n1(["Doctor or staff opens ClinicOS"])
+    n2["Sign in"]
+    n3{"Who is signed in?"}
+    n1 --> n2 --> n3
+
+    n3 -- Front desk --> n4[/"Find or register the patient"/]
+    n4 --> n5["Add patient to today's queue"]
+    n5 --> n6[/"Patient appears on the doctor's Waiting list"/]
+    n6 --> n7
+
+    n3 -- Doctor --> n7["Doctor starts the visit"]
+
+    n7 --> n8[/"Consent explained aloud to the patient"/]
+    n8 --> n9{"Patient agrees to recording?"}
+    n9 -- No --> n9x(["No recording — doctor writes the note by hand"])
+    n9 -- Yes --> n10["Server switches recording on for this visit"]
+
+    n10 --> n11[/"Doctor records the consultation"/]
+    n11 --> n12["Audio is saved in small pieces as it records, so nothing is lost"]
+    n12 --> n13["Doctor stops recording"]
+    n13 --> n14["Speech is converted to text, on this computer"]
+    n14 --> n15["An assistant drafts a structured note from that text"]
+    n15 --> n16[/"Doctor reviews the draft on screen"/]
+    n16 --> n17[/"Doctor edits anything needed, saved as they go"/]
+    n17 --> n18{"Ready to sign?"}
+    n18 -- No --> n17
+    n18 -- Yes --> n19["Doctor's final note is compared to the original draft"]
+    n19 --> n20["The recording is permanently deleted"]
+    n20 --> n21[/"Signed note saved; prescription printed"/]
+    n21 --> n22(["Patient leaves with their prescription"])
+
+    n3 -- Admin --> n23[/"Manage clinic details, staff access, backups"/]
+    n23 --> n24["Clinic's data is backed up automatically every day"]
+    n24 --> n25(["Everything stays on this one computer"])
+
+    classDef terminal fill:#e4ece0,stroke:#3c6e4f,stroke-width:1.6px,color:#20262b,font-weight:600;
+    classDef action fill:#cfe0f5,stroke:#2c4a6e,stroke-width:1.4px,color:#20262b;
+    classDef process fill:#fdf1c8,stroke:#b5502f,stroke-width:1.4px,color:#20262b;
+    classDef decision fill:#f7cf9e,stroke:#b5502f,stroke-width:1.4px,color:#20262b,font-weight:600;
+    classDef output fill:#cde9cf,stroke:#3c6e4f,stroke-width:1.4px,color:#20262b;
+
+    class n1,n9x,n22,n25 terminal;
+    class n4,n11,n17,n23 action;
+    class n2,n5,n7,n10,n12,n13,n14,n15,n19,n20,n24 process;
+    class n3,n9,n18 decision;
+    class n6,n8,n16,n21 output;
+      </pre>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span class="chip"><span class="swatch" style="background:#e4ece0;border-color:#3c6e4f"></span>Start / end</span>
+    <span class="chip"><span class="swatch" style="background:#cfe0f5;border-color:#2c4a6e"></span>Something a person does</span>
+    <span class="chip"><span class="swatch" style="background:#fdf1c8;border-color:#b5502f"></span>Something the software does</span>
+    <span class="chip"><span class="swatch" style="background:#f7cf9e;border-color:#b5502f"></span>Decision</span>
+    <span class="chip"><span class="swatch" style="background:#cde9cf;border-color:#3c6e4f"></span>Result shown / handed over</span>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: "neutral",
+    securityLevel: "loose",
+    flowchart: { nodeSpacing: 26, rankSpacing: 34, curve: "basis" },
+    themeVariables: { fontSize: "18px" }
+  });
+
+  window.addEventListener("load", function () {
+    setTimeout(function () {
+      var svg = document.querySelector("#scaler svg");
+      var wrap = document.querySelector(".diagram-wrap");
+      var scaler = document.getElementById("scaler");
+      if (svg) {
+        var role = svg.getAttribute("aria-roledescription");
+        var bbox = svg.getBoundingClientRect();
+        var availW = wrap.clientWidth - 16;
+        var availH = wrap.clientHeight - 16;
+        var scale = Math.min(availW / bbox.width, availH / bbox.height, 3.2);
+        scaler.style.transform = "translateX(-50%) scale(" + scale + ")";
+        scaler.style.top = "8px";
+        document.title = role === "error" ? "MERMAID-ERROR" : "ready-for-pdf";
+      } else {
+        document.title = "NO-SVG-FOUND";
+      }
+    }, 900);
+  });
+</script>
+
+</body>
+</html>

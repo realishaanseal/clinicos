@@ -86,7 +86,7 @@ const PANEL = 2;
 /** Below this a panel stops reading as glass. Matches PANEL_MIN in the script and --panel-a in globals.css. */
 const PANEL_FLOOR = 0.34;
 /** Re-check at least this often while nothing scrolls: reveal animations move text on their own. */
-const REFRESH_MS = 250;
+const REFRESH_MS = 500;
 
 /** Text that sits straight on the film. Text inside a glass panel is covered by the panel's tint instead. */
 const TEXT = "h1, section h2, .eyebrow, .lede, .contact-note, .tour-cap, .tour-note";
@@ -600,7 +600,7 @@ export default function Backdrop() {
         lo = Math.min(lo, shownB);
         hi = Math.max(hi, shownB);
       }
-      const key = `${Math.round(y)}|${lo}|${hi}|${revealed}|${lastScene}`;
+      const key = `${Math.round(y / 20)}|${lo}|${hi}|${revealed}|${lastScene}`;
       if (key !== shieldKey || now - shieldAt > REFRESH_MS) {
         shieldKey = key;
         shieldAt = now;

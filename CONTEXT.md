@@ -434,7 +434,13 @@ re-authorised for that team.
     API**. The Data API is a public REST endpoint over the schema, guarded only by RLS and
     an anon key; we reach Postgres directly over the pooler and get nothing from it, so it
     stays switched off. Automatic RLS is left on as cover in case it is ever re-enabled.
-  - Two branches pushed from the Windows laptop were found unmerged: `docs-compact-reference`
-    (a three-page reference PDF) and `fix/backdrop-scroll-performance` (a real scroll fix in
-    `Backdrop.tsx`, deck edits and two new diagrams). Both still await a merge decision, so
-    the scroll fix is not yet live.
+  - **The website's scroll was fixed** (from the Windows laptop). It felt like about 20 fps
+    despite the 83–85 fps measured on 15 Sep. The cause was `shield()`, which keeps text
+    readable over the film: it recomputed on every pixel of scroll, so hundreds of
+    `getBoundingClientRect()` calls a second forced layout again and again. Scroll position
+    is now bucketed to 20px and `REFRESH_MS` raised from 250 to 500, which cuts the forced
+    layouts while leaving the readability guarantee intact.
+  - **`main` now holds everything again.** `mac-environment-notes`, `docs-compact-reference`
+    and `fix/backdrop-scroll-performance` were merged into it, which puts the scroll fix
+    live and adds the three-page reference PDF, the consultation flowchart and the system
+    blueprint to `artifacts/`.

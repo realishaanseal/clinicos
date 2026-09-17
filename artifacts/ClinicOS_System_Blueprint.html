@@ -1,0 +1,518 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>ClinicOS Blueprint — print</title>
+<style>
+  :root{
+    --paper:#ffffff;
+    --surface:#ffffff;
+    --ink:#20262b;
+    --muted:#5c6b70;
+    --line:#c9bfa8;
+    --rule:#1f3d52;
+    --accent:#b5502f;
+    --good:#3c6e4f;
+    --tag-bg:#ece5d4;
+    --code-bg:#eae3d2;
+  }
+  *{box-sizing:border-box}
+  html,body{background:#fff}
+  body{
+    margin:0;
+    color:var(--ink);
+    font-family: "Iowan Old Style","Palatino Linotype",Georgia,"Times New Roman",serif;
+  }
+  .page{
+    width:1587px;
+    height:892px;
+    padding:53px 60px;
+    margin:0 auto 24px;
+    break-after:page;
+    page-break-after:always;
+    overflow:hidden;
+  }
+  .page:last-child{break-after:auto;page-break-after:auto;height:auto;overflow:visible}
+
+  header.masthead{
+    border-bottom:2px solid var(--rule);
+    padding-bottom:14px;
+    margin-bottom:20px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:14px 32px;
+    align-items:flex-end;
+    justify-content:space-between;
+  }
+  .masthead h1{
+    font-family:"Iowan Old Style",Georgia,serif;
+    font-weight:700;
+    font-size:30px;
+    margin:0 0 6px;
+  }
+  .masthead .sub{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    color:var(--muted);
+    font-size:13px;
+    max-width:60ch;
+    line-height:1.5;
+  }
+  .stamp{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:1.1px;
+    color:var(--muted);
+    text-align:right;
+    line-height:1.7;
+    white-space:nowrap;
+  }
+  .stamp b{color:var(--ink);font-weight:600}
+
+  h2{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:1.6px;
+    color:var(--accent);
+    font-weight:700;
+    margin:0 0 4px;
+  }
+  h3.figtitle{
+    font-family:"Iowan Old Style",Georgia,serif;
+    font-size:20px;
+    margin:0 0 6px;
+    font-weight:700;
+  }
+  p.deck{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    color:var(--muted);
+    font-size:12.5px;
+    line-height:1.5;
+    max-width:100ch;
+    margin:0 0 12px;
+  }
+
+  .sheet{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:3px;
+    padding:10px 12px 6px;
+    overflow:hidden;
+  }
+  .sheet-scaler{
+    transform-origin:top left;
+  }
+  figure{margin:0}
+
+  figcaption.note{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    font-size:11.5px;
+    color:var(--muted);
+    margin-top:8px;
+    line-height:1.5;
+  }
+
+  .legend-grid, .invariants{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:12px;
+    margin-top:14px;
+  }
+  .inv{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:2px;
+    padding:10px 12px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    font-size:12px;
+    line-height:1.45;
+    color:var(--ink);
+  }
+  .inv b{color:var(--good)}
+
+  table.routes{
+    width:100%;
+    border-collapse:collapse;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    font-size:11.5px;
+    background:var(--surface);
+    border:1px solid var(--line);
+  }
+  table.routes caption{
+    text-align:left;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:1.1px;
+    color:var(--accent);
+    font-weight:700;
+    padding:8px 10px;
+    background:var(--tag-bg);
+    border-bottom:1px solid var(--line);
+  }
+  table.routes th{
+    text-align:left;
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:.7px;
+    color:var(--muted);
+    padding:6px 10px;
+    border-bottom:1px solid var(--line);
+  }
+  table.routes td{
+    padding:6px 10px;
+    border-bottom:1px solid var(--line);
+    vertical-align:top;
+  }
+  table.routes tr:last-child td{border-bottom:none}
+  table.routes code{
+    background:var(--code-bg);
+    padding:1px 5px;
+    border-radius:3px;
+    font-size:10.5px;
+    white-space:nowrap;
+  }
+
+  footer{
+    margin-top:16px;
+    padding-top:10px;
+    border-top:1px solid var(--line);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    font-size:10.5px;
+    color:var(--muted);
+  }
+
+  @page{
+    size: 420mm 236mm; /* large landscape "poster" page, ~16:9, so nothing in a 60-node diagram gets clipped */
+    margin:0;
+  }
+</style>
+</head>
+<body>
+
+<div class="page" id="page-title">
+  <header class="masthead">
+    <div>
+      <h1>ClinicOS — System Blueprint</h1>
+      <div class="sub">Front-to-back wiring for the consultation-documentation assistant: every page, component, API route, lib module, and the two local processes (ASR sidecar, Ollama) they call. No cloud hop exists in this diagram because none exists in the app.</div>
+    </div>
+    <div class="stamp">
+      Drawn from <b>src/app</b>, <b>src/lib</b>, <b>src/components</b><br>
+      Next.js 15 App Router · React 19 · SQLite<br>
+      Rev. 2026-09-17
+    </div>
+  </header>
+  <div class="invariants">
+    <div class="inv"><b>No diagnosis in the LLM box.</b> llm.ts's SYSTEM_PROMPT records what the doctor said and decided — it does not generate a diagnosis or risk score.</div>
+    <div class="inv"><b>Consent is a 403, not a greyed-out button.</b> Every recording route re-reads <code>consentGiven</code> from the database before accepting audio.</div>
+    <div class="inv"><b>draftJson is write-once.</b> Edits live in workingJson; the diff at signing is the product's accuracy metric.</div>
+    <div class="inv"><b>Audio dies with the signature.</b> The unlink happens inside <code>sign/route.ts</code>, same transaction of intent as writing signedAt.</div>
+    <div class="inv"><b>Middleware is a doorbell, not a lock.</b> It only checks a cookie exists; every route re-derives the real permission via requireApiUser(capability).</div>
+    <div class="inv"><b>Backups use Database.prototype.backup().</b> A WAL-mode file copy silently drops the newest consultations.</div>
+  </div>
+</div>
+
+<div class="page" id="page-fig1">
+  <h2>Fig. 1 — Full system map</h2>
+  <h3 class="figtitle">Every layer, every connection</h3>
+  <p class="deck">Client pages compose components, which call hooks, which fetch API routes. Every request — page or API — passes the Edge middleware gate first. Every route handler re-checks identity itself against three capabilities (clinical, frontdesk, admin) before touching the database. Below the API line, everything is a local process: SQLite on disk, a Python ASR sidecar, and Ollama — nothing here can reach the internet with patient data. Solid arrows are calls; dashed arrows are gate checks or return data; thick arrows carry every request through a checkpoint.</p>
+  <figure class="sheet" id="sheet1">
+    <div class="sheet-scaler" id="scaler1">
+    <pre class="mermaid">
+flowchart TB
+
+subgraph CLIENT["BROWSER — Next.js App Router client"]
+direction LR
+  subgraph PAGES["Pages"]
+  direction TB
+    P_SETUP["/setup"]
+    P_LOGIN["/login"]
+    P_ROOT["/ — role dashboard"]
+    P_PATIENTS["/patients"]
+    P_PATIENT["/patients/{id}"]
+    P_CONSULT["/consult/{id}"]
+    P_ADMIN["/admin"]
+    P_AUSERS["/admin/users"]
+    P_AAUDIT["/admin/audit"]
+    P_SETTINGS["/settings"]
+    P_PW["/account/password"]
+  end
+  subgraph COMP["Components"]
+  direction TB
+    C_SETUP[SetupForm]
+    C_LOGIN[LoginForm]
+    C_NAV[SideNav]
+    C_DESK[FrontDeskToday]
+    C_WAIT[WaitingPanel]
+    C_NEWC[NewConsultButton]
+    C_NEWP[NewPatient]
+    C_FLOW[ConsultWorkflow]
+    C_RX[Prescription]
+    C_DEL[DeletePatient]
+    C_UADMIN[UsersAdmin]
+    C_CLINIC[ClinicSettingsForm]
+    C_CPW[ChangePasswordForm]
+    C_BACKUP[BackupPanel]
+  end
+  subgraph HOOKS["Hooks"]
+  direction TB
+    H_REC["useRecorder\n5s chunks to disk"]
+    H_AUTO["useAutosave\nserver + localStorage"]
+    H_Q["useQueue\npolls every 5s"]
+  end
+end
+
+MW{{"middleware.ts (Edge)\nsession cookie present?\nno cookie + page → /login\nno cookie + /api/* → 401 JSON"}}
+
+subgraph API["API ROUTE HANDLERS — each starts requireApiUser(capability)"]
+direction TB
+  subgraph R_AUTH["auth"]
+    A_LOGIN["POST /api/auth/login"]
+    A_LOGOUT["POST /api/auth/logout"]
+    A_PW["POST /api/auth/password"]
+  end
+  A_SETUP["POST /api/setup — first run only, refuses after owner exists"]
+  subgraph R_PAT["patients — frontdesk"]
+    A_PATS["GET/POST /api/patients"]
+    A_PATID["GET/PATCH/DELETE /api/patients/{id}"]
+    A_PEXP["GET /api/patients/{id}/export"]
+  end
+  subgraph R_Q["queue — frontdesk"]
+    A_Q["GET/POST /api/queue"]
+    A_QSTART["POST /api/queue/{id}/start"]
+    A_QLEFT["POST /api/queue/{id}/left"]
+  end
+  subgraph R_CON["consults — clinical"]
+    A_CCREATE["POST /api/consults"]
+    A_CONSENT["POST /api/consults/{id}/consent"]
+    A_AUDIO["POST /api/consults/{id}/audio"]
+    A_CHUNK["POST .../audio/chunk"]
+    A_FINAL["POST .../audio/finalize"]
+    A_TRANS["POST .../transcribe"]
+    A_DRAFT["GET/PUT .../draft"]
+    A_NOTE["POST .../note"]
+    A_SIGN["POST .../sign"]
+  end
+  subgraph R_ADM["admin"]
+    A_SETTINGS["GET/PUT /api/admin/settings"]
+    A_USERS["GET/POST /api/admin/users"]
+    A_USERID["PATCH/DELETE /api/admin/users/{id}"]
+    A_URESET["POST .../reset"]
+  end
+  subgraph R_BAK["backup — admin"]
+    A_BCREATE["POST /api/backup/create"]
+    A_BDL["GET /api/backup/download"]
+    A_BEXP["GET /api/backup/export"]
+    A_BREST["POST /api/backup/restore"]
+  end
+end
+
+subgraph LIB["SERVER LIB — src/lib, no ORM"]
+direction LR
+  L_AUTH["auth.ts\nscrypt · sessions · requireUser/requireApiUser\ncan(user, capability)"]
+  L_DB[("db.ts\nschema + every SQL query\nPatient · Consult · Edit · User\nSession · AuditEvent · Setting · QueueEntry")]
+  L_CLINIC["clinic.ts\nSetting row, .env fallback"]
+  L_TYPES["types.ts\nClinicalNote shape, parseNote()"]
+  L_BACKUP["backup.ts\nsnapshot / restore / 14-day retention"]
+  L_ASR["asr.ts\nprovider interface: local | http"]
+  L_LLM["llm.ts\nprovider interface: ollama | openai\nSYSTEM_PROMPT"]
+end
+
+subgraph EXT["LOCAL PROCESSES & STORAGE — nothing here is cloud"]
+direction LR
+  X_DB[("clinicos.db\nSQLite, WAL mode")]
+  X_AUDIOFS[/"audio chunk files\non local disk"/]
+  X_ASR{{"ASR sidecar\nFastAPI + faster-whisper\n:8756  /transcribe"}}
+  X_OLLAMA{{"Ollama\n:11434  /api/chat\nqwen2.5:7b-instruct"}}
+  X_BAKFS[/"backup .db snapshots\non local disk"/]
+end
+
+P_SETUP --> C_SETUP
+P_LOGIN --> C_LOGIN
+P_ROOT --> C_NAV & C_WAIT & C_DESK
+P_PATIENTS --> C_DESK & C_NEWP
+P_PATIENT --> C_DEL & C_NEWC
+P_CONSULT --> C_FLOW & C_RX
+P_ADMIN --> C_BACKUP & C_CLINIC
+P_AUSERS --> C_UADMIN
+P_SETTINGS --> C_CLINIC
+P_PW --> C_CPW
+
+C_FLOW --> H_REC & H_AUTO
+C_DESK --> H_Q
+C_WAIT --> H_Q
+
+PAGES -.->|every navigation| MW
+COMP ==>|fetch| MW
+MW ==>|cookie ok, forwarded| API
+MW -.->|no cookie| P_LOGIN
+
+C_SETUP -->|POST| A_SETUP
+C_LOGIN -->|POST| A_LOGIN
+C_NAV -->|POST on sign out| A_LOGOUT
+C_CPW -->|POST| A_PW
+C_NEWP -->|POST| A_PATS
+C_DESK -->|GET search + GET/POST queue| A_PATS & A_Q
+C_DEL -->|DELETE| A_PATID
+C_NEWC -->|POST| A_CCREATE
+C_WAIT -->|POST| A_QSTART
+C_DESK -->|POST left| A_QLEFT
+C_FLOW -->|POST consent| A_CONSENT
+H_REC -->|POST 5s chunks| A_CHUNK
+H_REC -->|POST on stop| A_FINAL
+C_FLOW -->|POST| A_TRANS
+H_AUTO -->|PUT debounced| A_DRAFT
+C_FLOW -->|POST| A_NOTE
+C_FLOW -->|POST| A_SIGN
+C_RX -->|GET signed note| A_PATID
+C_BACKUP -->|POST/GET| A_BCREATE & A_BDL & A_BEXP & A_BREST
+C_CLINIC -->|GET/PUT| A_SETTINGS
+C_UADMIN -->|GET/POST/PATCH/DELETE| A_USERS & A_USERID & A_URESET
+P_AAUDIT -->|GET| A_SETTINGS
+
+API ==>|requireApiUser checks| L_AUTH
+L_AUTH -->|reads/writes| L_DB
+API ==>|CRUD| L_DB
+A_SETTINGS <--> L_CLINIC
+A_DRAFT & A_NOTE & A_SIGN --> L_TYPES
+A_TRANS -->|multipart audio| L_ASR
+A_NOTE -->|transcript + SYSTEM_PROMPT| L_LLM
+A_BCREATE & A_BREST --> L_BACKUP
+A_CHUNK & A_FINAL --> X_AUDIOFS
+A_SIGN -.->|unlink on sign| X_AUDIOFS
+
+L_DB <--> X_DB
+L_BACKUP -->|"Database.prototype.backup(), never cp"| X_DB
+L_BACKUP --> X_BAKFS
+L_ASR -->|POST multipart| X_ASR
+L_LLM -->|POST JSON| X_OLLAMA
+X_ASR -.->|transcript text| L_ASR
+X_OLLAMA -.->|note JSON| L_LLM
+
+classDef ext fill:transparent;
+class X_ASR,X_OLLAMA ext;
+    </pre>
+    </div>
+  </figure>
+</div>
+
+<div class="page" id="page-fig2">
+  <h2>Fig. 2 — Mechanism</h2>
+  <h3 class="figtitle">One consultation, start to signed prescription</h3>
+  <p class="deck">The sequence the architecture above exists to support. Consent is checked server-side before any audio byte is accepted; the draft is written once and never touched again; the doctor's edits land in a separate column; the raw audio is unlinked from disk in the same handler that writes the signature.</p>
+  <figure class="sheet" id="sheet2">
+    <div class="sheet-scaler" id="scaler2">
+    <pre class="mermaid">
+sequenceDiagram
+    participant Dr as Doctor's browser
+    participant API as API routes
+    participant DB as db.ts (SQLite)
+    participant FS as Local disk
+    participant ASR as ASR sidecar :8756
+    participant LLM as Ollama :11434
+
+    Dr->>API: POST /consults (frontdesk creates, or doctor starts visit)
+    API->>DB: insert Consult row
+    Dr->>API: POST /consults/{id}/consent {consentGiven:true}
+    API->>DB: consentGiven = true
+    Note over API,DB: every recording route re-checks this flag — a UI toggle alone would not enforce it
+
+    loop every 5 seconds while recording
+        Dr->>API: POST /consults/{id}/audio/chunk
+        API->>DB: consentGiven? else 403
+        API->>FS: append chunk to audioPath
+    end
+    Dr->>API: POST /consults/{id}/audio/finalize
+
+    Dr->>API: POST /consults/{id}/transcribe
+    API->>ASR: multipart audio file
+    ASR-->>API: transcript text (Bengali/Hindi/English mixed)
+    API->>DB: store transcript
+
+    Dr->>API: POST /consults/{id}/note
+    API->>LLM: SYSTEM_PROMPT + transcript
+    LLM-->>API: structured note JSON
+    API->>DB: draftJson = note  (written once, immutable from here on)
+
+    Dr->>API: PUT /consults/{id}/draft  (debounced autosave of edits)
+    API->>DB: workingJson = doctor's edited note
+
+    Dr->>API: POST /consults/{id}/sign {note: workingJson}
+    API->>DB: diff draftJson vs workingJson field by field
+    API->>DB: insert Edit rows (before/after) — the accuracy metric
+    API->>FS: unlink(audioPath)
+    API->>DB: signedAt = now, audioDeleted = true
+    API->>DB: AuditEvent "consult_sign" (never the patient's name)
+    API-->>Dr: signed note
+
+    Dr->>Dr: Prescription component renders signed note, prints A4
+    </pre>
+    </div>
+  </figure>
+  <figcaption class="note">The audio delete near the end is invariant #3 in code, not policy: it runs inside the same handler that writes the signature, so there is no window where a signed consult still has audio sitting on disk.</figcaption>
+</div>
+
+<div class="page" id="page-ref">
+  <h2>Reference</h2>
+  <h3 class="figtitle">Every route, grouped as drawn in Fig. 1</h3>
+  <table class="routes">
+    <caption>API surface — src/app/api</caption>
+    <thead><tr><th>Route</th><th>Capability</th><th>Backed by</th></tr></thead>
+    <tbody>
+      <tr><td><code>POST /api/setup</code></td><td>none (first run only)</td><td>db.ts — creates the owner account, then refuses forever</td></tr>
+      <tr><td><code>POST /api/auth/login</code></td><td>none</td><td>auth.ts — scrypt verify, issues session</td></tr>
+      <tr><td><code>POST /api/auth/logout</code></td><td>any session</td><td>auth.ts — clears session</td></tr>
+      <tr><td><code>POST /api/auth/password</code></td><td>any session</td><td>auth.ts</td></tr>
+      <tr><td><code>GET/POST /api/patients</code></td><td>frontdesk</td><td>db.ts</td></tr>
+      <tr><td><code>GET/PATCH/DELETE /api/patients/{id}</code></td><td>frontdesk</td><td>db.ts — DELETE requires typed-name confirm client-side</td></tr>
+      <tr><td><code>GET /api/patients/{id}/export</code></td><td>frontdesk</td><td>db.ts</td></tr>
+      <tr><td><code>GET/POST /api/queue</code></td><td>frontdesk</td><td>db.ts — QueueEntry</td></tr>
+      <tr><td><code>POST /api/queue/{id}/start</code></td><td>clinical</td><td>db.ts</td></tr>
+      <tr><td><code>POST /api/queue/{id}/left</code></td><td>frontdesk</td><td>db.ts</td></tr>
+      <tr><td><code>POST /api/consults</code></td><td>clinical</td><td>db.ts</td></tr>
+      <tr><td><code>POST /api/consults/{id}/consent</code></td><td>clinical</td><td>db.ts — server-side gate, invariant #5</td></tr>
+      <tr><td><code>POST /api/consults/{id}/audio(/chunk,/finalize)</code></td><td>clinical</td><td>filesystem — 403 if consentGiven is false</td></tr>
+      <tr><td><code>POST /api/consults/{id}/transcribe</code></td><td>clinical</td><td>asr.ts → ASR sidecar</td></tr>
+      <tr><td><code>GET/PUT /api/consults/{id}/draft</code></td><td>clinical</td><td>db.ts — workingJson only, never draftJson</td></tr>
+      <tr><td><code>POST /api/consults/{id}/note</code></td><td>clinical</td><td>llm.ts → Ollama, writes draftJson once</td></tr>
+      <tr><td><code>POST /api/consults/{id}/sign</code></td><td>clinical</td><td>db.ts + fs — diff, delete audio, sign</td></tr>
+      <tr><td><code>GET/PUT /api/admin/settings</code></td><td>admin</td><td>clinic.ts</td></tr>
+      <tr><td><code>GET/POST /api/admin/users</code>, <code>{id}</code>, <code>{id}/reset</code></td><td>admin</td><td>auth.ts + db.ts</td></tr>
+      <tr><td><code>POST /api/backup/create</code>, <code>/restore</code>, <code>GET /download</code>, <code>/export</code></td><td>admin</td><td>backup.ts — SQLite online backup API only</td></tr>
+    </tbody>
+  </table>
+  <footer>Generated from the repository at clinicos-app/src — every node name is a real file, route, or table; nothing here is illustrative.</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+
+  function fit(sheetId, scalerId, page) {
+    var sheet = document.getElementById(sheetId);
+    var scaler = document.getElementById(scalerId);
+    var svg = scaler.querySelector("svg");
+    if (!svg) return;
+    var pageRect = page.getBoundingClientRect();
+    var sheetRect = sheet.getBoundingClientRect();
+    var availW = sheetRect.width - 30; // sheet's own left+right padding
+    var availH = pageRect.bottom - sheetRect.top - 60; // room left in this page below the sheet's top, minus a caption/footer buffer
+    var bbox = svg.getBoundingClientRect();
+    var naturalW = bbox.width;
+    var naturalH = bbox.height;
+    var scale = Math.max(0.1, Math.min(availW / naturalW, availH / naturalH, 1.6));
+    scaler.style.transform = "scale(" + scale + ")";
+    sheet.style.height = Math.ceil(naturalH * scale + 16) + "px";
+  }
+
+  window.addEventListener("load", function () {
+    setTimeout(function () {
+      fit("sheet1", "scaler1", document.getElementById("page-fig1"));
+      fit("sheet2", "scaler2", document.getElementById("page-fig2"));
+      document.title = "ready-for-pdf";
+    }, 1200);
+  });
+</script>
+
+</body>
+</html>
