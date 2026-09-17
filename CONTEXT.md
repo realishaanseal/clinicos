@@ -185,6 +185,40 @@ Windows or `go.sh` on macOS.
 
 ## 6. Plan for what is left (approved 13 September 2026)
 
+### The clinic app online (decided 17 Sep 2026, in progress on `app-online`)
+
+Ishaan chose to put the real v0.5 app online so it can be seen and used from the
+website, after being told what it costs: records and recordings in the cloud, cloud AI
+for transcription and notes, and the rules, consent script and privacy copy changing.
+It reverses "not built and deliberately so: hosting the clinical app" in CLAUDE.md.
+
+**One codebase, two ways to run.** `DATA_BACKEND=sqlite` (the default) is the clinic
+laptop exactly as before. `DATA_BACKEND=postgres` is the online copy on Vercel.
+- `src/lib/sql.ts` is the only place that knows which database is in use. `db.ts` keeps
+  every query, now `async`, written once in SQL both databases accept.
+- Postgres is the existing Supabase project in Mumbai, in the `public` schema next to
+  the portal's four tables (no names collide). Migrations are numbered files in
+  `clinicos-app/migrations/pg/`, applied with `npm run migrate:pg`, tracked in
+  `_clinic_migration`.
+- Recordings: on disk locally; in an `AudioChunk` table online. Signing deletes them in
+  both.
+- "Today" uses `CLINIC_TIMEZONE` (`Asia/Kolkata` online). Vercel runs on UTC and does not
+  allow `TZ` to be set.
+- Internet hardening, online only: `/setup` needs `SETUP_CODE`; the wrong-password
+  lockout is counted from the activity log instead of memory; a prototype banner says to
+  use made-up patients until the consent script covers cloud processing.
+- Backups online: download and restore of `.db` files do not apply; "Export everything"
+  still works. Supabase's free plan keeps no backups, so this is a prototype, not a place
+  for real records.
+- AI online: `ASR_PROVIDER=http` and `LLM_PROVIDER=openai` against an OpenAI-compatible
+  service. Needs an API key from Ishaan.
+- Hosting: a second Vercel project with Root Directory `clinicos-app`, functions in
+  `bom1` (Mumbai) beside the database, nothing longer than 300 s (the Hobby limit).
+- Website: **Sign in** in the header and a closing sign-in section; "On your hardware.
+  Nowhere else." and the privacy page reworded so they stay true.
+- Tests: `npm run test:e2e` keeps running on SQLite; the same suites also run on Postgres
+  locally through PGlite, so no Postgres install is needed.
+
 ### Part C — patient portal
 
 **Architecture:** a new `portal/` Next.js app, hosted on Vercel. Data flows one way:
