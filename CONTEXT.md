@@ -273,8 +273,10 @@ speed pass.
 
 ## 7. Waiting on Ishaan
 
-1. **Supabase:** create an account and a project in **Mumbai (ap-south-1)**, then copy
-   the pooler connection string. Needed to start Part C.
+1. **Supabase:** the project exists as of 17 Sep 2026 — organisation `Varaxis`, project
+   `clinicos-portal`, South Asia (`ap-south-1`), free plan. What is left is to paste the
+   **transaction pooler** string (`pooler.supabase.com`, port 6543) into
+   `portal/.env.local`, with the saved database password in place of the placeholder.
 2. **Vercel:** create a project from this repo with Root Directory `portal`, and add the
    domain `clinicos-portal.vercel.app`. Paste in the environment variables. The
    assistant generates the random keys; it does not type keys into dashboards.
@@ -416,6 +418,17 @@ re-authorised for that team.
     the snapshot `clinicos_pre-v1-upgrade_2026-09-16.db`, `scripts/test/seed-pre-v1.cjs`
     and the merged branch `v1` — because renaming a file or a branch gains nothing and
     breaks references.
+  - **Part C started.** The Supabase project was created in Mumbai, and `portal/` now holds
+    the database layer: the four tables from §6 in `migrations/001_init.sql`, and a
+    re-runnable `npm run migrate` that records each file in `_migration` and wraps it in a
+    transaction. Identifiers are quoted so Postgres keeps the capitals and both databases
+    keep one vocabulary. `PORTAL_ENCRYPTION_KEY` and `PORTAL_HMAC_KEY` were generated
+    straight into the git-ignored `portal/.env.local`, so they never passed through a
+    screen or a chat log.
+  - Decided: the portal uses **no Supabase client library, no Supabase Auth and no Data
+    API**. The Data API is a public REST endpoint over the schema, guarded only by RLS and
+    an anon key; we reach Postgres directly over the pooler and get nothing from it, so it
+    stays switched off. Automatic RLS is left on as cover in case it is ever re-enabled.
   - Two branches pushed from the Windows laptop were found unmerged: `docs-compact-reference`
     (a three-page reference PDF) and `fix/backdrop-scroll-performance` (a real scroll fix in
     `Backdrop.tsx`, deck edits and two new diagrams). Both still await a merge decision, so
