@@ -4,13 +4,14 @@ import { parseNote } from "@/lib/types";
 import Link from "next/link";
 import NewConsultButton from "@/components/NewConsultButton";
 import { IcDoc, IcArrow } from "@/components/Icons";
-import { requireUser } from "@/lib/auth";
+import { can, requireUser } from "@/lib/auth";
+import DeletePatientButton from "@/components/DeletePatientButton";
 import { fmtDate } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
 export default async function PatientPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireUser("clinical");
+  const user = await requireUser("clinical");
 
   const { id } = await params;
   const patient = await getPatient(id);
@@ -90,6 +91,24 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
               </div>
             );
           })}
+        </div>
+      )}
+
+      {(can(user, "admin") || consults.length === 0) && (
+        <div className="danger" style={{ marginTop: 28 }}>
+          <div className="danger-hd">Delete this patient</div>
+          <div className="danger-bd">
+            <p className="muted" style={{ marginTop: 0 }}>
+              {consults.length === 0
+                ? "Registered by mistake, or a duplicate? With no visits, the record can be deleted outright."
+                : "This deletes every visit, note and prescription for this patient, with no undo. Export the record first if it may be needed."}
+            </p>
+            <DeletePatientButton
+              patient={{ id: patient.id, name: patient.name, consultCount: consults.length }}
+              afterHref="/patients"
+              label="Delete this patient"
+            />
+          </div>
         </div>
       )}
     </div>

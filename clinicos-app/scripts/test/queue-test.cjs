@@ -171,6 +171,43 @@ async function call(method, path, { token, body } = {}) {
   r = await call("GET", "/api/queue", { token: desk });
   check("Their list entry goes with them", r.status === 200 && !r.json?.queue?.some((x) => x.id === entryA));
 
+  // ---------------------------------------- a record registered by mistake
+  // The front desk and doctors may delete a patient with no consultations; a
+  // record with consultations stays a clinic admin's to delete.
+  const mistake = await call("POST", "/api/patients", { token: desk, body: { name: "Mistaken Entry", queue: true } });
+  const mistakeId = mistake.json?.patient?.id;
+  r = await call("GET", `/patients?q=${encodeURIComponent("Mistaken Entry")}`, { token: desk });
+  check("Front desk list offers Delete for a patient with no visits", r.text.includes('aria-label="Delete Mistaken Entry"'), r.status);
+  r = await call("GET", `/patients?q=${encodeURIComponent("Seed Patient One")}`, { token: desk });
+  check("…but not for a patient who has visits", r.status === 200 && !r.text.includes('aria-label="Delete Seed Patient One"'), r.status);
+  r = await call("DELETE", `/api/patients/${mistakeId}`, { token: desk, body: { confirmName: "Mistaken" } });
+  check("Deleting still needs the whole name typed", r.status === 400, r.status);
+  r = await call("DELETE", `/api/patients/${mistakeId}`, { token: desk, body: { confirmName: "mistaken  entry" } });
+  check("Front desk deletes a patient registered by mistake", r.status === 200 && r.json?.consultsDeleted === 0, JSON.stringify(r.json));
+  r = await call("GET", `/api/patients?q=${encodeURIComponent("Mistaken Entry")}`, { token: desk });
+  check("The mistaken record and its list entry are gone", r.status === 200 && r.json?.patients?.length === 0, JSON.stringify(r.json));
+  r = await call("DELETE", "/api/patients/seedpatient1", { token: desk, body: { confirmName: "Seed Patient One" } });
+  check("Front desk can't delete a patient who has visits", r.status === 403 && /clinic admin/i.test(r.json?.error || ""), r.status);
+  r = await call("DELETE", "/api/patients/seedpatient1", { token: doc3, body: { confirmName: "Seed Patient One" } });
+  check("A doctor who isn't an admin can't either", r.status === 403, r.status);
+  const docMistake = await call("POST", "/api/patients", { token: doc3, body: { name: "Doctor Typo" } });
+  const docMistakeId = docMistake.json?.patient?.id;
+  // A doctor registering a patient opens a consultation straight away, so that
+  // record has a visit and stays an admin's to delete.
+  r = await call("DELETE", `/api/patients/${docMistakeId}`, { token: doc3, body: { confirmName: "Doctor Typo" } });
+  const docOpened = docMistake.json?.consultId != null;
+  check(
+    "A doctor's own new record follows the same rule",
+    docOpened ? r.status === 403 : r.status === 200,
+    `consultId=${docMistake.json?.consultId} status=${r.status}`
+  );
+  r = await call("GET", `/patients/${docMistakeId}`, { token: owner });
+  check("An admin doctor sees Delete on any patient's page", r.status === 200 && r.text.includes("Delete this patient"), r.status);
+  r = await call("DELETE", `/api/patients/${docMistakeId}`, { token: owner, body: { confirmName: "Doctor Typo" } });
+  check("…and can delete it", r.status === 200, r.status);
+  r = await call("DELETE", `/api/patients/${docMistakeId}`, { token: mgr, body: { confirmName: "Doctor Typo" } });
+  check("Deleting a record that is already gone says so", r.status === 404, r.status);
+
   const failed = results.filter((x) => !x.ok);
   for (const x of results) console.log(`${x.ok ? "PASS" : "FAIL"}  ${x.name}${x.ok ? "" : `  [${x.info}]`}`);
   console.log(`\n${results.length - failed.length} passed, ${failed.length} failed`);

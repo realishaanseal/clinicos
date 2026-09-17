@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPatient, deletePatientCascade, recordAudit } from "@/lib/db";
-import { requireApiUser } from "@/lib/auth";
+import { getPatient, deletePatientCascade, recordAudit, countConsultsForPatient } from "@/lib/db";
+import { can, requireApiUser } from "@/lib/auth";
 import { removeAudio } from "@/lib/audio-store";
 
 /**
@@ -9,15 +9,33 @@ import { removeAudio } from "@/lib/audio-store";
  * The caller must send back the patient's name exactly. This is not
  * decoration — it is the difference between "I meant to delete this one" and
  * "I clicked the wrong row in a list of sixty".
+ *
+ * Who may delete:
+ *   - a clinic admin, any patient
+ *   - the front desk or a doctor, only a patient with no consultations: a record
+ *     registered by mistake, a duplicate or a typo, which holds nothing clinical.
+ *     Once a consultation exists the record is a clinical record, and deleting it
+ *     stays an admin's decision.
  */
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireApiUser("admin");
+  const auth = await requireApiUser();
   if (auth.denied) return auth.denied;
+  const isAdmin = can(auth.user, "admin");
+  if (!isAdmin && !can(auth.user, "frontdesk")) {
+    return NextResponse.json({ error: "Your account doesn't have access to this." }, { status: 403 });
+  }
 
   const { id } = await params;
 
   const patient = await getPatient(id);
   if (!patient) return NextResponse.json({ error: "Patient not found" }, { status: 404 });
+
+  if (!isAdmin && (await countConsultsForPatient(id)) > 0) {
+    return NextResponse.json(
+      { error: "This patient has consultations, so only a clinic admin can delete the record. Nothing was deleted." },
+      { status: 403 }
+    );
+  }
 
   const body = await req.json().catch(() => ({}));
   const typed = String(body.confirmName ?? "").trim();

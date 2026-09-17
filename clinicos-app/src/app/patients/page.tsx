@@ -2,6 +2,8 @@ import { searchPatients } from "@/lib/db";
 import Link from "next/link";
 import { IcUsers, IcArrow } from "@/components/Icons";
 import AddToQueueButton from "@/components/AddToQueueButton";
+import DeletePatientButton from "@/components/DeletePatientButton";
+import { ONLINE } from "@/lib/deployment";
 import { can, requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +17,9 @@ export default async function PatientsPage({
   // Front desk can find a patient and put them on today's list; only a doctor
   // can open their clinical history.
   const canOpen = can(user, "clinical");
+  // Anyone here can delete a record registered by mistake, which has no
+  // consultations; a record with consultations is an admin's to delete.
+  const isAdmin = can(user, "admin");
 
   const { q } = await searchParams;
   const patients = await searchPatients(q || "");
@@ -24,7 +29,10 @@ export default async function PatientsPage({
       <div className="page-head">
         <div className="eyebrow">Records</div>
         <h1>Patients</h1>
-        <p className="sub">{patients.length} record{patients.length === 1 ? "" : "s"} on this machine.</p>
+        <p className="sub">
+          {patients.length} record{patients.length === 1 ? "" : "s"}
+          {ONLINE ? "." : " on this machine."}
+        </p>
       </div>
 
       <form className="card" style={{ padding: 14 }}>
@@ -73,13 +81,18 @@ export default async function PatientsPage({
                   <td className="dim">{p.phone || "—"}</td>
                   <td className="dim">{p.consultCount}</td>
                   <td style={{ textAlign: "right" }}>
-                    {canOpen ? (
-                      <Link href={`/patients/${p.id}`} aria-label={`Open ${p.name}`}>
-                        <IcArrow size={16} />
-                      </Link>
-                    ) : (
-                      <AddToQueueButton patientId={p.id} name={p.name} />
-                    )}
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+                      {(isAdmin || p.consultCount === 0) && (
+                        <DeletePatientButton patient={{ id: p.id, name: p.name, consultCount: p.consultCount }} />
+                      )}
+                      {canOpen ? (
+                        <Link href={`/patients/${p.id}`} aria-label={`Open ${p.name}`}>
+                          <IcArrow size={16} />
+                        </Link>
+                      ) : (
+                        <AddToQueueButton patientId={p.id} name={p.name} />
+                      )}
+                    </span>
                   </td>
                 </tr>
               ))}

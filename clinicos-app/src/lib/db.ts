@@ -324,6 +324,10 @@ export async function deletePatientCascade(id: string): Promise<DeletionReport |
   };
 }
 
+export function countConsultsForPatient(patientId: string): Promise<number> {
+  return count(`SELECT CAST(COUNT(*) AS INTEGER) AS n FROM "Consult" WHERE "patientId" = ?`, patientId);
+}
+
 /** Everything about one patient, for export before deletion. */
 export async function exportPatient(id: string) {
   const patient = await getPatient(id);

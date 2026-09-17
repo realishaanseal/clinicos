@@ -4,61 +4,28 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { IcTrash, IcAlert, IcDownload, IcCheck } from "./Icons";
 import { appPath } from "@/lib/base-path";
-
-type P = { id: string; name: string; consultCount: number };
+import DeletePatientDialog, { type DeletablePatient, type DeletionResult } from "./DeletePatientDialog";
 
 /**
- * Type-to-confirm deletion.
- *
- * The name must be retyped in full before the delete button becomes live.
- * Two people have to agree it's the right record: the one who opened the
- * dialog, and the one who typed the name.
+ * Clinic admin's list of every patient, each with Export and Delete. The
+ * confirmation itself lives in DeletePatientDialog, shared with the patient
+ * list and a patient's own page.
  */
-export default function DeletePatient({ patients }: { patients: P[] }) {
+export default function DeletePatient({ patients }: { patients: DeletablePatient[] }) {
   const router = useRouter();
-  const [target, setTarget] = useState<P | null>(null);
-  const [typed, setTyped] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [target, setTarget] = useState<DeletablePatient | null>(null);
   const [done, setDone] = useState<string | null>(null);
 
-  const norm = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
-  const matches = !!target && norm(typed) === norm(target.name);
-
-  function open(p: P) {
-    setTarget(p);
-    setTyped("");
-    setError("");
-    setDone(null);
-  }
-
-  async function confirmDelete() {
-    if (!target || !matches) return;
-    setBusy(true);
-    setError("");
-    try {
-      const res = await fetch(appPath(`/api/patients/${target.id}`), {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirmName: typed }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Deletion failed");
-      setDone(
-        `Deleted ${data.patientName} — ${data.consultsDeleted} consultation${
-          data.consultsDeleted === 1 ? "" : "s"
-        }, ${data.editsDeleted} edit record${data.editsDeleted === 1 ? "" : "s"}${
-          data.audioDeleted ? `, ${data.audioDeleted} audio file${data.audioDeleted === 1 ? "" : "s"}` : ""
-        }.`
-      );
-      setTarget(null);
-      setTyped("");
-      router.refresh();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
+  function deleted(data: DeletionResult) {
+    setDone(
+      `Deleted ${data.patientName} — ${data.consultsDeleted} consultation${
+        data.consultsDeleted === 1 ? "" : "s"
+      }, ${data.editsDeleted} edit record${data.editsDeleted === 1 ? "" : "s"}${
+        data.audioDeleted ? `, ${data.audioDeleted} recording${data.audioDeleted === 1 ? "" : "s"}` : ""
+      }.`
+    );
+    setTarget(null);
+    router.refresh();
   }
 
   return (
@@ -83,15 +50,9 @@ export default function DeletePatient({ patients }: { patients: P[] }) {
             <span>{done}</span>
           </div>
         )}
-        {error && (
-          <div className="note err">
-            <IcAlert size={17} />
-            <span>{error}</span>
-          </div>
-        )}
 
         {patients.length === 0 ? (
-          <p className="muted">No patients on this machine.</p>
+          <p className="muted">No patients yet.</p>
         ) : (
           <div className="dellist">
             {patients.map((p) => (
@@ -108,7 +69,7 @@ export default function DeletePatient({ patients }: { patients: P[] }) {
                       <IcDownload size={14} /> Export
                     </button>
                   </a>
-                  <button className="ghost small danger-btn" onClick={() => open(p)} type="button">
+                  <button className="ghost small danger-btn" onClick={() => { setDone(null); setTarget(p); }} type="button">
                     <IcTrash size={14} /> Delete
                   </button>
                 </div>
@@ -118,54 +79,7 @@ export default function DeletePatient({ patients }: { patients: P[] }) {
         )}
       </div>
 
-      {target && (
-        <div className="modal-back" onClick={() => !busy && setTarget(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-hd">
-              <IcAlert size={18} /> Permanently delete this record?
-            </div>
-            <div className="modal-bd">
-              <p style={{ marginTop: 0 }}>
-                This will delete <strong>{target.name}</strong>, all {target.consultCount} consultation
-                {target.consultCount === 1 ? "" : "s"}, every clinical note and prescription, the edit
-                history, and any audio still on disk.
-              </p>
-              <p className="muted">
-                <a href={appPath(`/api/patients/${target.id}/export`)} download>
-                  Export this record first
-                </a>{" "}
-                if you may ever need it. Once deleted it cannot be recovered from within ClinicOS.
-              </p>
-
-              <label style={{ marginTop: 18 }}>
-                Type <span className="typename">{target.name}</span> to confirm
-              </label>
-              <input
-                value={typed}
-                onChange={(e) => setTyped(e.target.value)}
-                placeholder={target.name}
-                autoFocus
-                autoComplete="off"
-                spellCheck={false}
-                className={typed && !matches ? "bad" : matches ? "good" : ""}
-              />
-              {typed && !matches && (
-                <p className="muted" style={{ marginTop: 6 }}>
-                  Doesn&apos;t match yet.
-                </p>
-              )}
-            </div>
-            <div className="modal-ft">
-              <button className="ghost" onClick={() => setTarget(null)} disabled={busy} type="button">
-                Cancel
-              </button>
-              <button className="destroy" onClick={confirmDelete} disabled={!matches || busy} type="button">
-                <IcTrash size={15} /> {busy ? "Deleting…" : "Delete permanently"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {target && <DeletePatientDialog patient={target} onClose={() => setTarget(null)} onDeleted={deleted} />}
     </div>
   );
 }
