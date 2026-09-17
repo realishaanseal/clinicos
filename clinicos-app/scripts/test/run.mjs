@@ -126,6 +126,9 @@ async function waitForServer(ms = 90_000) {
   return false;
 }
 
+step("Checking hand-written paths carry the /app prefix");
+if (spawnSync(process.execPath, [path.join(appDir, "scripts", "check-app-paths.mjs")], { stdio: "inherit" }).status !== 0) process.exit(1);
+
 step("Seeding a prototype-era database");
 if (runNode("seed-pre-v1.cjs", [files.db, files.fingerprint, files.preV1]) !== 0) process.exit(1);
 

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { IcAlert, IcCheck, IcPlus } from "./Icons";
 import { describeAccess, ROLE_HELP, ROLE_LABEL, ROLES, USERNAME_RULE, type Role } from "@/lib/users";
+import { appPath } from "@/lib/base-path";
 import { fmtDate, fmtTime } from "@/lib/time";
 
 export type AdminUserRow = {
@@ -59,7 +60,7 @@ export default function UsersAdmin({ users, currentUserId }: { users: AdminUserR
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
-    const data = await call("/api/admin/users", "POST", draft);
+    const data = await call(appPath("/api/admin/users"), "POST", draft);
     if (!data) return;
     setSecret({ name: data.user.name, password: data.tempPassword, created: true });
     setDraft(EMPTY);
@@ -83,7 +84,7 @@ export default function UsersAdmin({ users, currentUserId }: { users: AdminUserR
 
   async function saveDetails() {
     if (!managing) return;
-    const data = await call(`/api/admin/users/${managing.id}`, "PATCH", {
+    const data = await call(appPath(`/api/admin/users/${managing.id}`), "PATCH", {
       name: edit.name,
       role: edit.role,
       isAdmin: edit.isAdmin,
@@ -97,7 +98,7 @@ export default function UsersAdmin({ users, currentUserId }: { users: AdminUserR
 
   async function resetPassword() {
     if (!managing) return;
-    const data = await call(`/api/admin/users/${managing.id}/reset`, "POST");
+    const data = await call(appPath(`/api/admin/users/${managing.id}/reset`), "POST");
     if (!data) return;
     setSecret({ name: managing.name, password: data.tempPassword, created: false });
     setManaging(null);
@@ -106,7 +107,7 @@ export default function UsersAdmin({ users, currentUserId }: { users: AdminUserR
 
   async function setActive(active: boolean) {
     if (!managing) return;
-    if (!(await call(`/api/admin/users/${managing.id}`, "PATCH", { active }))) return;
+    if (!(await call(appPath(`/api/admin/users/${managing.id}`), "PATCH", { active }))) return;
     setManaging(null);
     router.refresh();
   }

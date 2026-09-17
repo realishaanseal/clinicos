@@ -12,7 +12,8 @@
     "reset-password": "node scripts/reset-password.mjs",
     "test:e2e": "node scripts/test/run.mjs",
     "migrate:pg": "node scripts/migrate-pg.mjs",
-    "test:e2e:pg": "node scripts/test/run.mjs --pg"
+    "test:e2e:pg": "node scripts/test/run.mjs --pg",
+    "check:paths": "node scripts/check-app-paths.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",

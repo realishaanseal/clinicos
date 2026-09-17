@@ -628,6 +628,11 @@ and `--scope varaxis` reaches the projects (`demo`, `vxclinicos-app`, `scholar`,
       answered, and redirects named the website's host. Every test run left the database
       empty.
 
+  - **Fixed the same day:** "Add a person" failed online with "That didn't work". The
+    People screen passed its API paths through a helper, so they missed `/app` and went
+    to the website. They now use `appPath()`, and `npm run check:paths` fails any test
+    run where a hand-written path does not.
+
 ### Where to pick up
 
 1. Ishaan: set up the online clinic with the setup code (§7.2), and add a hosted AI

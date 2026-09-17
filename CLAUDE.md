@@ -273,7 +273,10 @@ is never the control:
   before it runs. Also `await x().y` awaits `y`, not `x()`: write `(await x()).y`.
 - **Paths written by hand need `appPath()`.** Online the app lives under `/app`.
   Next.js prefixes `<Link>`, `redirect()` and `router.push`; it cannot see
-  `fetch("/api/…")`, `<a href>` or `window.location`.
+  `fetch("/api/…")`, `<a href>` or `window.location` — nor a path passed through a
+  helper first, which is how the People screen shipped broken on 17 Sep 2026.
+  `npm run check:paths` (run first by both test commands) catches it; the suites
+  call the API directly and cannot.
 - **Middleware redirects must be absolute URLs** — Next.js throws "Invalid URL" on a
   relative `Location`. Build them on `x-forwarded-host`, as `middleware.ts` does:
   behind the website the request's own host is the app project's address, where the
