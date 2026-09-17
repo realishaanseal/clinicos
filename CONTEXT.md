@@ -7,7 +7,7 @@
 >
 > **Keep it current.** When you finish something, update §3, §6, §7 and §10.
 >
-> Last updated: 15 September 2026.
+> Last updated: 17 September 2026.
 
 ---
 
@@ -364,3 +364,11 @@ re-authorised for that team.
     a canvas player with per-refresh blending, a pixel cap for high-density screens,
     and a fix for an intermittent React hydration error in `CountUp` under reduced
     motion.
+- **17 Sep 2026:**
+  - Performance regression discovered: scroll felt like 20fps instead of the
+    measured 83-85fps. Root cause: `shield()` function (which updates text
+    readability overlays) was being called on every pixel of scroll, causing
+    layout thrashing via hundreds of `getBoundingClientRect()` calls per second.
+  - Fix on `fix/backdrop-scroll-performance`: changed scroll position granularity
+    from 1px to 20px, and increased `REFRESH_MS` from 250ms to 500ms. This reduces
+    forced layout recalculations while maintaining readability guarantees.
