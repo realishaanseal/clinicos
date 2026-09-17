@@ -17,6 +17,10 @@ clinicos-app/data/
 # Throwaway databases and logs from `npm run test:e2e`
 clinicos-app/.test-data/
 
+# A local copy of the database for clicking around in, so that testing never
+# creates accounts or patients in the clinic's real data/ folder.
+clinicos-app/.local-test/
+
 # Real clinic identity and any API keys
 .env
 .env.local
