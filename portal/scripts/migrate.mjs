@@ -44,7 +44,17 @@ if (url.includes("<") || url.includes("[YOUR-PASSWORD]")) {
 let sql;
 
 try {
-  sql = postgres(url, { prepare: false, ssl: "require", max: 1 });
+  sql = postgres(url, {
+    prepare: false,
+    ssl: "require",
+    max: 1,
+    // Postgres raises a NOTICE for every `create ... if not exists` that finds
+    // the object already there, which is every run after the first. Printed
+    // raw it reads like a failure. Anything that is not that is worth seeing.
+    onnotice: (notice) => {
+      if (notice.code !== "42P07") console.log(notice.message);
+    },
+  });
 
   await sql`
     create table if not exists "_migration" (

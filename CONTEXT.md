@@ -116,7 +116,8 @@ Windows or `go.sh` on macOS.
 
 ### Not built yet
 
-- **v0.5 Part C:** the patient portal (§6).
+- **v0.5 Part C:** the patient portal (§6). The database exists — Supabase in Mumbai, the
+  four tables applied from `portal/migrations/` — but nothing reads or writes it yet.
 - **v0.5 Part D:** the rules, consent script and website copy, updated for sharing (§6).
 
 ### How to verify
@@ -273,10 +274,13 @@ speed pass.
 
 ## 7. Waiting on Ishaan
 
-1. **Supabase:** the project exists as of 17 Sep 2026 — organisation `Varaxis`, project
-   `clinicos-portal`, South Asia (`ap-south-1`), free plan. What is left is to paste the
-   **transaction pooler** string (`pooler.supabase.com`, port 6543) into
-   `portal/.env.local`, with the saved database password in place of the placeholder.
+1. **Supabase: done** on 17 Sep 2026 — organisation `Varaxis`, project `clinicos-portal`,
+   South Asia (`ap-south-1`), free plan, Data API off. The schema is applied and
+   `portal/.env.local` holds the transaction pooler string.
+   **One thing still to do: reset the database password** in Settings → Database, and
+   generate the replacement rather than choosing it. The password in use was typed into a
+   chat, so it should not stay the credential for a database that will hold patient data.
+   Re-encode any `@` or other special character as `%40` when pasting the new string in.
 2. **Vercel:** create a project from this repo with Root Directory `portal`, and add the
    domain `clinicos-portal.vercel.app`. Paste in the environment variables. The
    assistant generates the random keys; it does not type keys into dashboards.
@@ -424,7 +428,8 @@ re-authorised for that team.
     transaction. Identifiers are quoted so Postgres keeps the capitals and both databases
     keep one vocabulary. `PORTAL_ENCRYPTION_KEY` and `PORTAL_HMAC_KEY` were generated
     straight into the git-ignored `portal/.env.local`, so they never passed through a
-    screen or a chat log.
+    screen or a chat log. The migration then ran against Mumbai: all four tables exist with
+    their capitals intact, and a second run reports it is up to date rather than failing.
   - Decided: the portal uses **no Supabase client library, no Supabase Auth and no Data
     API**. The Data API is a public REST endpoint over the schema, guarded only by RLS and
     an anon key; we reach Postgres directly over the pooler and get nothing from it, so it
