@@ -1,4 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "regions": ["bom1"]
+  "regions": [
+    "bom1"
+  ],
+  "buildCommand": "node scripts/migrate-pg.mjs --deploy && next build"
 }

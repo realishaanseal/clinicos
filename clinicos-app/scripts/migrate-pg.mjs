@@ -11,11 +11,34 @@
  *
  * DATABASE_URL comes from the environment, or from .env.local in this folder
  * (git-ignored). Use Supabase's transaction pooler string.
+ *
+ *   node scripts/migrate-pg.mjs --deploy
+ *
+ * is the first half of the online copy's build command (vercel.json), so a
+ * schema change reaches the database before the code that needs it. It does
+ * nothing on a SQLite build, and nothing on a Preview build: previews of
+ * feature branches share the production database, and an unreviewed branch
+ * must never change it. A failed migration fails the build, and the version
+ * already live keeps serving. Migrations must therefore be additive — safe to
+ * apply while the previous version is still running.
  */
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
+
+if (process.argv.includes("--deploy")) {
+  if ((process.env.DATA_BACKEND || "sqlite").toLowerCase() !== "postgres") {
+    console.log("migrate-pg: this build runs on SQLite; there is no Postgres to migrate.");
+    process.exit(0);
+  }
+  if (process.env.VERCEL_ENV && process.env.VERCEL_ENV !== "production") {
+    console.log(
+      `migrate-pg: a ${process.env.VERCEL_ENV} build leaves the shared database alone. New tables and columns arrive when this reaches main.`
+    );
+    process.exit(0);
+  }
+}
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const dir = join(root, "migrations", "pg");
