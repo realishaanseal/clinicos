@@ -43,6 +43,43 @@ export function parseNote(json: string | null | undefined): ClinicalNote {
   }
 }
 
+/** A note as it will be stored: only the known fields, every value a string.
+ *  Whatever a browser sends is reshaped through this before it is signed, so a
+ *  stray key or a number where text belongs never reaches the prescription. */
+export function normalizeNote(raw: unknown): ClinicalNote {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const text = (v: unknown) => (v == null ? "" : String(v));
+  const meds = Array.isArray(r.medications) ? r.medications : [];
+  return {
+    chiefComplaint: text(r.chiefComplaint),
+    history: text(r.history),
+    examination: text(r.examination),
+    diagnosis: text(r.diagnosis),
+    medications: meds.map((m) => {
+      const o = (m && typeof m === "object" ? m : {}) as Record<string, unknown>;
+      return {
+        name: text(o.name),
+        dose: text(o.dose),
+        frequency: text(o.frequency),
+        duration: text(o.duration),
+        instructions: text(o.instructions),
+      };
+    }),
+    investigations: (Array.isArray(r.investigations) ? r.investigations : []).map(text).filter((s) => s.trim()),
+    advice: text(r.advice),
+    followUp: text(r.followUp),
+  };
+}
+
+/** True if anything at all has been written. An empty note must never be signed. */
+export function noteHasContent(n: ClinicalNote): boolean {
+  return (
+    [n.chiefComplaint, n.history, n.examination, n.diagnosis, n.advice, n.followUp].some((s) => s.trim()) ||
+    n.medications.some((m) => m.name.trim()) ||
+    n.investigations.some((s) => s.trim())
+  );
+}
+
 export const NOTE_FIELDS: (keyof ClinicalNote)[] = [
   "chiefComplaint",
   "history",

@@ -3,6 +3,7 @@ import {
   recentConsults,
   countEdits,
   countSignedConsults,
+  countDraftedSignedConsults,
   countPatients,
   countConsultsToday,
   minutesSaved,
@@ -16,6 +17,7 @@ import { parseNote } from "@/lib/types";
 import { IcDoc, IcArrow, IcAlert } from "@/components/Icons";
 import { requireUser } from "@/lib/auth";
 import { fmt, fmtDate, fmtTime } from "@/lib/time";
+import { ONLINE } from "@/lib/deployment";
 
 export const dynamic = "force-dynamic";
 
@@ -46,8 +48,10 @@ export default async function Home() {
   const consults = await recentConsults(20);
   const unfinished = await unfinishedConsults();
   const signed = await countSignedConsults();
+  const drafted = await countDraftedSignedConsults();
   const edits = await countEdits();
-  const editsPerNote = signed ? (edits / signed).toFixed(1) : "—";
+  // Per AI-drafted note: a note written by hand had no draft to correct.
+  const editsPerNote = drafted ? (edits / drafted).toFixed(1) : "—";
   const saved = await minutesSaved();
 
   return (
@@ -67,7 +71,7 @@ export default async function Home() {
         <div className="stat">
           <div className="k">Patients</div>
           <div className="v">{await countPatients()}</div>
-          <div className="n">on this machine</div>
+          <div className="n">{ONLINE ? "in the online copy" : "on this machine"}</div>
         </div>
         <div className="stat">
           <div className="k">Edits per note</div>
@@ -80,7 +84,7 @@ export default async function Home() {
             {saved >= 60 ? `${Math.floor(saved / 60)}h` : saved}
             <span style={{ fontSize: 17, fontWeight: 550 }}>{saved >= 60 ? `${saved % 60}m` : "m"}</span>
           </div>
-          <div className="n">at 4 min per note</div>
+          <div className="n">at 4 min per AI-drafted note</div>
         </div>
       </div>
 

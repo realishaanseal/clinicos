@@ -83,7 +83,9 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
 
                   {c.signedAt && (
                     <div className="muted" style={{ marginTop: 12, fontSize: 12, color: "var(--slate-400)" }}>
-                      {c.editCount} correction{c.editCount === 1 ? "" : "s"} to the AI draft
+                      {c.draftJson
+                        ? `${c.editCount} correction${c.editCount === 1 ? "" : "s"} to the AI draft`
+                        : "Written by hand"}
                       {c.audioDeletedAt && " · audio deleted"}
                     </div>
                   )}

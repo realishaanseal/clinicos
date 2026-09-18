@@ -22,6 +22,8 @@
  *   seed-pre-v1.cjs       a prototype-era database (before accounts) with records
  *   perm-test.cjs         the upgrade keeps every record; the permission matrix
  *   queue-test.cjs        the front desk's list, phone search, calling patients in
+ *   workflow-test.cjs     the doctor's speed features: hand-written visits, repeat
+ *                         medicines, favourites, search, step timings
  *   admin-tools-test.cjs  reset-password script; restoring a pre-accounts backup
  *
  * Don't run this while `npm run dev` is running in this folder: both use .next/.
@@ -238,6 +240,7 @@ if (!(await waitForServer())) {
 const suites = [
   ["perm-test.cjs", [files.db, files.fingerprint]],
   ["queue-test.cjs", [files.db]],
+  ["workflow-test.cjs", [files.db]],
   ["admin-tools-test.cjs", [files.db, files.preV1]],
 ];
 const failed = [];

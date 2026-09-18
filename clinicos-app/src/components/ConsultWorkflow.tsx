@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRecorder } from "@/lib/useRecorder";
 import { useAutosave, readLocalMirror } from "@/lib/useAutosave";
-import { ClinicalNote, Medication } from "@/lib/types";
+import { ClinicalNote, Medication, noteHasContent } from "@/lib/types";
 import Prescription from "./Prescription";
 import {
   IcMic, IcRec, IcStop, IcDoc, IcCheck, IcAlert, IcPrint, IcPlus, IcTrash, IcShield,
@@ -24,6 +24,8 @@ type Props = {
     recovered: boolean;
     workingSavedAt: string | null;
     recordingInterrupted: boolean;
+    /** A note is being written by hand: no AI draft, and typing has begun. */
+    manual: boolean;
     asrModel: string | null;
     asrSeconds: number | null;
     llmModel: string | null;
@@ -45,6 +47,9 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic }:
   const [audioDeleted, setAudioDeleted] = useState(initial.audioDeleted);
 
   const [haveAudio, setHaveAudio] = useState(initial.hasAudio);
+  // Writing the note by hand: a quick visit, a patient who said no to
+  // recording, or the AI service being unreachable. Nothing is recorded.
+  const [manual, setManual] = useState(initial.manual);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [restored, setRestored] = useState<string | null>(null);
@@ -59,7 +64,8 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic }:
   const mounted = useRef(false);
 
   const hasNote = !!(note.chiefComplaint || note.diagnosis || note.history || note.medications.length);
-  const step = signedAt ? 4 : hasNote ? 3 : transcript ? 2 : consent ? 1 : 0;
+  const step = signedAt ? 4 : hasNote || manual ? 3 : transcript ? 2 : consent ? 1 : 0;
+  const written = noteHasContent(note);
 
   async function giveConsent(by: "doctor" | "staff") {
     setError("");
@@ -186,14 +192,14 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic }:
 
   return (
     <>
-      <div className="steps noprint">
+      {!manual && <div className="steps noprint">
         {STEPS.map((label, i) => (
           <div key={label} className={`s ${i < step ? "done" : ""} ${i === step ? "active" : ""}`}>
             <span className="n">{i < step ? <IcCheck size={13} /> : i + 1}</span>
             <span className="l">{label}</span>
           </div>
         ))}
-      </div>
+      </div>}
 
       {restored && (
         <div className="note ok noprint">
@@ -211,12 +217,40 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic }:
         </div>
       )}
       {(error || rec.error) && (
-        <div className="note err noprint"><IcAlert size={17} /><span>{error || rec.error}</span></div>
+        <div className="note err noprint">
+          <IcAlert size={17} />
+          <span>
+            {error || rec.error}
+            {!manual && !hasNote && (
+              <>
+                {" "}
+                <button className="ghost small" type="button" onClick={() => { setManual(true); setError(""); }} style={{ marginTop: 8 }}>
+                  Write the note by hand instead
+                </button>
+              </>
+            )}
+          </span>
+        </div>
       )}
       {busy && <div className="note ok noprint"><span className="wave"><i style={{ animationDelay: "0s" }} /><i style={{ animationDelay: ".15s" }} /><i style={{ animationDelay: ".3s" }} /></span><span>{busy}</span></div>}
 
+      {manual && (
+        <div className="note info noprint">
+          <IcDoc size={17} />
+          <span style={{ flex: 1 }}>
+            <strong>Writing the note by hand.</strong> Nothing is being recorded
+            {haveAudio ? ", and the recording already made is still deleted when you sign." : "."}
+          </span>
+          {!written && (
+            <button className="ghost small" type="button" onClick={() => setManual(false)}>
+              {consent ? "Record instead" : "Back"}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* -------------------------------------------------------- 1 consent */}
-      {!consent ? (
+      {!consent && !manual ? (
         <div className="consent">
           <div className="hd"><IcShield size={17} /> Read aloud to the patient before recording</div>
           <div className="bd">
@@ -247,17 +281,20 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic }:
           <div className="ft">
             <div className="btnrow">
               <button onClick={() => giveConsent("staff")}><IcCheck size={16} /> Consented — form signed</button>
-              <a href={appPath("/")}><button className="ghost">Declined — go back</button></a>
+              <button className="ghost" type="button" onClick={() => setManual(true)}>
+                <IcDoc size={16} /> Write the note without recording
+              </button>
             </div>
             <p className="muted" style={{ marginTop: 10, marginBottom: 0 }}>
-              If the patient declines, the doctor proceeds on paper exactly as before. Log the refusal.
+              If the patient says no, or the visit is too short to need it, nothing is recorded: write
+              the note by hand instead. Saying no changes nothing about their care.
             </p>
           </div>
         </div>
       ) : (
         <>
           {/* ----------------------------------------------------- 2 record */}
-          <div className="card flush">
+          {!manual && <div className="card flush">
             <div className="card-head">
               <span className="title" style={{ display: "flex", alignItems: "center", gap: 7 }}><IcMic size={15} /> Record the consultation</span>
               {haveAudio && !rec.recording && <span className="pill signed">Audio captured</span>}
@@ -290,18 +327,22 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic }:
                 )}
               </div>
               <p className="muted" style={{ marginTop: 13, marginBottom: 0 }}>
-                Speak normally — Bengali, Hindi, English or any mix. Audio is written to this machine
-                continuously as you talk, so an interruption cannot lose the consultation. It is deleted
-                the moment you sign.
+                Speak normally — Bengali, Hindi, English or any mix. Audio is saved continuously as you
+                talk, so an interruption cannot lose the consultation. It is deleted the moment you sign.
               </p>
+              {!rec.recording && !hasNote && (
+                <button className="quiet small" type="button" onClick={() => setManual(true)} style={{ marginTop: 8, marginLeft: -10 }}>
+                  No recording needed? Write the note by hand
+                </button>
+              )}
             </div>
-          </div>
+          </div>}
 
           {/* -------------------------------------------------- 3 transcript */}
-          {(transcript || haveAudio) && (
+          {(manual ? !!transcript : transcript || haveAudio) && (
             <div className="card flush">
               <div className="card-head">
-                <span className="title">Transcript</span>
+                <span className="title">{manual ? "Transcript, for reference" : "Transcript"}</span>
                 {stats.asrModel && (
                   <span className="muted mono">{stats.asrModel} · {stats.asrSeconds?.toFixed(1)}s</span>
                 )}
@@ -313,24 +354,27 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic }:
                   style={{ minHeight: 150 }}
                   placeholder="The transcript appears here. Correct anything obviously misheard before generating the note."
                 />
-                <div className="btnrow" style={{ marginTop: 12 }}>
-                  <button onClick={generateNote} disabled={!transcript.trim() || !!busy}>
-                    <IcDoc size={15} /> Generate clinical note
-                  </button>
-                </div>
+                {!manual && (
+                  <div className="btnrow" style={{ marginTop: 12 }}>
+                    <button onClick={generateNote} disabled={!transcript.trim() || !!busy}>
+                      <IcDoc size={15} /> Generate clinical note
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
           {/* ------------------------------------------------------- 4 note */}
-          {hasNote && (
+          {(hasNote || manual) && (
             <NoteEditor
+              manual={manual}
               note={note}
               setNote={setNote}
               set={set}
               stats={stats}
               onSign={sign}
-              busy={!!busy}
+              busy={!!busy || !written}
               saveState={save.state}
               savedAt={save.savedAt}
             />
@@ -342,8 +386,9 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic }:
 }
 
 function NoteEditor({
-  note, setNote, set, stats, onSign, busy, saveState, savedAt,
+  manual, note, setNote, set, stats, onSign, busy, saveState, savedAt,
 }: {
+  manual: boolean;
   note: ClinicalNote;
   setNote: (n: ClinicalNote) => void;
   set: (k: keyof ClinicalNote) => (v: string) => void;
@@ -360,6 +405,17 @@ function NoteEditor({
     setNote({ ...note, medications: [...note.medications, { name: "", dose: "", frequency: "", duration: "", instructions: "" }] });
   const removeMed = (i: number) =>
     setNote({ ...note, medications: note.medications.filter((_, idx) => idx !== i) });
+
+  // The investigations box is one line per test, but the note stores a list.
+  // Deriving the box from the list dropped the empty line that Enter creates,
+  // so a second test could never be started. The box keeps its own text and
+  // only re-reads the list when something else changes it.
+  const invList = (text: string) => text.split("\n").filter((s) => s.trim());
+  const [invText, setInvText] = useState(() => note.investigations.join("\n"));
+  useEffect(() => {
+    if (invList(invText).join("\n") !== note.investigations.join("\n")) setInvText(note.investigations.join("\n"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [note.investigations]);
 
   const fields: [keyof ClinicalNote, string][] = [
     ["chiefComplaint", "Chief complaint"],
@@ -391,8 +447,9 @@ function NoteEditor({
       </div>
       <div className="card-body">
         <p className="muted" style={{ marginTop: 0, marginBottom: 18 }}>
-          Every correction here is logged. That log is your accuracy metric — correct the draft rather
-          than regenerating it.
+          {manual
+            ? "Write it as you would on paper. There is no AI draft, so nothing here counts as a correction."
+            : "Every correction here is logged. That log is your accuracy metric — correct the draft rather than regenerating it."}
         </p>
 
         {fields.map(([k, label]) => (
@@ -433,8 +490,11 @@ function NoteEditor({
           <div className="field">
             <label>Investigations — one per line</label>
             <textarea
-              value={note.investigations.join("\n")}
-              onChange={(e) => setNote({ ...note, investigations: e.target.value.split("\n").filter((s) => s.trim()) })}
+              value={invText}
+              onChange={(e) => {
+                setInvText(e.target.value);
+                setNote({ ...note, investigations: invList(e.target.value) });
+              }}
             />
           </div>
           <div className="field">
@@ -452,7 +512,9 @@ function NoteEditor({
           <IcAlert size={17} />
           <span>
             <strong>Signing is the clinical act.</strong> Nothing above has been checked by anyone but you.
-            Signing files the note and permanently deletes the audio recording.
+            {manual
+              ? "Signing files the note."
+              : "Signing files the note and permanently deletes the audio recording."}
           </span>
         </div>
 

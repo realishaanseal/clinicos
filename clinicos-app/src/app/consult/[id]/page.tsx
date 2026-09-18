@@ -1,6 +1,6 @@
 import { getConsultWithPatient, getUserPublic } from "@/lib/db";
 import { notFound } from "next/navigation";
-import { parseNote } from "@/lib/types";
+import { parseNote, noteHasContent } from "@/lib/types";
 import ConsultWorkflow from "@/components/ConsultWorkflow";
 import { prescriptionIdentity } from "@/lib/clinic";
 import { requireUser } from "@/lib/auth";
@@ -57,6 +57,9 @@ export default async function ConsultPage({ params }: { params: Promise<{ id: st
           recovered: !!c.workingJson && !c.signedAt,
           workingSavedAt: c.workingSavedAt,
           recordingInterrupted: !!c.recordingStartedAt && !c.recordingEndedAt && !c.signedAt,
+          // Typing began with no AI draft behind it: this visit is being written
+          // by hand, so reopen it in that mode rather than at the consent step.
+          manual: !c.signedAt && !c.draftJson && noteHasContent(parseNote(c.workingJson)),
           signedAt: c.signedAt,
           audioDeleted: !!c.audioDeletedAt,
           asrModel: c.asrModel,

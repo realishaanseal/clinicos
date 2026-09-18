@@ -15,6 +15,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const consult = await getConsult(id);
   if (!consult) return NextResponse.json({ error: "Consult not found" }, { status: 404 });
+  // A signed note is the record. Drafting again would overwrite the AI draft
+  // and transcript it was signed against, and the edit log would stop matching.
+  if (consult.signedAt) return NextResponse.json({ error: "This consultation is already signed." }, { status: 409 });
 
   const body = await req.json().catch(() => ({}));
   const transcript = (body.transcript ?? consult.transcript ?? "").trim();

@@ -15,6 +15,8 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
   const consult = await getConsult(id);
   if (!consult) return NextResponse.json({ error: "Consult not found" }, { status: 404 });
+  // A signed note is the record; its transcript is part of what was signed.
+  if (consult.signedAt) return NextResponse.json({ error: "This consultation is already signed." }, { status: 409 });
   if (!consult.audioPath) return NextResponse.json({ error: "No audio recorded yet" }, { status: 400 });
 
   try {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getConsult, addEdits, signConsult, recordAudit, markQueueDoneForConsult } from "@/lib/db";
-import { parseNote, NOTE_FIELDS, ClinicalNote } from "@/lib/types";
+import { parseNote, normalizeNote, noteHasContent, NOTE_FIELDS } from "@/lib/types";
 import { requireApiUser } from "@/lib/auth";
 import { removeAudio } from "@/lib/audio-store";
 
@@ -16,6 +16,11 @@ function asText(v: unknown): string {
  *   2. stores the signed note, with the signing doctor's account
  *   3. deletes the raw audio — the promise made in the consent script
  *   4. records the signature in the activity log
+ *
+ * A note written by hand (a quick visit, or a patient who declined recording)
+ * has no AI draft. Step 1 is skipped for it: diffing against an empty draft
+ * would log every word the doctor typed as a "correction" and make the
+ * accuracy metric a lie.
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   // Signing is the clinical act. Only a doctor's account may do it.
@@ -27,16 +32,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!consult) return NextResponse.json({ error: "Consult not found" }, { status: 404 });
   if (consult.signedAt) return NextResponse.json({ error: "Already signed" }, { status: 409 });
 
-  const body = await req.json();
-  const final = body.note as ClinicalNote;
-  if (!final) return NextResponse.json({ error: "No note supplied" }, { status: 400 });
+  const body = await req.json().catch(() => ({}));
+  if (!body.note) return NextResponse.json({ error: "No note supplied" }, { status: 400 });
+  const final = normalizeNote(body.note);
+  if (!noteHasContent(final)) {
+    return NextResponse.json({ error: "The note is empty. Write at least the complaint, a diagnosis or a medicine before signing." }, { status: 400 });
+  }
 
+  const drafted = !!consult.draftJson;
   const draft = parseNote(consult.draftJson);
-  const edits = NOTE_FIELDS.map((field) => {
-    const before = asText(draft[field]);
-    const after = asText(final[field]);
-    return before === after ? null : { field: String(field), before, after };
-  }).filter(Boolean) as { field: string; before: string; after: string }[];
+  const edits = drafted
+    ? (NOTE_FIELDS.map((field) => {
+        const before = asText(draft[field]);
+        const after = asText(final[field]);
+        return before === after ? null : { field: String(field), before, after };
+      }).filter(Boolean) as { field: string; before: string; after: string }[])
+    : [];
 
   await addEdits(id, edits);
 
@@ -50,12 +61,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   await signConsult(id, JSON.stringify(final), audioDeleted, auth.user.id);
   // Signing is what tells the front desk the patient has been seen.
   await markQueueDoneForConsult(id);
-  await recordAudit(
-    auth.user,
-    "consult_sign",
-    "consult",
-    id,
-    `${edits.length} correction${edits.length === 1 ? "" : "s"} to the draft${audioDeleted ? ", audio deleted" : ""}`
-  );
-  return NextResponse.json({ ok: true, editCount: edits.length, audioDeleted });
+  const what = drafted
+    ? `${edits.length} correction${edits.length === 1 ? "" : "s"} to the draft`
+    : "written by hand, no AI draft";
+  await recordAudit(auth.user, "consult_sign", "consult", id, `${what}${audioDeleted ? ", audio deleted" : ""}`);
+  return NextResponse.json({ ok: true, editCount: drafted ? edits.length : null, handwritten: !drafted, audioDeleted });
 }

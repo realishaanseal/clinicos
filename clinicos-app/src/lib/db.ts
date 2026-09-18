@@ -276,11 +276,19 @@ export function signedConsultsSince(sinceIso: string): Promise<{ doctorName: str
   );
 }
 
-/** Minutes of documentation saved, at a conservative 4 minutes per signed note.
- *  Deliberately conservative: this number goes in front of doctors, and one
- *  they can disbelieve costs you more than a smaller one they accept. */
+/** Signed notes that began as an AI draft. A note the doctor wrote by hand
+ *  saved them nothing and had nothing to correct, so it counts in neither the
+ *  time saved nor the edits per note. */
+export function countDraftedSignedConsults(): Promise<number> {
+  return count(`SELECT CAST(COUNT(*) AS INTEGER) AS n FROM "Consult" WHERE "signedAt" IS NOT NULL AND "draftJson" IS NOT NULL`);
+}
+
+/** Minutes of documentation saved, at a conservative 4 minutes per signed,
+ *  AI-drafted note. Deliberately conservative: this number goes in front of
+ *  doctors, and one they can disbelieve costs you more than a smaller one they
+ *  accept. */
 export async function minutesSaved(): Promise<number> {
-  return (await countSignedConsults()) * 4;
+  return (await countDraftedSignedConsults()) * 4;
 }
 
 // ---------------------------------------------------------------- deletion
