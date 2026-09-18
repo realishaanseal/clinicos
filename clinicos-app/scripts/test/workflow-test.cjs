@@ -99,6 +99,32 @@ const emptyNote = { chiefComplaint: "", history: "", examination: "", diagnosis:
   r = await call("GET", "/", { token: owner });
   check("Time saved on Today counts only AI-drafted notes", r.text.includes("per AI-drafted note"), r.status);
 
+  // ------------------------------------------- 2. repeat the last visit's medicines
+  r = await call("POST", "/api/consults", { token: owner, body: { patientId: "seedpatient1" } });
+  const followUp = r.json?.consult?.id;
+  r = await call("GET", `/consult/${followUp}`, { token: owner });
+  check(
+    "A returning patient's visit shows their last signed visit, as signed",
+    r.text.includes("Last visit") && r.text.includes("Gastritis, likely NSAID related") && r.text.includes("Paracetamol"),
+    r.status
+  );
+  check("…as a reminder only, before any note exists", !r.text.includes("Repeat these medicines"));
+  await call("PATCH", `/api/consults/${followUp}/draft`, { token: owner, body: { note: { ...emptyNote, chiefComplaint: "Follow-up" } } });
+  r = await call("GET", `/consult/${followUp}`, { token: owner });
+  check("Once the note is open, its medicines can be repeated", r.text.includes("Repeat these medicines"));
+
+  r = await call("POST", "/api/consults", { token: owner, body: { patientId: hwPatient } });
+  const hwFollowUp = r.json?.consult?.id;
+  await call("PATCH", `/api/consults/${hwFollowUp}/draft`, { token: owner, body: { note: { ...emptyNote, chiefComplaint: "Cough better" } } });
+  r = await call("GET", `/consult/${hwFollowUp}`, { token: owner });
+  check("A hand-written visit's medicines can be repeated too", r.text.includes("Syrup Example") && r.text.includes("Repeat these medicines"));
+
+  r = await call("POST", "/api/patients", { token: owner, body: { name: "First Visit Patient" } });
+  r = await call("GET", `/consult/${r.json?.consultId}`, { token: owner });
+  check("A first visit shows no last visit", r.status === 200 && !r.text.includes("Last visit"), r.status);
+  r = await call("GET", `/consult/${hw}`, { token: owner });
+  check("A signed visit does not offer to repeat anything", !r.text.includes("Repeat these medicines"));
+
   const failed = results.filter((x) => !x.ok);
   for (const x of results) console.log(`${x.ok ? "PASS" : "FAIL"}  ${x.name}${x.ok ? "" : `  [${x.info}]`}`);
   console.log(`\n${results.length - failed.length} passed, ${failed.length} failed`);

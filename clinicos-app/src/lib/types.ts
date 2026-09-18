@@ -80,6 +80,24 @@ export function noteHasContent(n: ClinicalNote): boolean {
   );
 }
 
+const medKey = (m: Medication) => m.name.trim().toLowerCase();
+
+/** Add medicines to a list, skipping any already there by name. Used to repeat
+ *  the last visit's medicines and to apply a favourite: both copy what a doctor
+ *  already decided, and the doctor still reviews every line before signing. */
+export function mergeMedicines(current: Medication[], extra: Medication[]): { medications: Medication[]; added: number } {
+  const have = new Set(current.map(medKey).filter(Boolean));
+  const fresh = extra.filter((m) => {
+    const k = medKey(m);
+    if (!k || have.has(k)) return false;
+    have.add(k);
+    return true;
+  });
+  // A blank row left over from "Add medication" would sit above the new ones.
+  const kept = current.filter((m) => medKey(m) || m.dose || m.frequency || m.duration || m.instructions);
+  return { medications: [...kept, ...fresh.map((m) => ({ ...m }))], added: fresh.length };
+}
+
 export const NOTE_FIELDS: (keyof ClinicalNote)[] = [
   "chiefComplaint",
   "history",

@@ -1,4 +1,4 @@
-import { getConsultWithPatient, getUserPublic } from "@/lib/db";
+import { getConsultWithPatient, getUserPublic, previousSignedConsults } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { parseNote, noteHasContent } from "@/lib/types";
 import ConsultWorkflow from "@/components/ConsultWorkflow";
@@ -20,6 +20,18 @@ export default async function ConsultPage({ params }: { params: Promise<{ id: st
   // doctor recorded and keep the old .env doctor.
   const signer = c.doctorId ? await getUserPublic(c.doctorId) ?? null : null;
   const identity = await prescriptionIdentity(c.signedAt ? signer : user);
+
+  // The patient's last signed visit, for "repeat these medicines". Only what
+  // the doctor signed then — never anything from its draft or transcript.
+  const [last] = c.signedAt ? [] : await previousSignedConsults(c.patientId, c.id, 1);
+  const lastNote = last ? parseNote(last.finalJson) : null;
+  const lastVisit = last && lastNote
+    ? {
+        signedAt: last.signedAt!,
+        diagnosis: lastNote.diagnosis || lastNote.chiefComplaint,
+        medications: lastNote.medications.filter((m) => m.name.trim()),
+      }
+    : null;
 
   return (
     <div className="page">
@@ -68,6 +80,7 @@ export default async function ConsultPage({ params }: { params: Promise<{ id: st
           llmSeconds: c.llmSeconds,
         }}
         clinic={identity}
+        lastVisit={lastVisit}
       />
     </div>
   );

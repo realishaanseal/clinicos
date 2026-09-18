@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useRecorder } from "@/lib/useRecorder";
 import { useAutosave, readLocalMirror } from "@/lib/useAutosave";
-import { ClinicalNote, Medication, noteHasContent } from "@/lib/types";
+import { ClinicalNote, Medication, mergeMedicines, noteHasContent } from "@/lib/types";
 import Prescription from "./Prescription";
 import {
   IcMic, IcRec, IcStop, IcDoc, IcCheck, IcAlert, IcPrint, IcPlus, IcTrash, IcShield,
 } from "./Icons";
-import { fmt, fmtTime } from "@/lib/time";
+import { fmt, fmtDate, fmtTime } from "@/lib/time";
 import { appPath } from "@/lib/base-path";
 
 type Props = {
@@ -35,11 +35,15 @@ type Props = {
     name: string; address: string; phone: string;
     doctorName: string; doctorQualification: string; doctorRegNo: string;
   };
+  /** The patient's last signed visit, if any. */
+  lastVisit: LastVisit | null;
 };
+
+type LastVisit = { signedAt: string; diagnosis: string; medications: Medication[] };
 
 const STEPS = ["Consent", "Record", "Transcript", "Review & sign"];
 
-export default function ConsultWorkflow({ consultId, patient, initial, clinic }: Props) {
+export default function ConsultWorkflow({ consultId, patient, initial, clinic, lastVisit }: Props) {
   const [consent, setConsent] = useState(initial.consentGiven);
   const [transcript, setTranscript] = useState(initial.transcript);
   const [note, setNote] = useState<ClinicalNote>(initial.note);
@@ -234,6 +238,8 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic }:
       )}
       {busy && <div className="note ok noprint"><span className="wave"><i style={{ animationDelay: "0s" }} /><i style={{ animationDelay: ".15s" }} /><i style={{ animationDelay: ".3s" }} /></span><span>{busy}</span></div>}
 
+      {lastVisit && !hasNote && !manual && <LastVisitStrip visit={lastVisit} />}
+
       {manual && (
         <div className="note info noprint">
           <IcDoc size={17} />
@@ -368,6 +374,7 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic }:
           {/* ------------------------------------------------------- 4 note */}
           {(hasNote || manual) && (
             <NoteEditor
+              lastVisit={lastVisit}
               manual={manual}
               note={note}
               setNote={setNote}
@@ -385,9 +392,33 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic }:
   );
 }
 
+/** What the patient was last given, as the doctor signed it. The repeat button
+ *  appears only inside the note editor, where the medicines can be checked. */
+function LastVisitStrip({ visit, onRepeat }: { visit: LastVisit; onRepeat?: () => void }) {
+  return (
+    <div className="lastvisit noprint">
+      <div>
+        <span className="k">Last visit, {fmtDate(new Date(visit.signedAt), { day: "numeric", month: "short", year: "numeric" })}</span>
+        {visit.diagnosis && <strong> {visit.diagnosis}</strong>}
+        <div className="meds-line">
+          {visit.medications.length
+            ? visit.medications.map((m) => [m.name, m.dose, m.frequency, m.duration].filter(Boolean).join(" ")).join(" · ")
+            : "No medicines were prescribed."}
+        </div>
+      </div>
+      {onRepeat && visit.medications.length > 0 && (
+        <button className="ghost small" type="button" onClick={onRepeat}>
+          <IcPlus size={14} /> Repeat these medicines
+        </button>
+      )}
+    </div>
+  );
+}
+
 function NoteEditor({
-  manual, note, setNote, set, stats, onSign, busy, saveState, savedAt,
+  lastVisit, manual, note, setNote, set, stats, onSign, busy, saveState, savedAt,
 }: {
+  lastVisit: LastVisit | null;
   manual: boolean;
   note: ClinicalNote;
   setNote: (n: ClinicalNote) => void;
@@ -405,6 +436,16 @@ function NoteEditor({
     setNote({ ...note, medications: [...note.medications, { name: "", dose: "", frequency: "", duration: "", instructions: "" }] });
   const removeMed = (i: number) =>
     setNote({ ...note, medications: note.medications.filter((_, idx) => idx !== i) });
+
+  // What the last "add from…" button did, said in words: a row appearing at
+  // the bottom of the list is easy to miss mid-consultation.
+  const [added, setAdded] = useState("");
+  function repeatLast() {
+    if (!lastVisit) return;
+    const { medications, added: n } = mergeMedicines(note.medications, lastVisit.medications);
+    setNote({ ...note, medications });
+    setAdded(n ? `Added ${n} medicine${n === 1 ? "" : "s"} from the last visit. Check each before signing.` : "Those medicines are already in the list.");
+  }
 
   // The investigations box is one line per test, but the note stores a list.
   // Deriving the box from the list dropped the empty line that Enter creates,
@@ -459,6 +500,8 @@ function NoteEditor({
           </div>
         ))}
 
+        {lastVisit && <LastVisitStrip visit={lastVisit} onRepeat={repeatLast} />}
+
         <label style={{ marginTop: 20 }}>Medications</label>
         <div className="meds">
           <div className="med-row hd">
@@ -485,6 +528,7 @@ function NoteEditor({
         <button className="ghost small" onClick={addMed} type="button" style={{ marginTop: 10 }}>
           <IcPlus size={14} /> Add medication
         </button>
+        {added && <p className="muted" role="status" style={{ margin: "8px 0 0" }}>{added}</p>}
 
         <div className="grid" style={{ marginTop: 22 }}>
           <div className="field">
