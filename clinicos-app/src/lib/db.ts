@@ -90,6 +90,8 @@ export type Consult = {
   signedAt: string | null;
   createdBy: string | null;
   doctorId: string | null;
+  transcribedAt: string | null;
+  draftedAt: string | null;
   createdAt: string;
 };
 
@@ -215,15 +217,15 @@ export async function setAudio(id: string, audioPath: string, bytes: number, sec
 
 export async function setTranscript(id: string, transcript: string, model: string, seconds: number) {
   await q().run(
-    `UPDATE "Consult" SET transcript = ?, "asrModel" = ?, "asrSeconds" = ? WHERE id = ?`,
-    transcript, model, seconds, id
+    `UPDATE "Consult" SET transcript = ?, "asrModel" = ?, "asrSeconds" = ?, "transcribedAt" = ? WHERE id = ?`,
+    transcript, model, seconds, now(), id
   );
 }
 
 export async function setDraft(id: string, transcript: string, draftJson: string, model: string, seconds: number) {
   await q().run(
-    `UPDATE "Consult" SET transcript = ?, "draftJson" = ?, "llmModel" = ?, "llmSeconds" = ? WHERE id = ?`,
-    transcript, draftJson, model, seconds, id
+    `UPDATE "Consult" SET transcript = ?, "draftJson" = ?, "llmModel" = ?, "llmSeconds" = ?, "draftedAt" = ? WHERE id = ?`,
+    transcript, draftJson, model, seconds, now(), id
   );
 }
 
@@ -292,6 +294,29 @@ export function signedConsultsSince(sinceIso: string): Promise<{ doctorName: str
  *  time saved nor the edits per note. */
 export function countDraftedSignedConsults(): Promise<number> {
   return count(`SELECT CAST(COUNT(*) AS INTEGER) AS n FROM "Consult" WHERE "signedAt" IS NOT NULL AND "draftJson" IS NOT NULL`);
+}
+
+/** Signed consultations since a moment, with only the timing of each step:
+ *  no patient, no note, nothing clinical. For the speed pass (backlog #3). */
+export type StepTiming = {
+  createdAt: string;
+  signedAt: string;
+  drafted: number;
+  audioSeconds: number | null;
+  asrSeconds: number | null;
+  llmSeconds: number | null;
+  recordingEndedAt: string | null;
+  transcribedAt: string | null;
+  draftedAt: string | null;
+};
+
+export function stepTimingsSince(sinceIso: string): Promise<StepTiming[]> {
+  return q().all<StepTiming>(
+    `SELECT "createdAt", "signedAt", CASE WHEN "draftJson" IS NULL THEN 0 ELSE 1 END AS drafted,
+            "audioSeconds", "asrSeconds", "llmSeconds", "recordingEndedAt", "transcribedAt", "draftedAt"
+     FROM "Consult" WHERE "signedAt" IS NOT NULL AND "signedAt" >= ? ORDER BY "signedAt"`,
+    sinceIso
+  );
 }
 
 /** Minutes of documentation saved, at a conservative 4 minutes per signed,

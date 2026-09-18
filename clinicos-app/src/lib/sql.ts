@@ -323,6 +323,8 @@ function openSqlite(): BetterSqlite3.Database {
   addColumn("Consult", "recordingEndedAt", "TEXT"); // null while a recording is still open
   addColumn("Consult", "createdBy", "TEXT");        // v0.5: the account that opened the consultation
   addColumn("Consult", "doctorId", "TEXT");         // v0.5: the doctor who signed; NULL on older rows
+  addColumn("Consult", "transcribedAt", "TEXT");    // speed pass (#3): when the transcript arrived
+  addColumn("Consult", "draftedAt", "TEXT");        // speed pass (#3): when the AI draft arrived
 
   return db;
 }

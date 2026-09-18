@@ -214,6 +214,34 @@ const emptyNote = { chiefComplaint: "", history: "", examination: "", diagnosis:
   r = await call("GET", "/api/patients?q=Handwritten", { token: desk });
   check("The front desk's search finds patients by name, with nothing clinical", r.json?.patients?.some((p) => p.id === hwPatient) && !/finalJson|diagnosis|transcript/.test(r.text), r.status);
 
+  // ------------------------------------------------ 5. how long each step takes
+  r = await call("POST", "/api/patients", { token: owner, body: { name: "Timed Patient" } });
+  const timed = r.json?.consultId;
+  {
+    // No speech or AI service runs in these tests, so the step times of one
+    // AI-drafted visit are written in directly: 95 s of recording, 14 s and
+    // 9 s of waiting, 2 minutes reviewing, 5 minutes in all.
+    const db = peek(dbPath);
+    const c = await db.get(`SELECT "createdAt" FROM "Consult" WHERE id = ?`, timed);
+    const at = (s) => new Date(Date.parse(c.createdAt) + s * 1000).toISOString();
+    await db.run(
+      `UPDATE "Consult" SET "audioSeconds" = 95, "asrSeconds" = 14, "llmSeconds" = 9, "recordingEndedAt" = ?, "transcribedAt" = ?,
+         "draftJson" = ?, "draftedAt" = ?, "finalJson" = ?, "signedAt" = ? WHERE id = ?`,
+      at(100), at(115), JSON.stringify(emptyNote), at(180), JSON.stringify({ ...emptyNote, chiefComplaint: "Timed" }), at(300), timed
+    );
+    await db.close();
+  }
+  r = await call("GET", "/admin", { token: mgr });
+  check("Clinic admin shows how long each step takes", r.status === 200 && r.text.includes("How long each step takes"), r.status);
+  check(
+    "…as the recording, the two waits and the review, in plain durations",
+    ["1 min 35 s", "14 s", "9 s", "2 min"].every((t) => r.text.includes(t)),
+    ["1 min 35 s", "14 s", "9 s", "2 min"].filter((t) => !r.text.includes(t)).join(",")
+  );
+  // The page lists patients elsewhere, for deletion; the timings card itself names nobody.
+  const card = r.text.slice(r.text.indexOf("How long each step takes"), r.text.indexOf(">Storage<"));
+  check("…with nothing about any patient in it", card.length > 0 && !card.includes("Timed Patient") && !card.includes("Handwritten Patient"), card.length);
+
   const failed = results.filter((x) => !x.ok);
   for (const x of results) console.log(`${x.ok ? "PASS" : "FAIL"}  ${x.name}${x.ok ? "" : `  [${x.info}]`}`);
   console.log(`\n${results.length - failed.length} passed, ${failed.length} failed`);

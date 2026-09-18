@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
-import { databaseStats, listUsers, localDay, searchPatients, signedConsultsSince } from "@/lib/db";
+import { databaseStats, listUsers, localDay, searchPatients, signedConsultsSince, stepTimingsSince } from "@/lib/db";
 import { clinicDayAt, fmtDate, localDayBounds } from "@/lib/time";
 import { getClinic } from "@/lib/clinic";
 import { listBackups } from "@/lib/backup";
@@ -30,6 +30,44 @@ async function signedByDoctor() {
   return { days, rows: [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0])) };
 }
 
+/** "45 s", "3 min 20 s", "12 min", "1 h 5 min". */
+function duration(seconds: number): string {
+  const s = Math.round(seconds);
+  if (s < 60) return `${s} s`;
+  const m = Math.floor(s / 60);
+  if (m < 10) return s % 60 ? `${m} min ${s % 60} s` : `${m} min`;
+  if (m < 60) return `${m} min`;
+  return `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ""}`;
+}
+
+const secondsBetween = (from: string | null, to: string | null) =>
+  from && to ? Math.max(0, (Date.parse(to) - Date.parse(from)) / 1000) : null;
+
+/**
+ * How long each step of a consultation takes, over the last seven days
+ * (backlog #3, the speed pass). The middle value and the longest, with how many
+ * visits each is measured over — never an average that one stuck tab can
+ * wreck, and no score. Visits signed before these times were recorded simply
+ * do not count towards the steps they lack.
+ */
+async function stepTimes(sinceIso: string) {
+  const rows = await stepTimingsSince(sinceIso);
+  const drafted = rows.filter((r) => r.drafted);
+  const byHand = rows.filter((r) => !r.drafted);
+  const steps: [string, (number | null)[]][] = [
+    ["Recording", drafted.map((r) => r.audioSeconds)],
+    ["Waiting for the transcript", drafted.map((r) => r.asrSeconds)],
+    ["Waiting for the AI draft", drafted.map((r) => r.llmSeconds)],
+    ["Reviewing and signing the draft", drafted.map((r) => secondsBetween(r.draftedAt, r.signedAt))],
+    ["Whole visit, AI-drafted", drafted.map((r) => secondsBetween(r.createdAt, r.signedAt))],
+    ["Whole visit, written by hand", byHand.map((r) => secondsBetween(r.createdAt, r.signedAt))],
+  ];
+  return steps.map(([label, values]) => {
+    const v = values.filter((x): x is number => typeof x === "number" && Number.isFinite(x)).sort((a, b) => a - b);
+    return { label, n: v.length, middle: v.length ? v[Math.floor((v.length - 1) / 2)] : null, longest: v.at(-1) ?? null };
+  });
+}
+
 export default async function AdminPage() {
   await requireUser("admin");
 
@@ -38,6 +76,7 @@ export default async function AdminPage() {
   const patients = await searchPatients("");
   const activePeople = (await listUsers()).filter((u) => u.active).length;
   const week = await signedByDoctor();
+  const steps = await stepTimes(localDayBounds(clinicDayAt(-6))[0]);
 
   return (
     <div className="page page-narrow">
@@ -124,6 +163,50 @@ export default async function AdminPage() {
               </tbody>
             </table>
           </div>
+        )}
+      </div>
+
+      <div className="card flush">
+        <div className="card-head">
+          <span className="title">How long each step takes, last 7 days</span>
+          <span className="muted">signed visits only</span>
+        </div>
+        {steps.every((st) => st.n === 0) ? (
+          <div className="card-body">
+            <p className="muted" style={{ margin: 0 }}>No consultations were signed in the last 7 days.</p>
+          </div>
+        ) : (
+          <>
+            <div style={{ overflowX: "auto" }}>
+              <table className="week">
+                <thead>
+                  <tr>
+                    <th>Step</th>
+                    <th className="num">Visits</th>
+                    <th className="num">Typical</th>
+                    <th className="num">Longest</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {steps.map((st) => (
+                    <tr key={st.label}>
+                      <td>{st.label}</td>
+                      <td className={`num ${st.n ? "" : "dim"}`}>{st.n}</td>
+                      <td className={`num ${st.middle === null ? "dim" : ""}`}>{st.middle === null ? "—" : duration(st.middle)}</td>
+                      <td className={`num ${st.longest === null ? "dim" : ""}`}>{st.longest === null ? "—" : duration(st.longest)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="card-body" style={{ paddingTop: 12 }}>
+              <p className="muted" style={{ margin: 0 }}>
+                Typical is the middle value: half the visits were quicker. Transcript and draft times depend on
+                {ONLINE ? " the online AI service." : " this computer."} A visit counts from the moment it is
+                opened, so one left open over lunch shows up as the longest.
+              </p>
+            </div>
+          </>
         )}
       </div>
 

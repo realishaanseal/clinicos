@@ -124,6 +124,11 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic, l
   async function onStop() {
     await rec.stop();
     setHaveAudio(true);
+    // The speed pass (#3): transcription starts by itself when recording
+    // stops, rather than waiting for a second tap. Not when a transcript is
+    // already there — the doctor may have corrected it, and re-transcribing
+    // stays a deliberate choice.
+    if (!transcript.trim()) await transcribe();
   }
 
   async function transcribe() {
