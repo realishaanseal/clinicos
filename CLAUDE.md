@@ -132,8 +132,15 @@ variables on that project, never a code branch:
 | `ASR_PROVIDER` / `LLM_PROVIDER` | `http` / `openai` | hosted AI; needs URLs, models and keys |
 
 Schema changes for the online copy are numbered files in
-`clinicos-app/migrations/pg/`, applied with `npm run migrate:pg`. Every SQLite change
-in `sql.ts` needs its Postgres twin there, and the other way round.
+`clinicos-app/migrations/pg/`. Every SQLite change in `sql.ts` needs its Postgres twin
+there, and the other way round. **Production deploys apply them**: the app project's
+build command (`clinicos-app/vercel.json`) runs `migrate-pg.mjs --deploy` before
+`next build`, so the schema lands before the code that needs it, and a failed
+migration fails the build while the live version keeps serving. Preview builds never
+migrate — they share the production database — so a branch that adds a table shows
+errors on its Preview until it reaches `main`. Migrations must be **additive**: safe to
+apply while the previous version is still running. `npm run migrate:pg` still works by
+hand.
 
 ---
 
@@ -173,6 +180,8 @@ clinicos-app/
     Prescription.tsx      printable A4 prescription
     FrontDeskToday.tsx    the front desk's Today: find, register, today's list
     WaitingPanel.tsx      the doctor's "Waiting now" and Start visit
+    Favourites.tsx        the doctor's own saved prescriptions, in the note editor
+    QuickSearch.tsx       Ctrl+K / ⌘K search from any screen (a native <dialog>)
     BackupPanel.tsx       clinic admin: backup, restore, export
     DeletePatient.tsx     type-the-name-to-confirm deletion
     UsersAdmin.tsx        clinic admin: add people, manage access, reset passwords
@@ -180,6 +189,7 @@ clinicos-app/
   src/app/admin/          clinic details, people, activity log, backups, deletion
   src/app/api/            route handlers — every one starts with requireApiUser()
   scripts/reset-password.mjs   npm run reset-password -- <username>, at the laptop
+  scripts/dev-sandbox.mjs      npm run dev:sandbox — the app on :3002 against .sandbox/
   scripts/test/           npm run test:e2e — see Tooling
   asr/server.py           FastAPI + faster-whisper sidecar
   go.sh                   setup and launch
@@ -207,7 +217,17 @@ flags in both. A race SQLite cannot have (its transactions run one at a time) ca
 happen on Postgres — see `addToQueue`, `startQueueEntry` and `createFirstAccount`.
 
 Tables: `Patient`, `Consult`, `Edit`, and since v0.5 `User`, `Session`, `AuditEvent`,
-`Setting`, `QueueEntry`.
+`Setting`, `QueueEntry`, `Favourite`.
+
+**A note written by hand has no AI draft** (a quick visit, or a patient who said no to
+recording). `draftJson` stays NULL, signing logs no `Edit` rows, and it counts in
+neither "time saved" nor "edits per note" — both are per AI-drafted note. Never diff a
+signed note against an empty draft.
+
+**Favourites hold the plan only** — diagnosis, medicines, tests, advice, follow-up —
+never a complaint, history or findings (`planOf()` in `types.ts`), and each doctor sees
+only their own. ClinicOS ships none: a pre-written treatment would be clinical advice
+(invariant 1). Applying one never overwrites what is already written.
 
 **Accounts and permissions (v0.5).** The first run opens `/setup`, which creates the
 owner account and then refuses forever. Every page calls `requireUser()` and every
@@ -267,7 +287,9 @@ is never the control:
   data, so it opens whatever `DB_PATH` points at. Build with the test database in
   `DB_PATH` when testing, as `npm run test:e2e` does.
 - **Never test against `data/`.** It is the clinic's real database. Test accounts
-  created there would become the clinic's accounts.
+  created there would become the clinic's accounts. To click around, use
+  `npm run dev:sandbox` (setup code `sandbox`), never `npm run dev`, whose `.env`
+  points at `data/`.
 - **Every function in `db.ts` is async, and a missing `await` still compiles.**
   `recordAudit(...)` without `await` type-checks, and online the request can end
   before it runs. Also `await x().y` awaits `y`, not `x()`: write `(await x()).y`.
@@ -319,11 +341,17 @@ Built and tested:
 - **v0.5 Part B — role dashboards, the day's list (backlog #5), search by phone (#8).**
   Front desk Today is the desk (find, register, list); doctor Today has "Waiting
   now" with Start visit; admin sees signed consultations per doctor as raw counts.
+- **The doctor's speed features (18 Sep 2026, branch `workflow-speed`):** a visit
+  written by hand without recording (#18), the last visit shown and its medicines
+  repeated in one tap (#17), favourites (#15, #16), Ctrl+K search from anywhere
+  (#19), and the speed pass (#3): step times on Clinic admin, transcription starting
+  when recording stops. Verified by `scripts/test/workflow-test.cjs` on both databases.
 
-Next, in order: v0.5 Part C (patient portal: a doctor shares a signed visit with the
-patient's consent), Part D (invariant 2, consent script and website copy updated
-to match). The full plan is in CONTEXT.md §6. Then #3 speed pass. Backlog numbered
-1–37 across tiers 0–7.
+Next, in the order Ishaan asked for ("all one by one"): v0.5 Part C (patient portal:
+a doctor shares a signed visit with the patient's consent) with Part D (invariant 2,
+consent script and website copy updated to match); then prescription extras (#9
+Bengali medicine card, #20 red-flag card, #25 logo); then billing and follow-up (#12,
+#10). The full plan is in CONTEXT.md §6. Backlog numbered 1–37 across tiers 0–7.
 
 **Online since 17 Sep 2026** (Ishaan's decision, reversing "not hosted"): the same
 app at vxclinicos.vercel.app/app, on Postgres, as a prototype for made-up patients.
@@ -338,7 +366,7 @@ accounts, any AI beyond transcription and note drafting.
 **Tests.** `cd clinicos-app && npm run test:e2e` seeds a prototype-era database in
 `clinicos-app/.test-data/`, builds the app against it, starts it on port 3100 and runs
 the suites in `scripts/test/` over real HTTP: upgrade safety and the permission
-matrix, the day's list, and the recovery tools. Run it after any change to the
+matrix, the day's list, the doctor's speed features, and the recovery tools. Run it after any change to the
 clinic app, and add checks when you add routes. Don't run it while `npm run dev` is
 running in the same folder — both use `.next/`. Add `-- --no-build` to reuse a build.
 

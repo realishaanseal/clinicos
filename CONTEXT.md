@@ -7,7 +7,7 @@
 >
 > **Keep it current.** When you finish something, update §3, §6, §7 and §10.
 >
-> Last updated: 17 September 2026.
+> Last updated: 18 September 2026.
 
 ---
 
@@ -135,6 +135,28 @@ The clinic app also runs on the clinic computer, exactly as before. Start it wit
   - Doctor Today: a "Waiting now" panel with **Start visit**. Signing marks the patient
     seen.
   - Clinic admin: signed consultations per doctor over 7 days, as raw counts.
+- **The doctor's speed features** (18 Sep 2026, branch `workflow-speed`, waiting for
+  Ishaan's go-ahead to merge into `main` — §7):
+  - **Quick visit (#18):** "Write the note without recording" on the consent step, on
+    the recorder, and whenever transcription or drafting fails. It is also what a
+    patient who says no to recording gets, instead of paper. Nothing is recorded; the
+    consent gate is unchanged.
+  - **Last visit and repeat medicines (#17):** a returning patient's visit opens with a
+    one-line reminder of their last signed visit, and the note editor repeats its
+    medicines in one tap.
+  - **Favourites (#15, #16):** each doctor saves the plan of a note under a name and
+    fills a later note from it. Plan only, the doctor's own, none shipped (§4).
+  - **Search from anywhere (#19):** Ctrl+K / ⌘K, or Search in the navigation. A doctor
+    opens the record; the front desk adds the patient to today's list.
+  - **Speed pass (#3):** Clinic admin shows how long each step took over 7 days (the
+    middle value and the longest), and transcription starts when recording stops.
+  - **Fixes found on the way:** an empty note can no longer be signed; a signed visit
+    refuses to be drafted or transcribed again (it could overwrite the draft it was
+    signed against); the Investigations box keeps new lines; a signed note is stored
+    with only the note's own fields; "Patients on this machine" says "in the online
+    copy" online.
+  - **Tooling:** `npm run dev:sandbox` (the app on :3002 against `.sandbox/`, setup code
+    `sandbox`), and production deploys apply Postgres migrations (§4).
 
 ### Not built yet
 
@@ -152,8 +174,11 @@ The clinic app also runs on the clinic computer, exactly as before. Start it wit
   - Suites:
     - upgrade safety and the full permission matrix (100 checks)
     - the day's list and phone search (39)
+    - the doctor's speed features (52)
     - reset script and restoring a pre-accounts backup (14)
-  - All passed on 14 September 2026.
+  - The permission suite now has 110 checks and the day's list 50.
+  - All 226 passed on 18 September 2026, on SQLite and on Postgres (PGlite), on the
+    Windows laptop.
   - Don't run it while `npm run dev` is running in that folder.
 - **Website:** `cd landing && npm run build`
   - Rebuilding the film needs the two AI tools, which are not in the repo; the
@@ -185,6 +210,13 @@ The clinic app also runs on the clinic computer, exactly as before. Start it wit
 | 17 Sep 2026 | It lives at **vxclinicos.vercel.app/app**, not a second address. | Ishaan asked for the website's own address. The website rewrites `/app` to the `vxclinicos-app` project, built with `basePath: /app`. |
 | 17 Sep 2026 | Online records go in the existing Supabase project in Mumbai, beside the portal's tables. | No second project to create or pay for; no table names collide. |
 | 17 Sep 2026 | Until the consent script covers online use, the online copy is for made-up patients only, with a banner on every screen. | The script still promises patients that nothing leaves the clinic computer. |
+| 18 Sep 2026 | Cloud now, a clinic's own computer later — with the design already built: one codebase, `DATA_BACKEND` choosing Postgres online or SQLite on the clinic computer. | Ishaan asked how medical software handles this and suggested routing web requests to a database on the clinic laptop. Advised against: the app would go down whenever that laptop or its internet did, and it puts the laptop on the internet. Most small-clinic software in India is cloud-hosted; hospitals often run their own server. (Ishaan's answer to a hosting question that day was given while the assistant's copy of the repo was two days stale; what it asked for — the same app and database design, hosted — is what already exists.) |
+| 18 Sep 2026 | Order of work: the doctor's speed features, then the patient portal (Parts C and D), then prescription extras (#9, #20, #25), then billing and follow-up (#12, #10). | Ishaan: "all one by one". |
+| 18 Sep 2026 | Transcription and drafting online use a hosted AI service, through the existing `http` / `openai` providers. | Ishaan chose it; still waiting on a key (§7.1). |
+| 18 Sep 2026 | A note written by hand has no AI draft: no `Edit` rows at signing, and it counts in neither time saved nor edits per note. | Diffing against an empty draft logged every word typed as a "correction", and counting it as time saved would claim work ClinicOS did not do. |
+| 18 Sep 2026 | Favourites are written by each doctor, hold the plan only (diagnosis, medicines, tests, advice, follow-up), are private to that doctor, and never overwrite what is already in a note. ClinicOS ships none. | A shipped "viral fever" template would be clinical advice (invariant 1); a patient's complaint or findings must never be carried to another patient. Deleting one is a two-tap confirm, not a typed one: it is the doctor's shortcut, not a record. |
+| 18 Sep 2026 | Production deploys of the app apply Postgres migrations before building; Preview builds never touch the database. Migrations must be additive. | The manual step needed the database password, which lives on one laptop, and forgetting it would break pages online. Previews share the production database, so an unreviewed branch must not change it. |
+| 18 Sep 2026 | Step times are shown as the middle value and the longest, with the number of visits, on Clinic admin — never an average, a score or a per-doctor ranking. | One tab left open over lunch would wreck an average. The numbers are operational, with nothing about any patient. |
 | Prototype era | The invariants in CLAUDE.md. | No clinical judgement. Audio deleted at signing. No training on audio. Consent enforced server-side. `draftJson` immutable. Backups via the SQLite backup API. No lock-in. |
 
 ---
@@ -247,6 +279,18 @@ laptop exactly as before. `DATA_BACKEND=postgres` is the online copy on Vercel.
 (§7.1); the consent script (English and Bengali), CLAUDE.md invariant 2 and the pilot
 agreement's sub-processors rewritten for online use — Part D's work, now needed for the
 online copy as well as the portal; paid plans with backups (§7).
+
+### Order of work (Ishaan, 18 Sep 2026: "all one by one")
+
+1. **The doctor's speed features** — built on `workflow-speed` (§3), waiting to merge.
+2. **The patient portal**, Part C below, with Part D. Now that the clinic app itself is
+   online, the portal could live inside it rather than as a separate app; decide that
+   before starting, because clinics on their own computer still need the push design.
+3. **Prescription extras:** #9 a Bengali card showing when to take each medicine, #20
+   a "come back immediately if…" card (the doctor's own words, printed), #25 the
+   clinic's logo on the letterhead.
+4. **Billing and follow-up:** #12 collected, pending and a printed receipt; #10
+   WhatsApp follow-up through a `wa.me` link the desk taps (no WhatsApp API, no cost).
 
 ### Part C — patient portal
 
@@ -336,13 +380,18 @@ clinic admin pastes it into Clinic admin → Portal. There is no portal admin sc
 
 ### After v0.5
 
-CLAUDE.md's gate still stands: the 20 interviews. The next backlog item is #3, the
-speed pass.
+CLAUDE.md's gate still stands: the 20 interviews. The speed pass (#3) has started:
+the times are measured (§3). Cutting them further needs real consultations to measure.
 
 ---
 
 ## 7. Waiting on Ishaan
 
+0. **Say whether `workflow-speed` can go into `main`.** Merging puts the doctor's speed
+   features live at vxclinicos.vercel.app/app. The production build will add the new
+   tables and columns to the online database by itself (§4); nothing needs typing into
+   a dashboard. Until then, the branch's Vercel Preview shows errors on the
+   consultation and Clinic admin pages, because previews never change the database.
 1. **Transcription and note drafting online need a hosted AI service.** Create an
    account with an OpenAI-compatible provider that offers both speech-to-text and chat
    (Groq is one with a free tier), create an API key, and add four variables to the
@@ -417,6 +466,18 @@ and `--scope varaxis` reaches the projects (`demo`, `vxclinicos-app`, `scholar`,
   repo root and `.playwright-mcp/`.
 - **ffmpeg** is not installed on the development laptop. `pip install imageio-ffmpeg`
   brings a static build, which is what `landing/scripts/backdrop.py` uses.
+- **The Windows laptop's toolchain, 18 Sep 2026:** Node 24.19.0, npm 11.17.0. Its local
+  `main` had fallen two days behind `origin/main` — the whole online copy was missing
+  from it — so **`git fetch` before reading the repo**, or the picture is wrong.
+- **The in-app browser's keyboard:** its `Return` key arrives with an empty key name and
+  its `Escape` without a key code, so neither submits a form, adds a new line or closes a
+  dialog. `Enter` works for keydown handlers; type `\n` for a new line. Clicking outside a
+  dialog does close it.
+- **Signing in the in-app browser:** an assistant must not type passwords into a form.
+  Make a throwaway account and session in the sandbox through the API with a script,
+  then set the `clinicos_session` cookie with page JavaScript. Page JavaScript cannot
+  replace a cookie the server set as httpOnly, so to switch account open the same app at
+  `127.0.0.1:3002` instead of `localhost:3002`: it has its own cookies.
 - **Other tools' config** sits untracked in the main checkout: `.agents/` and `.codex/`.
   They are not part of the repo; leave them out of commits.
 - **Never leave another project's files loose in the home folder.** Next searches
@@ -471,6 +532,13 @@ and `--scope varaxis` reaches the projects (`demo`, `vxclinicos-app`, `scholar`,
 
 ## 9. Known loose ends
 
+- **A stray tracked file:** `clinicos-app/.test-data 2/fingerprint.json`, a macOS
+  "duplicate folder" copy, is committed. Harmless; delete it in a tidy-up.
+- **Note editor labels are not tied to their fields** (`<label>` without `htmlFor`), so a
+  screen reader announces the boxes without their names. Worth fixing in one pass.
+- **Hand-written visits and the edit log:** before 18 Sep 2026, a note signed without an
+  AI draft logged its fields as "corrections" against an empty draft. Only test data was
+  affected (the online copy has no real records); older numbers may include them.
 - **Missing favicon:** the clinic app has none, so there is a harmless 404 in the browser
   console.
 - **Delete list limit:** Clinic admin's delete list shows only the 50 most recent
@@ -633,12 +701,28 @@ and `--scope varaxis` reaches the projects (`demo`, `vxclinicos-app`, `scholar`,
     to the website. They now use `appPath()`, and `npm run check:paths` fails any test
     run where a hand-written path does not.
 
+- **18 Sep 2026:**
+  - Ishaan asked to move on to building the web version out: current features, workflow,
+    and new features from the master plan, with the database in the cloud for now and on
+    the clinic's own computer once there are clients. The assistant first read a local
+    checkout that was two days stale and told Ishaan the database was not in the cloud;
+    after `git fetch` it corrected that — the online copy on Vercel and Supabase already
+    exists and is exactly this design (§4).
+  - The doctor's speed features were built on `workflow-speed`, one commit each, each
+    with tests: quick visit (#18), last visit and repeat medicines (#17), favourites (#15,
+    #16), Ctrl+K search (#19), the speed pass (#3). Then `npm run dev:sandbox`, and
+    migrations applied by production deploys. 226 checks pass on SQLite and Postgres.
+    Each feature was also tried in the browser against the sandbox: a hand-written
+    visit, repeating medicines, saving and using a favourite, search as a doctor and as
+    the front desk, the new-line fix, and the step-times card.
+
 ### Where to pick up
 
+0. Ishaan: say whether `workflow-speed` can be merged into `main` (§7.0).
 1. Ishaan: set up the online clinic with the setup code (§7.2), and add a hosted AI
    service so transcription and drafting work online (§7.1).
 2. Ishaan: reset the Supabase password, then update `DATABASE_URL` on `vxclinicos-app`
    (§7.3); fix the Tally form's privacy link (§7.4).
 3. Before real patients use the online copy: the consent script, invariant 2 and the
    pilot agreement rewritten for online use, and paid plans with backups (§6, §7.6).
-4. Then v0.5 Part C (the portal) or more testing of the dashboards.
+4. Then the next item in §6's order: the patient portal (Part C, with Part D).
