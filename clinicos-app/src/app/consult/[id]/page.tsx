@@ -1,4 +1,4 @@
-import { getConsultWithPatient, getUserPublic, previousSignedConsults } from "@/lib/db";
+import { favouriteView, getConsultWithPatient, getUserPublic, listFavourites, previousSignedConsults } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { parseNote, noteHasContent } from "@/lib/types";
 import ConsultWorkflow from "@/components/ConsultWorkflow";
@@ -81,6 +81,7 @@ export default async function ConsultPage({ params }: { params: Promise<{ id: st
         }}
         clinic={identity}
         lastVisit={lastVisit}
+        favourites={c.signedAt ? [] : (await listFavourites(user.id)).map(favouriteView)}
       />
     </div>
   );

@@ -371,6 +371,17 @@ tbody tr:hover { background: #fbfcfc; }
 /* medication rows */
 .meds { border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden; }
 
+/* the doctor's favourites, at the top of the note editor */
+.favs { margin-bottom: 18px; }
+.favbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.favbar select { flex: 0 1 300px; width: auto; min-width: 200px; }
+.favform { margin-top: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-md); background: #fbfcfc; }
+.favlist { list-style: none; margin: 12px 0 0; padding: 0; border: 1px solid var(--line); border-radius: var(--r-md); }
+.favlist li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 12px; }
+.favlist li + li { border-top: 1px solid var(--line-soft); }
+.favmsg { margin: 8px 0 0; font-size: 13px; color: var(--teal-800); }
+.favmsg.err { color: #9f1239; }
+
 /* the patient's last signed visit, above the medicines */
 .lastvisit {
   display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;

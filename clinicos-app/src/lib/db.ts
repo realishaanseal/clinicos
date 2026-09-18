@@ -11,6 +11,7 @@
  */
 import { BACKEND, DB_PATH, isUniqueViolation, q, tx } from "./sql";
 import { localDay, localDayBounds } from "./time";
+import { planOf, type Plan } from "./types";
 
 export { localDay };
 
@@ -29,7 +30,17 @@ export async function exportEverything() {
     }
     out.push({ ...p, consults: withEdits });
   }
-  return { format: "clinicos-full-export", version: 1, exportedAt: now(), patients: out };
+  // Favourites are the doctors' own work, so they leave with the clinic too.
+  const favourites = await q().all<{ doctor: string | null; name: string; noteJson: string }>(
+    `SELECT u.name AS doctor, f.name, f."noteJson" FROM "Favourite" f LEFT JOIN "User" u ON u.id = f."userId" ORDER BY u.name, LOWER(f.name)`
+  );
+  return {
+    format: "clinicos-full-export",
+    version: 1,
+    exportedAt: now(),
+    patients: out,
+    favourites: favourites.map((f) => ({ doctor: f.doctor, name: f.name, note: JSON.parse(f.noteJson) })),
+  };
 }
 
 function editsFor(consultId: string) {
@@ -825,6 +836,90 @@ export function failedLoginsSince(username: string, sinceIso: string): Promise<n
     `username: ${username}`,
     sinceIso
   );
+}
+
+// -------------------------------------------------------------- favourites
+/**
+ * A doctor's own saved prescriptions. Each doctor sees and changes only their
+ * own: every query here is scoped by userId, and the routes pass the signed-in
+ * account's id, never one from the request.
+ */
+export type Favourite = {
+  id: string;
+  userId: string;
+  name: string;
+  noteJson: string;
+  useCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** What the browser gets: the plan, re-read through planOf so only its own
+ *  fields ever leave the server. */
+export type FavouriteView = { id: string; name: string; plan: Plan; useCount: number };
+
+export function favouriteView(f: Favourite): FavouriteView {
+  return { id: f.id, name: f.name, plan: planOf(JSON.parse(f.noteJson)), useCount: f.useCount };
+}
+
+/** Enough for anyone's top twenty several times over; stops a runaway script. */
+export const MAX_FAVOURITES = 200;
+
+export function listFavourites(userId: string): Promise<Favourite[]> {
+  // Most used first: the doctor's everyday prescriptions rise to the top.
+  return q().all<Favourite>(
+    `SELECT * FROM "Favourite" WHERE "userId" = ? ORDER BY "useCount" DESC, LOWER(name)`,
+    userId
+  );
+}
+
+/** Save under a name, replacing that doctor's favourite of the same name
+ *  (whatever its case). Returns null when the doctor already has the most.
+ *
+ *  Two saves of one new name at the same instant (a double tap) both find
+ *  nothing and both insert; the unique index refuses the second, and its retry
+ *  then finds the first and replaces it — the same shape as addToQueue. */
+export async function saveFavourite(
+  userId: string,
+  name: string,
+  noteJson: string
+): Promise<{ favourite: Favourite; replaced: boolean } | null> {
+  const find = () =>
+    q().get<Favourite>(`SELECT * FROM "Favourite" WHERE "userId" = ? AND LOWER(name) = LOWER(?)`, userId, name);
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await tx(async () => {
+        const existing = await find();
+        if (existing) {
+          await q().run(
+            `UPDATE "Favourite" SET name = ?, "noteJson" = ?, "updatedAt" = ? WHERE id = ?`,
+            name, noteJson, now(), existing.id
+          );
+          return { favourite: (await find())!, replaced: true };
+        }
+        const mine = await count(`SELECT CAST(COUNT(*) AS INTEGER) AS n FROM "Favourite" WHERE "userId" = ?`, userId);
+        if (mine >= MAX_FAVOURITES) return null;
+        const at = now();
+        await q().run(
+          `INSERT INTO "Favourite" (id, "userId", name, "noteJson", "useCount", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, 0, ?, ?)`,
+          newId(), userId, name, noteJson, at, at
+        );
+        return { favourite: (await find())!, replaced: false };
+      });
+    } catch (e) {
+      if (!isUniqueViolation(e) || attempt >= 5) throw e;
+    }
+  }
+}
+
+export async function deleteFavourite(id: string, userId: string): Promise<boolean> {
+  return (await q().run(`DELETE FROM "Favourite" WHERE id = ? AND "userId" = ?`, id, userId)).changes > 0;
+}
+
+export async function markFavouriteUsed(id: string, userId: string): Promise<boolean> {
+  return (
+    await q().run(`UPDATE "Favourite" SET "useCount" = "useCount" + 1 WHERE id = ? AND "userId" = ?`, id, userId)
+  ).changes > 0;
 }
 
 // ---------------------------------------------------------------- settings

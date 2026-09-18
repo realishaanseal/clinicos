@@ -5,6 +5,8 @@ import { useRecorder } from "@/lib/useRecorder";
 import { useAutosave, readLocalMirror } from "@/lib/useAutosave";
 import { ClinicalNote, Medication, mergeMedicines, noteHasContent } from "@/lib/types";
 import Prescription from "./Prescription";
+import Favourites from "./Favourites";
+import type { FavouriteView } from "@/lib/db";
 import {
   IcMic, IcRec, IcStop, IcDoc, IcCheck, IcAlert, IcPrint, IcPlus, IcTrash, IcShield,
 } from "./Icons";
@@ -37,13 +39,15 @@ type Props = {
   };
   /** The patient's last signed visit, if any. */
   lastVisit: LastVisit | null;
+  /** The signed-in doctor's own favourites. */
+  favourites: FavouriteView[];
 };
 
 type LastVisit = { signedAt: string; diagnosis: string; medications: Medication[] };
 
 const STEPS = ["Consent", "Record", "Transcript", "Review & sign"];
 
-export default function ConsultWorkflow({ consultId, patient, initial, clinic, lastVisit }: Props) {
+export default function ConsultWorkflow({ consultId, patient, initial, clinic, lastVisit, favourites }: Props) {
   const [consent, setConsent] = useState(initial.consentGiven);
   const [transcript, setTranscript] = useState(initial.transcript);
   const [note, setNote] = useState<ClinicalNote>(initial.note);
@@ -374,6 +378,7 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic, l
           {/* ------------------------------------------------------- 4 note */}
           {(hasNote || manual) && (
             <NoteEditor
+              favourites={favourites}
               lastVisit={lastVisit}
               manual={manual}
               note={note}
@@ -416,8 +421,9 @@ function LastVisitStrip({ visit, onRepeat }: { visit: LastVisit; onRepeat?: () =
 }
 
 function NoteEditor({
-  lastVisit, manual, note, setNote, set, stats, onSign, busy, saveState, savedAt,
+  favourites, lastVisit, manual, note, setNote, set, stats, onSign, busy, saveState, savedAt,
 }: {
+  favourites: FavouriteView[];
   lastVisit: LastVisit | null;
   manual: boolean;
   note: ClinicalNote;
@@ -492,6 +498,8 @@ function NoteEditor({
             ? "Write it as you would on paper. There is no AI draft, so nothing here counts as a correction."
             : "Every correction here is logged. That log is your accuracy metric — correct the draft rather than regenerating it."}
         </p>
+
+        <Favourites initial={favourites} note={note} setNote={setNote} />
 
         {fields.map(([k, label]) => (
           <div className="field" key={k}>

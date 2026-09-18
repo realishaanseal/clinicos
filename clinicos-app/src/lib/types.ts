@@ -80,6 +80,58 @@ export function noteHasContent(n: ClinicalNote): boolean {
   );
 }
 
+/** The plan part of a note, which is all a favourite keeps: diagnosis,
+ *  medicines, tests, advice and follow-up. A patient's complaint, history and
+ *  examination are about that patient only and are never carried to another. */
+export type Plan = Pick<ClinicalNote, "diagnosis" | "medications" | "investigations" | "advice" | "followUp">;
+
+export function planOf(raw: unknown): Plan {
+  const n = normalizeNote(raw);
+  return {
+    diagnosis: n.diagnosis.trim(),
+    medications: n.medications.filter((m) => m.name.trim()),
+    investigations: n.investigations.map((s) => s.trim()),
+    advice: n.advice.trim(),
+    followUp: n.followUp.trim(),
+  };
+}
+
+export function planHasContent(p: Plan): boolean {
+  return !!(p.diagnosis || p.advice || p.followUp || p.medications.length || p.investigations.length);
+}
+
+/**
+ * Fill a note from a favourite without overwriting anything already written:
+ * medicines and tests are added if missing, and diagnosis, advice and
+ * follow-up are filled only where empty. Returns what was added, in words.
+ */
+export function applyPlan(note: ClinicalNote, plan: Plan): { note: ClinicalNote; added: string[] } {
+  const added: string[] = [];
+  const { medications, added: meds } = mergeMedicines(note.medications, plan.medications);
+  if (meds) added.push(`${meds} medicine${meds === 1 ? "" : "s"}`);
+
+  const haveTests = new Set(note.investigations.map((s) => s.trim().toLowerCase()));
+  const tests = plan.investigations.filter((s) => s && !haveTests.has(s.toLowerCase()));
+  if (tests.length) added.push(`${tests.length} test${tests.length === 1 ? "" : "s"}`);
+
+  const fill = (have: string, want: string, label: string) => {
+    if (have.trim() || !want) return have;
+    added.push(label);
+    return want;
+  };
+  return {
+    note: {
+      ...note,
+      diagnosis: fill(note.diagnosis, plan.diagnosis, "the diagnosis"),
+      medications,
+      investigations: [...note.investigations, ...tests],
+      advice: fill(note.advice, plan.advice, "advice"),
+      followUp: fill(note.followUp, plan.followUp, "follow-up"),
+    },
+    added,
+  };
+}
+
 const medKey = (m: Medication) => m.name.trim().toLowerCase();
 
 /** Add medicines to a list, skipping any already there by name. Used to repeat

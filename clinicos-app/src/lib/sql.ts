@@ -275,6 +275,22 @@ function openSqlite(): BetterSqlite3.Database {
     );
     CREATE INDEX IF NOT EXISTS idx_queue_day ON QueueEntry(day);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_queue_token ON QueueEntry(day, token);
+
+    -- A doctor's own saved prescriptions (backlog #15, #16): a name and the
+    -- plan part of a note — diagnosis, medicines, tests, advice, follow-up —
+    -- never a patient's complaint or findings. Written by each doctor from
+    -- their own notes; ClinicOS ships none, because a pre-written treatment
+    -- would be clinical advice. One name per doctor, whatever its case.
+    CREATE TABLE IF NOT EXISTS Favourite (
+      id        TEXT PRIMARY KEY,
+      userId    TEXT NOT NULL REFERENCES User(id) ON DELETE CASCADE,
+      name      TEXT NOT NULL,
+      noteJson  TEXT NOT NULL,
+      useCount  INTEGER NOT NULL DEFAULT 0,
+      createdAt TEXT NOT NULL,
+      updatedAt TEXT NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_favourite_name ON Favourite(userId, LOWER(name));
   `);
 
   // Columns added after the first release. SQLite has no "ADD COLUMN IF NOT

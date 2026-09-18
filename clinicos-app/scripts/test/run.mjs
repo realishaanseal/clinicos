@@ -47,7 +47,7 @@ const skipBuild = process.argv.includes("--no-build");
 const onPostgres = process.argv.includes("--pg");
 const pgPort = process.env.TEST_PG_PORT || "55432";
 const realPg = onPostgres ? process.env.TEST_DATABASE_URL || "" : "";
-const CLINIC_TABLES = ["AudioChunk", "QueueEntry", "Edit", "Consult", "Session", "AuditEvent", "Setting", "User", "Patient"];
+const CLINIC_TABLES = ["AudioChunk", "QueueEntry", "Edit", "Consult", "Favourite", "Session", "AuditEvent", "Setting", "User", "Patient"];
 
 fs.rmSync(work, { recursive: true, force: true });
 fs.mkdirSync(work, { recursive: true });

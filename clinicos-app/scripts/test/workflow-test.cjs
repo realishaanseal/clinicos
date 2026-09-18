@@ -125,6 +125,85 @@ const emptyNote = { chiefComplaint: "", history: "", examination: "", diagnosis:
   r = await call("GET", `/consult/${hw}`, { token: owner });
   check("A signed visit does not offer to repeat anything", !r.text.includes("Repeat these medicines"));
 
+  // ---------------------------------------------------------- 3. favourites
+  r = await call("GET", "/api/favourites", { token: desk });
+  check("Front desk has no favourites to read", r.status === 403, r.status);
+  r = await call("GET", "/api/favourites", { token: mgr });
+  check("Nor does a non-clinical admin", r.status === 403, r.status);
+  r = await call("POST", "/api/favourites", { token: desk, body: { name: "Desk fav", plan: { diagnosis: "x" } } });
+  check("Front desk cannot save one", r.status === 403, r.status);
+
+  const favNote = {
+    ...emptyNote,
+    chiefComplaint: "Private complaint text",
+    history: "Private history text",
+    examination: "Private examination text",
+    diagnosis: "Viral fever",
+    medications: [
+      { name: "Paracetamol", dose: "650mg", frequency: "TDS", duration: "3 days", instructions: "After food" },
+      { name: "", dose: "", frequency: "", duration: "", instructions: "" },
+    ],
+    investigations: ["CBC"],
+    advice: "Plenty of fluids",
+  };
+  r = await call("POST", "/api/favourites", { token: owner, body: { name: "  ", plan: favNote } });
+  check("A favourite needs a name", r.status === 400, r.status);
+  r = await call("POST", "/api/favourites", { token: owner, body: { name: "Only findings", plan: { ...emptyNote, chiefComplaint: "Cough" } } });
+  check("A favourite with no plan in it is refused", r.status === 400, r.status);
+  r = await call("POST", "/api/favourites", { token: owner, body: { name: "x".repeat(81), plan: favNote } });
+  check("An overlong name is refused", r.status === 400, r.status);
+
+  r = await call("POST", "/api/favourites", { token: owner, body: { name: "Viral fever — adult", plan: favNote } });
+  const fav = r.json?.favourite;
+  check("A doctor saves a favourite", r.status === 200 && fav?.id && r.json?.replaced === false, JSON.stringify(r.json));
+  check(
+    "It keeps the plan only: no complaint, history or findings, and no blank medicine rows",
+    fav && !("chiefComplaint" in fav.plan) && !("history" in fav.plan) && !("examination" in fav.plan) && fav.plan.medications.length === 1,
+    JSON.stringify(fav?.plan)
+  );
+  {
+    const db = peek(dbPath);
+    const row = await db.get(`SELECT "noteJson" FROM "Favourite" WHERE id = ?`, fav?.id);
+    check("Nothing about the patient is stored with it", row && !/Private/.test(row.noteJson), row?.noteJson);
+    await db.close();
+  }
+
+  r = await call("POST", "/api/favourites", { token: owner, body: { name: "VIRAL FEVER — ADULT", plan: { ...favNote, advice: "Rest and fluids" } } });
+  check("Saving the same name again, in any case, replaces it", r.status === 200 && r.json?.replaced === true && r.json?.favourite?.id === fav?.id && r.json?.favourite?.plan?.advice === "Rest and fluids", JSON.stringify(r.json));
+
+  const twice = await Promise.all([1, 2].map(() => call("POST", "/api/favourites", { token: owner, body: { name: "Gastritis", plan: { diagnosis: "Gastritis", medications: [{ name: "Pantoprazole" }] } } })));
+  {
+    const db = peek(dbPath);
+    const n = (await db.get(`SELECT CAST(COUNT(*) AS INTEGER) AS n FROM "Favourite" WHERE LOWER(name) = 'gastritis'`)).n;
+    check("A double tap on Save makes one favourite, not two", twice.every((t) => t.status === 200) && n === 1, `${twice.map((t) => t.status)} rows=${n}`);
+    await db.close();
+  }
+
+  r = await call("GET", "/api/favourites", { token: doc3 });
+  check("Another doctor does not see them", r.status === 200 && Array.isArray(r.json?.favourites) && r.json.favourites.length === 0, JSON.stringify(r.json));
+  r = await call("DELETE", `/api/favourites/${fav?.id}`, { token: doc3 });
+  check("…and cannot delete one", r.status === 404, r.status);
+  r = await call("POST", `/api/favourites/${fav?.id}/use`, { token: doc3 });
+  check("…or count a use of one", r.status === 404, r.status);
+
+  r = await call("POST", `/api/favourites/${fav?.id}/use`, { token: owner });
+  r = await call("GET", "/api/favourites", { token: owner });
+  check("The most used favourite comes first", r.json?.favourites?.[0]?.id === fav?.id && r.json.favourites[0].useCount === 1, JSON.stringify(r.json?.favourites?.map((f) => [f.name, f.useCount])));
+
+  r = await call("GET", `/consult/${followUp}`, { token: owner });
+  // Saving under the same name took the newer spelling.
+  check("The note editor offers the doctor's favourites", r.text.includes("Use a favourite") && r.text.includes("VIRAL FEVER — ADULT"));
+  r = await call("GET", `/consult/${followUp}`, { token: doc3 });
+  check("…and only their own", r.status === 200 && !r.text.includes("VIRAL FEVER — ADULT"));
+
+  r = await call("GET", "/api/backup/export", { token: owner });
+  check("The full export carries the favourites", r.status === 200 && r.json?.favourites?.some((f) => f.name === "Gastritis" && f.doctor === "Dr Owner"), r.status);
+
+  r = await call("DELETE", `/api/favourites/${fav?.id}`, { token: owner });
+  check("A doctor deletes their own favourite", r.status === 200, r.status);
+  r = await call("DELETE", `/api/favourites/${fav?.id}`, { token: owner });
+  check("Deleting it again says it is gone", r.status === 404, r.status);
+
   const failed = results.filter((x) => !x.ok);
   for (const x of results) console.log(`${x.ok ? "PASS" : "FAIL"}  ${x.name}${x.ok ? "" : `  [${x.info}]`}`);
   console.log(`\n${results.length - failed.length} passed, ${failed.length} failed`);
