@@ -46,6 +46,9 @@ export const IcStop = ({ size = 18 }: P) => (
 export const IcRec = ({ size = 18 }: P) => (
   <svg {...base(size)}><circle cx="12" cy="12" r="5.5" fill="currentColor" stroke="none" /></svg>
 );
+export const IcSearch = ({ size = 18 }: P) => (
+  <svg {...base(size)}><circle cx="11" cy="11" r="6.5" /><path d="m20 20-4.2-4.2" /></svg>
+);
 export const IcArrow = ({ size = 18 }: P) => (
   <svg {...base(size)}><path d="M5 12h13M12.5 5.5 19 12l-6.5 6.5" /></svg>
 );

@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
-import { Mark, IcPulse, IcUsers, IcShield, IcCog, IcDoc } from "./Icons";
+import { useEffect, useState } from "react";
+import { Mark, IcPulse, IcUsers, IcShield, IcCog, IcDoc, IcSearch } from "./Icons";
 import { describeAccess, type Role } from "@/lib/users";
 import { ONLINE } from "@/lib/deployment";
 import { appPath } from "@/lib/base-path";
+import QuickSearch, { openSearch } from "./QuickSearch";
 
 type NavUser = { name: string; role: Role; isAdmin: boolean };
 
@@ -17,6 +18,10 @@ type NavUser = { name: string; role: Role; isAdmin: boolean };
 export default function SideNav({ user, clinicName }: { user: NavUser; clinicName: string }) {
   const path = usePathname();
   const [leaving, setLeaving] = useState(false);
+  // "Ctrl K" is rendered on the server and corrected after load on a Mac, so
+  // the first render matches and React does not complain.
+  const [mac, setMac] = useState(false);
+  useEffect(() => setMac(/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)), []);
 
   const frontdesk = user.role !== "admin";
   const admin = user.role === "admin" || user.isAdmin;
@@ -60,6 +65,11 @@ export default function SideNav({ user, clinicName }: { user: NavUser; clinicNam
             <span className="tag" title={clinicName}>{clinicName}</span>
           </span>
         </Link>
+
+        <button type="button" className="navsearch" onClick={openSearch} aria-keyshortcuts="Control+K Meta+K">
+          <IcSearch size={16} /> Search
+          <kbd>{mac ? "⌘K" : "Ctrl K"}</kbd>
+        </button>
 
         {links.map((l) => (
           <Link key={l.href} href={l.href} className={`navlink ${activeHref === l.href ? "active" : ""}`}>
@@ -107,10 +117,15 @@ export default function SideNav({ user, clinicName }: { user: NavUser; clinicNam
           </Link>
         ))}
         <span className="spacer" />
+        <button type="button" onClick={openSearch}>
+          Search
+        </button>
         <button type="button" onClick={signOut} disabled={leaving}>
           Sign out
         </button>
       </nav>
+
+      <QuickSearch role={user.role} isAdmin={user.isAdmin} />
     </>
   );
 }

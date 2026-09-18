@@ -204,6 +204,16 @@ const emptyNote = { chiefComplaint: "", history: "", examination: "", diagnosis:
   r = await call("DELETE", `/api/favourites/${fav?.id}`, { token: owner });
   check("Deleting it again says it is gone", r.status === 404, r.status);
 
+  // ------------------------------------------------ 4. search from anywhere
+  for (const [who, token, page] of [["doctor", owner, "/"], ["front desk", desk, "/"], ["clinic admin", mgr, "/admin"]]) {
+    r = await call("GET", page, { token });
+    check(`Every screen offers search to the ${who} (Ctrl+K)`, r.status === 200 && r.text.includes('aria-keyshortcuts="Control+K Meta+K"'), r.status);
+  }
+  r = await call("GET", "/api/patients?q=Handwritten", { token: mgr });
+  check("Search finds no patients for a non-clinical admin: the server refuses", r.status === 403, r.status);
+  r = await call("GET", "/api/patients?q=Handwritten", { token: desk });
+  check("The front desk's search finds patients by name, with nothing clinical", r.json?.patients?.some((p) => p.id === hwPatient) && !/finalJson|diagnosis|transcript/.test(r.text), r.status);
+
   const failed = results.filter((x) => !x.ok);
   for (const x of results) console.log(`${x.ok ? "PASS" : "FAIL"}  ${x.name}${x.ok ? "" : `  [${x.info}]`}`);
   console.log(`\n${results.length - failed.length} passed, ${failed.length} failed`);
