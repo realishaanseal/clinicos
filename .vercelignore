@@ -17,6 +17,7 @@
 # Patient data and recordings on a clinic computer, and test copies of them
 /clinicos-app/data
 /clinicos-app/.local-test
+/clinicos-app/.sandbox
 /clinicos-app/.test-data
 /clinicos-app/logs
 

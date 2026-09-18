@@ -20,6 +20,8 @@ clinicos-app/.test-data/
 # A local copy of the database for clicking around in, so that testing never
 # creates accounts or patients in the clinic's real data/ folder.
 clinicos-app/.local-test/
+# The same, made fresh by `npm run dev:sandbox`.
+clinicos-app/.sandbox/
 
 # Real clinic identity and any API keys
 .env
