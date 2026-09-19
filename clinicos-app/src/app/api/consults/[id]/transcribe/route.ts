@@ -13,7 +13,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   if (auth.denied) return auth.denied;
 
   const { id } = await params;
-  const consult = await getConsult(id);
+  const consult = await getConsult(auth.user.clinicId, id);
   if (!consult) return NextResponse.json({ error: "Consult not found" }, { status: 404 });
   // A signed note is the record; its transcript is part of what was signed.
   if (consult.signedAt) return NextResponse.json({ error: "This consultation is already signed." }, { status: 409 });
@@ -22,7 +22,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   try {
     const { buf, filename } = await readAudio(consult.audioPath);
     const result = await getAsr().transcribe(buf, filename);
-    await setTranscript(id, result.text, result.model, result.seconds);
+    await setTranscript(auth.user.clinicId, id, result.text, result.model, result.seconds);
     return NextResponse.json({ transcript: result.text, model: result.model, seconds: result.seconds });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });

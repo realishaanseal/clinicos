@@ -1,6 +1,17 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
-import { databaseStats, listUsers, localDay, searchPatients, signedConsultsSince, stepTimingsSince } from "@/lib/db";
+import {
+  databaseStats,
+  getTenant,
+  listUsers,
+  localDay,
+  searchPatients,
+  signedConsultsSince,
+  stepTimingsSince,
+  type ClinicId,
+} from "@/lib/db";
+import { MULTI_CLINIC, PLANS, clinicPath, parseFeatures } from "@/lib/tenant";
+import { publicAppUrl } from "@/lib/public-url";
 import { clinicDayAt, fmtDate, localDayBounds } from "@/lib/time";
 import { getClinic } from "@/lib/clinic";
 import { listBackups } from "@/lib/backup";
@@ -15,12 +26,12 @@ export const dynamic = "force-dynamic";
 
 /** Signed consultations per doctor for the last seven local days. Raw counts:
  *  no averages, no rankings, nothing that reads as a performance score. */
-async function signedByDoctor() {
+async function signedByDoctor(clinicId: ClinicId) {
   // The clinic's last seven days, not the server's: online the server is on UTC.
   const days = Array.from({ length: 7 }, (_, i) => clinicDayAt(i - 6));
   const dayKeys = days.map((d) => localDay(d));
   const counts = new Map<string, number[]>();
-  for (const s of await signedConsultsSince(localDayBounds(days[0])[0])) {
+  for (const s of await signedConsultsSince(clinicId, localDayBounds(days[0])[0])) {
     const idx = dayKeys.indexOf(localDay(new Date(s.signedAt)));
     if (idx < 0) continue;
     const who = s.doctorName ?? "Signed before accounts";
@@ -50,8 +61,8 @@ const secondsBetween = (from: string | null, to: string | null) =>
  * wreck, and no score. Visits signed before these times were recorded simply
  * do not count towards the steps they lack.
  */
-async function stepTimes(sinceIso: string) {
-  const rows = await stepTimingsSince(sinceIso);
+async function stepTimes(clinicId: ClinicId, sinceIso: string) {
+  const rows = await stepTimingsSince(clinicId, sinceIso);
   const drafted = rows.filter((r) => r.drafted);
   const byHand = rows.filter((r) => !r.drafted);
   const steps: [string, (number | null)[]][] = [
@@ -69,14 +80,16 @@ async function stepTimes(sinceIso: string) {
 }
 
 export default async function AdminPage() {
-  await requireUser("admin");
+  const user = await requireUser("admin");
 
-  const stats = await databaseStats();
+  const stats = await databaseStats(user.clinicId);
   const backups = await listBackups();
-  const patients = await searchPatients("");
-  const activePeople = (await listUsers()).filter((u) => u.active).length;
-  const week = await signedByDoctor();
-  const steps = await stepTimes(localDayBounds(clinicDayAt(-6))[0]);
+  const patients = await searchPatients(user.clinicId, "");
+  const activePeople = (await listUsers(user.clinicId)).filter((u) => u.active).length;
+  const week = await signedByDoctor(user.clinicId);
+  const steps = await stepTimes(user.clinicId, localDayBounds(clinicDayAt(-6))[0]);
+  const tenant = MULTI_CLINIC ? await getTenant(user.clinicId) : undefined;
+  const address = tenant ? `${await publicAppUrl()}${clinicPath(tenant.slug)}` : null;
 
   return (
     <div className="page page-narrow">
@@ -86,13 +99,36 @@ export default async function AdminPage() {
         <p className="sub">Clinic details, people, backups and data removal.</p>
       </div>
 
+      {tenant && address && (
+        <div className="card flush">
+          <div className="card-head">
+            <span className="title">Your clinic on ClinicOS</span>
+            <span className="muted">set by Varaxis</span>
+          </div>
+          <div className="card-body">
+            <dl className="kv" style={{ marginBottom: 10 }}>
+              <div><dt>Address</dt><dd className="mono" style={{ wordBreak: "break-all" }}>{address}</dd></div>
+              <div><dt>Clinic ID</dt><dd className="mono">{tenant.slug}</dd></div>
+              <div><dt>Plan</dt><dd>{PLANS[tenant.plan] ?? tenant.plan}</dd></div>
+              <div>
+                <dt>Clinic computer</dt>
+                <dd>{parseFeatures(tenant.features).localSync ? "Included: a clinic computer can keep in step with this" : "Not included"}</dd>
+              </div>
+            </dl>
+            <p className="muted" style={{ margin: 0 }}>
+              Everyone here signs in at that address. Bookmark it on every computer and phone the clinic uses.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="card flush">
         <div className="card-head">
           <span className="title">Clinic details</span>
           <span className="muted">printed on every prescription</span>
         </div>
         <div className="card-body">
-          <ClinicSettingsForm initial={await getClinic()} />
+          <ClinicSettingsForm initial={await getClinic(user.clinicId)} />
         </div>
       </div>
 

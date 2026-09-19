@@ -8,7 +8,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   if (auth.denied) return auth.denied;
 
   const { id } = await params;
-  const target = await getUserPublic(id);
+  const target = await getUserPublic(auth.user.clinicId, id);
   if (!target) return NextResponse.json({ error: "That person no longer exists." }, { status: 404 });
   if (target.id === auth.user.id) {
     return NextResponse.json(
@@ -18,9 +18,9 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   }
 
   const tempPassword = generateTempPassword();
-  await setUserPassword(id, await hashPassword(tempPassword), true);
+  await setUserPassword(auth.user.clinicId, id, await hashPassword(tempPassword), true);
   await deleteSessionsForUser(id);
-  await recordAudit(auth.user, "user_password_reset", "user", id, target.name);
+  await recordAudit(auth.user.clinicId, auth.user, "user_password_reset", "user", id, target.name);
 
   return NextResponse.json({ ok: true, tempPassword });
 }

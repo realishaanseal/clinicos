@@ -21,7 +21,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { id } = await params;
 
-  const consult = await getConsult(id);
+  const consult = await getConsult(auth.user.clinicId, id);
   if (!consult) return NextResponse.json({ error: "Consult not found" }, { status: 404 });
   if (!consult.consentGiven) {
     return NextResponse.json({ error: "Consent has not been recorded." }, { status: 403 });
@@ -37,10 +37,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const first = req.nextUrl.searchParams.get("first") === "1";
   if (first) {
-    await markRecordingStarted(id);
-    await setAudioPath(id, audioPath);
+    await markRecordingStarted(auth.user.clinicId, id);
+    await setAudioPath(auth.user.clinicId, id, audioPath);
   } else if (!consult.audioPath) {
-    await setAudioPath(id, audioPath);
+    await setAudioPath(auth.user.clinicId, id, audioPath);
   }
 
   return NextResponse.json({ ok: true, bytes: buf.length, total });

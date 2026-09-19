@@ -3,23 +3,37 @@ import { createFirstAccount, recordAudit } from "@/lib/db";
 import { hashPassword, homeFor, sessionCookie, startSession, toSessionUser } from "@/lib/auth";
 import { cleanText, cleanUsername, passwordProblem, USERNAME_RULE } from "@/lib/users";
 import { setupCodeMatches } from "@/lib/setup-code";
+import { CLINIC_COOKIE, MULTI_CLINIC, resolveClinic } from "@/lib/tenant";
 
 /**
- * First run only. Creates the owner account while the User table is empty and
- * refuses forever after. Anyone who can reach the laptop before setup is done
- * could claim it, so setup belongs on the first day the app is switched on.
+ * First run only. Creates a clinic's owner account while that clinic has no
+ * accounts and refuses forever after. Anyone who can reach the laptop before
+ * setup is done could claim it, so setup belongs on the first day the app is
+ * switched on.
  *
  * Online, "anyone who can reach it" is the whole internet, so there setup also
- * needs SETUP_CODE — a random code set on the server and given only to the
- * person setting the clinic up. With no code configured, online setup is
+ * needs a code. A clinic Varaxis creates gets its own one-time code, given to
+ * the person setting the clinic up. The first clinic online uses SETUP_CODE
+ * from the server's environment; with no code configured, online setup is
  * refused outright rather than left open.
  */
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
 
-  if (!setupCodeMatches(body.setupCode)) {
+  const clinicSlug = typeof body.clinic === "string" && body.clinic.trim() ? body.clinic.trim() : null;
+  const clinic = await resolveClinic(clinicSlug);
+  if (!clinic) {
+    return NextResponse.json({ error: "There is no clinic with that ID. Check the setup link Varaxis sent." }, { status: 404 });
+  }
+
+  if (!setupCodeMatches(clinic, body.setupCode)) {
     return NextResponse.json(
-      { error: process.env.SETUP_CODE ? "That setup code isn't right." : "Setup is switched off until a setup code is configured on the server." },
+      {
+        error:
+          clinic.setupCodeHash || process.env.SETUP_CODE
+            ? "That setup code isn't right."
+            : "Setup is switched off until a setup code is configured on the server.",
+      },
       { status: 403 }
     );
   }
@@ -37,6 +51,7 @@ export async function POST(req: NextRequest) {
   if (problem) return NextResponse.json({ error: problem }, { status: 400 });
 
   const user = await createFirstAccount(
+    clinic.id,
     {
       name,
       username,
@@ -51,13 +66,17 @@ export async function POST(req: NextRequest) {
   );
 
   if (!user) {
-    return NextResponse.json({ error: "ClinicOS is already set up. Sign in instead." }, { status: 409 });
+    return NextResponse.json({ error: "ClinicOS is already set up for this clinic. Sign in instead." }, { status: 409 });
   }
 
   const token = await startSession(user.id);
-  await recordAudit(user, "setup", "user", user.id);
+  await recordAudit(clinic.id, user, "setup", "user", user.id);
 
-  const res = NextResponse.json({ ok: true, redirect: homeFor(toSessionUser(user)) });
-  res.cookies.set(sessionCookie(token, req.nextUrl.protocol === "https:"));
+  const secure = req.nextUrl.protocol === "https:";
+  const res = NextResponse.json({ ok: true, redirect: homeFor(toSessionUser(user, clinic.status)) });
+  res.cookies.set(sessionCookie(token, secure));
+  if (MULTI_CLINIC) {
+    res.cookies.set({ name: CLINIC_COOKIE, value: clinic.slug, httpOnly: true, sameSite: "lax", path: "/", maxAge: 400 * 24 * 60 * 60, secure });
+  }
   return res;
 }

@@ -13,9 +13,10 @@
  * it is ended, and the reset is written to the activity log.
  *
  * For the online copy, run it on any computer with the online database's
- * connection string:
+ * connection string, naming the clinic (its ID, from its address) when more
+ * than one clinic has that username:
  *
- *   DATA_BACKEND=postgres DATABASE_URL="…" npm run reset-password -- <username>
+ *   DATA_BACKEND=postgres DATABASE_URL="…" npm run reset-password -- <username> [clinic-id]
  *
  * The hash format must match hashPassword() in src/lib/auth.ts.
  */
@@ -24,8 +25,9 @@ import fs from "node:fs";
 import path from "node:path";
 
 const username = String(process.argv[2] || "").trim().toLowerCase();
+const clinicSlug = String(process.argv[3] || "").trim().toLowerCase();
 if (!username) {
-  console.error("Usage: npm run reset-password -- <username>");
+  console.error("Usage: npm run reset-password -- <username> [clinic-id]");
   process.exit(1);
 }
 
@@ -68,17 +70,34 @@ if (online) {
   const { default: postgres } = await import("postgres");
   const sql = postgres(url, { prepare: false, ssl: /sslmode=disable/.test(url) ? false : "require", max: 1 });
   try {
-    const [user] = await sql`select "id", "name" from "User" where lower("username") = ${username}`;
-    if (!user) {
-      const all = (await sql`select "username" from "User" order by "username"`).map((u) => u.username);
-      console.error(`No account called "${username}". Accounts here: ${all.join(", ") || "(none)"}`);
+    // Online, many clinics share the database, and usernames are unique only
+    // within a clinic.
+    const matches = await sql`
+      select u."id", u."name", u."clinicId", t."slug" from "User" u join "Tenant" t on t."id" = u."clinicId"
+      where lower(u."username") = ${username} ${clinicSlug ? sql`and t."slug" = ${clinicSlug}` : sql``}`;
+    const user = matches.length === 1 ? matches[0] : null;
+    if (matches.length > 1) {
+      console.error(`More than one clinic has an account called "${username}": ${matches.map((m) => m.slug).join(", ")}.`);
+      console.error(`Name the clinic: npm run reset-password -- ${username} <clinic-id>`);
+      process.exitCode = 1;
+    } else if (!user) {
+      // Name the accounts that do exist, but only within one clinic: the one
+      // named, or the only one there is.
+      const clinics = await sql`select "id", "slug" from "Tenant" ${clinicSlug ? sql`where "slug" = ${clinicSlug}` : sql``}`;
+      const where = clinicSlug ? ` in the clinic "${clinicSlug}"` : "";
+      if (clinics.length === 1) {
+        const all = (await sql`select "username" from "User" where "clinicId" = ${clinics[0].id} order by "username"`).map((u) => u.username);
+        console.error(`No account called "${username}"${where}. Accounts there: ${all.join(", ") || "(none)"}`);
+      } else {
+        console.error(`No account called "${username}"${where}. Name the clinic to see its accounts: npm run reset-password -- <username> <clinic-id>`);
+      }
       process.exitCode = 1;
     } else {
       await sql.begin(async (tx) => {
         await tx`update "User" set "passwordHash" = ${hash}, "mustChangePassword" = 1, "active" = 1 where "id" = ${user.id}`;
         await tx`delete from "Session" where "userId" = ${user.id}`;
-        await tx`insert into "AuditEvent" ("id", "userId", "userName", "action", "targetType", "targetId", "detail", "at")
-                 values (${id}, null, 'reset-password script', 'user_password_reset', 'user', ${user.id},
+        await tx`insert into "AuditEvent" ("id", "clinicId", "userId", "userName", "action", "targetType", "targetId", "detail", "at")
+                 values (${id}, ${user.clinicId}, null, 'reset-password script', 'user_password_reset', 'user', ${user.id},
                          ${`${user.name}, reset with the reset-password script`}, ${now})`;
       });
       console.log(`\nTemporary password for ${user.name}:  ${temp}\n`);

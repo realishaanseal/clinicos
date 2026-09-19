@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export default async function UsersPage() {
   const user = await requireUser("admin");
-  const users = (await listUsers()).map((u) => ({
+  const users = (await listUsers(user.clinicId)).map((u) => ({
     id: u.id,
     name: u.name,
     username: u.username,

@@ -12,18 +12,18 @@ export default async function ConsultPage({ params }: { params: Promise<{ id: st
   const user = await requireUser("clinical");
 
   const { id } = await params;
-  const c = await getConsultWithPatient(id);
+  const c = await getConsultWithPatient(user.clinicId, id);
   if (!c) notFound();
 
   // The letterhead names the doctor who signed. While unsigned, that is the
   // doctor working on it now. Notes signed before accounts existed have no
   // doctor recorded and keep the old .env doctor.
-  const signer = c.doctorId ? await getUserPublic(c.doctorId) ?? null : null;
-  const identity = await prescriptionIdentity(c.signedAt ? signer : user);
+  const signer = c.doctorId ? await getUserPublic(user.clinicId, c.doctorId) ?? null : null;
+  const identity = await prescriptionIdentity(user.clinicId, c.signedAt ? signer : user);
 
   // The patient's last signed visit, for "repeat these medicines". Only what
   // the doctor signed then — never anything from its draft or transcript.
-  const [last] = c.signedAt ? [] : await previousSignedConsults(c.patientId, c.id, 1);
+  const [last] = c.signedAt ? [] : await previousSignedConsults(user.clinicId, c.patientId, c.id, 1);
   const lastNote = last ? parseNote(last.finalJson) : null;
   const lastVisit = last && lastNote
     ? {

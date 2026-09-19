@@ -5,7 +5,9 @@ import { IcAlert } from "./Icons";
 import { PASSWORD_MIN } from "@/lib/users";
 import { appPath } from "@/lib/base-path";
 
-export default function ChangePasswordForm() {
+/** endpoint is for the platform console, which has its own accounts; a
+ *  clinic's screens leave it out. Already prefixed with appPath(). */
+export default function ChangePasswordForm({ endpoint }: { endpoint?: string } = {}) {
   const [form, setForm] = useState({ current: "", next: "", confirm: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -22,7 +24,7 @@ export default function ChangePasswordForm() {
     }
     setBusy(true);
     try {
-      const res = await fetch(appPath("/api/auth/password"), {
+      const res = await fetch(endpoint ?? appPath("/api/auth/password"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ current: form.current, next: form.next }),

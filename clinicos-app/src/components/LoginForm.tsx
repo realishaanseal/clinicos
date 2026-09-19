@@ -4,7 +4,13 @@ import { useState } from "react";
 import { IcAlert } from "./Icons";
 import { appPath } from "@/lib/base-path";
 
-export default function LoginForm({ next }: { next: string | null }) {
+/**
+ * clinic is the clinic being signed in to, by its address, when the page
+ * already knows it. When it does not (online, with more than one clinic and
+ * nothing remembered in this browser), the form asks for it.
+ */
+export default function LoginForm({ next, clinic }: { next: string | null; clinic: string | null }) {
+  const [clinicId, setClinicId] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -18,7 +24,7 @@ export default function LoginForm({ next }: { next: string | null }) {
       const res = await fetch(appPath("/api/auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, next }),
+        body: JSON.stringify({ clinic: clinic ?? clinicId, username, password, next }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Could not sign in. Try again.");
@@ -33,6 +39,23 @@ export default function LoginForm({ next }: { next: string | null }) {
 
   return (
     <form onSubmit={submit}>
+      {clinic === null && (
+        <div className="field">
+          <label htmlFor="clinic">Clinic ID</label>
+          <input
+            id="clinic"
+            name="clinic"
+            value={clinicId}
+            onChange={(e) => setClinicId(e.target.value)}
+            autoComplete="organization"
+            autoCapitalize="none"
+            spellCheck={false}
+            autoFocus
+            required
+          />
+          <p className="hint">The last part of your clinic&apos;s ClinicOS address, like <span className="mono">sharma-clinic</span>.</p>
+        </div>
+      )}
       <div className="field">
         <label htmlFor="username">Username</label>
         <input
@@ -43,7 +66,7 @@ export default function LoginForm({ next }: { next: string | null }) {
           autoComplete="username"
           autoCapitalize="none"
           spellCheck={false}
-          autoFocus
+          autoFocus={clinic !== null}
           required
         />
       </div>

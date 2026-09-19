@@ -8,7 +8,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   if (auth.denied) return auth.denied;
 
   const { id } = await params;
-  if (!await markQueueLeft(id)) {
+  if (!await markQueueLeft(auth.user.clinicId, id)) {
     return NextResponse.json(
       { error: "Only a patient who is still waiting can be marked as gone." },
       { status: 409 }

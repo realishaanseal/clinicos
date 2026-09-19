@@ -6,7 +6,7 @@ import { requireApiUser } from "@/lib/auth";
 export async function GET() {
   const auth = await requireApiUser("frontdesk");
   if (auth.denied) return auth.denied;
-  return NextResponse.json({ queue: await todaysQueue() });
+  return NextResponse.json({ queue: await todaysQueue(auth.user.clinicId) });
 }
 
 /** Add an existing patient to today's list. */
@@ -15,10 +15,10 @@ export async function POST(req: NextRequest) {
   if (auth.denied) return auth.denied;
 
   const body = await req.json().catch(() => ({}));
-  const patient = await getPatient(String(body.patientId ?? ""));
+  const patient = await getPatient(auth.user.clinicId, String(body.patientId ?? ""));
   if (!patient) return NextResponse.json({ error: "That patient isn't on file." }, { status: 404 });
 
-  const { entry, alreadyQueued } = await addToQueue(patient.id, auth.user.id);
+  const { entry, alreadyQueued } = await addToQueue(auth.user.clinicId, patient.id, auth.user.id);
   return NextResponse.json({
     entry: { id: entry.id, token: entry.token, status: entry.status },
     patientName: patient.name,

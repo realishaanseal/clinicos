@@ -12,17 +12,25 @@ import { redirect } from "next/navigation";
 import { NextResponse } from "next/server";
 import { createHash, randomBytes, scrypt, timingSafeEqual, type ScryptOptions } from "node:crypto";
 import {
+  asClinicId,
   getSessionUser,
   insertSession,
   touchSession,
+  type ClinicId,
   type Role,
   type SessionJoin,
+  type TenantStatus,
   type UserRow,
 } from "./db";
 import { SESSION_COOKIE, SESSION_SECONDS } from "./session-cookie";
 
 export type SessionUser = {
   id: string;
+  /** The clinic this account belongs to. Every query a page or route makes on
+   *  the user's behalf is scoped by this, and it only ever comes from here. */
+  clinicId: ClinicId;
+  /** "suspended" when Varaxis has paused the clinic: see requireUser. */
+  clinicStatus: TenantStatus;
   name: string;
   username: string;
   role: Role;
@@ -121,9 +129,11 @@ export function sessionCookie(token: string, secure: boolean) {
   };
 }
 
-export function toSessionUser(row: SessionJoin | UserRow): SessionUser {
+export function toSessionUser(row: SessionJoin | UserRow, clinicStatus: TenantStatus = "active"): SessionUser {
   return {
     id: row.id,
+    clinicId: asClinicId(row.clinicId),
+    clinicStatus: "clinicStatus" in row ? row.clinicStatus : clinicStatus,
     name: row.name,
     username: row.username,
     role: row.role,
@@ -176,9 +186,23 @@ export function can(user: SessionUser, cap: Capability): boolean {
 /** Where each account lands. Each of these pages must be reachable by that
  *  role, or requireUser would redirect in a loop. "/" shows a doctor their
  *  Today and the front desk theirs. */
-export function homeFor(user: SessionUser): string {
-  return user.role === "admin" ? "/admin" : "/";
+export function homeFor(user: Pick<SessionUser, "role" | "clinicStatus">): string {
+  if (user.role === "admin") return "/admin";
+  return user.clinicStatus === "suspended" ? "/paused" : "/";
 }
+
+/**
+ * A clinic Varaxis has paused (its subscription lapsed) keeps its records and
+ * its way out: anyone who manages the clinic can still sign in, open Clinic
+ * admin and export everything — no lock-in, whatever the reason for the pause.
+ * Consultations and the day's list wait until it is active again.
+ */
+function pausedFor(user: SessionUser, cap?: Capability): boolean {
+  return user.clinicStatus === "suspended" && (cap === "clinical" || cap === "frontdesk");
+}
+
+export const PAUSED_MESSAGE =
+  "ClinicOS is paused for this clinic. Your records are safe, and whoever manages the clinic can still export them. Contact Varaxis to switch it back on.";
 
 /** Only same-site paths, so ?next= cannot send someone to another website. */
 export function safeNextPath(next: unknown): string | null {
@@ -196,6 +220,7 @@ export async function requireUser(
   if (!user) redirect("/login");
   if (user.mustChangePassword && !opts.allowPasswordChange) redirect("/account/password");
   if (cap && !can(user, cap)) redirect(homeFor(user));
+  if (pausedFor(user, cap)) redirect("/paused");
   return user;
 }
 
@@ -212,6 +237,9 @@ export async function requireApiUser(
   }
   if (cap && !can(user, cap)) {
     return { denied: NextResponse.json({ error: "Your account doesn't have access to this." }, { status: 403 }) };
+  }
+  if (pausedFor(user, cap)) {
+    return { denied: NextResponse.json({ error: PAUSED_MESSAGE }, { status: 403 }) };
   }
   return { user };
 }

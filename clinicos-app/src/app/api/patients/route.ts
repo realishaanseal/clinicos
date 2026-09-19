@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
   if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
 
   const ageNum = body.age === "" || body.age == null ? null : Number(body.age);
-  const patient = await createPatient({
+  const patient = await createPatient(auth.user.clinicId, {
     name,
     age: Number.isFinite(ageNum as number) ? (ageNum as number) : null,
     sex: body.sex || null,
@@ -22,10 +22,10 @@ export async function POST(req: NextRequest) {
   // The front desk registers straight onto today's list. A doctor registering a
   // walk-in goes straight into the consultation instead.
   if (body.queue) {
-    const { entry } = await addToQueue(patient.id, auth.user.id);
+    const { entry } = await addToQueue(auth.user.clinicId, patient.id, auth.user.id);
     return NextResponse.json({ patient, consultId: null, queue: { id: entry.id, token: entry.token } });
   }
-  const consult = can(auth.user, "clinical") ? await createConsult(patient.id, auth.user.id) : null;
+  const consult = can(auth.user, "clinical") ? await createConsult(auth.user.clinicId, patient.id, auth.user.id) : null;
   return NextResponse.json({ patient, consultId: consult?.id ?? null });
 }
 
@@ -34,5 +34,5 @@ export async function GET(req: NextRequest) {
   if (auth.denied) return auth.denied;
 
   const q = req.nextUrl.searchParams.get("q") || "";
-  return NextResponse.json({ patients: await searchPatients(q) });
+  return NextResponse.json({ patients: await searchPatients(auth.user.clinicId, q) });
 }

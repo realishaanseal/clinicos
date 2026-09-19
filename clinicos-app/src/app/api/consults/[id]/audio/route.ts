@@ -8,7 +8,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (auth.denied) return auth.denied;
 
   const { id } = await params;
-  const consult = await getConsult(id);
+  const consult = await getConsult(auth.user.clinicId, id);
   if (!consult) return NextResponse.json({ error: "Consult not found" }, { status: 404 });
 
   // Hard gate. Without recorded consent there is no lawful basis to store this.
@@ -28,6 +28,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const buf = Buffer.from(await file.arrayBuffer());
   const audioPath = await writeWhole(id, buf, ext);
 
-  await setAudio(id, audioPath, buf.length, seconds || null);
+  await setAudio(auth.user.clinicId, id, audioPath, buf.length, seconds || null);
   return NextResponse.json({ ok: true, bytes: buf.length });
 }

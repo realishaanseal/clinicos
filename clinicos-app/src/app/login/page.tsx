@@ -1,36 +1,25 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser, homeFor, safeNextPath } from "@/lib/auth";
 import { countUsers } from "@/lib/db";
-import { getClinic } from "@/lib/clinic";
-import LoginForm from "@/components/LoginForm";
-import { Mark } from "@/components/Icons";
+import { MULTI_CLINIC, resolveClinic } from "@/lib/tenant";
+import SignInCard from "@/components/SignInCard";
 
 export const dynamic = "force-dynamic";
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
-  if (await countUsers() === 0) redirect("/setup");
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string; clinic?: string; choose?: string }>;
+}) {
+  const { next, clinic: slug, choose } = await searchParams;
+  // ?choose=1 is "sign in to another clinic": ignore the one remembered.
+  const clinic = choose ? null : await resolveClinic(slug);
+
+  if (clinic && (await countUsers(clinic.id)) === 0) {
+    redirect(MULTI_CLINIC ? `/setup?clinic=${clinic.slug}` : "/setup");
+  }
   const user = await getCurrentUser();
   if (user) redirect(homeFor(user));
 
-  const { next } = await searchParams;
-
-  return (
-    <main className="auth">
-      <div className="auth-card">
-        <div className="auth-brand">
-          <span className="mark">
-            <Mark size={21} />
-          </span>
-          <div>
-            <div className="name">ClinicOS</div>
-            <div className="tag">{(await getClinic()).name}</div>
-          </div>
-        </div>
-        <h1>Sign in</h1>
-        <p className="sub">Use the username and password the clinic gave you.</p>
-        <LoginForm next={safeNextPath(next)} />
-      </div>
-      <p className="auth-foot">Forgotten your password? Ask whoever manages the clinic to reset it.</p>
-    </main>
-  );
+  return <SignInCard clinic={clinic} next={safeNextPath(next)} />;
 }

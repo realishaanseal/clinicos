@@ -40,19 +40,19 @@ export default async function Home() {
           <h1>Today</h1>
           <p className="sub">Find or register patients, and keep the day&apos;s list moving.</p>
         </div>
-        <FrontDeskToday initial={await todaysQueue()} />
+        <FrontDeskToday initial={await todaysQueue(user.clinicId)} />
       </div>
     );
   }
 
-  const consults = await recentConsults(20);
-  const unfinished = await unfinishedConsults();
-  const signed = await countSignedConsults();
-  const drafted = await countDraftedSignedConsults();
-  const edits = await countEdits();
+  const consults = await recentConsults(user.clinicId, 20);
+  const unfinished = await unfinishedConsults(user.clinicId);
+  const signed = await countSignedConsults(user.clinicId);
+  const drafted = await countDraftedSignedConsults(user.clinicId);
+  const edits = await countEdits(user.clinicId);
   // Per AI-drafted note: a note written by hand had no draft to correct.
   const editsPerNote = drafted ? (edits / drafted).toFixed(1) : "—";
-  const saved = await minutesSaved();
+  const saved = await minutesSaved(user.clinicId);
 
   return (
     <div className="page">
@@ -65,12 +65,12 @@ export default async function Home() {
       <div className="stats">
         <div className="stat hero">
           <div className="k">Consultations today</div>
-          <div className="v">{await countConsultsToday()}</div>
+          <div className="v">{await countConsultsToday(user.clinicId)}</div>
           <div className="n">{signed} signed all time</div>
         </div>
         <div className="stat">
           <div className="k">Patients</div>
-          <div className="v">{await countPatients()}</div>
+          <div className="v">{await countPatients(user.clinicId)}</div>
           <div className="n">{ONLINE ? "in the online copy" : "on this machine"}</div>
         </div>
         <div className="stat">
@@ -88,7 +88,7 @@ export default async function Home() {
         </div>
       </div>
 
-      <WaitingPanel initial={await todaysQueue()} doctorId={user.id} />
+      <WaitingPanel initial={await todaysQueue(user.clinicId)} doctorId={user.id} />
 
       {unfinished.length > 0 && (
         <div className="card flush resume">

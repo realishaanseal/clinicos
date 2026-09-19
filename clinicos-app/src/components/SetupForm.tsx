@@ -7,7 +7,16 @@ import { appPath } from "@/lib/base-path";
 
 type Defaults = { clinicName: string; name: string; qualification: string; regNo: string };
 
-export default function SetupForm({ defaults, needsCode }: { defaults: Defaults; needsCode: boolean }) {
+export default function SetupForm({
+  defaults,
+  needsCode,
+  clinic,
+}: {
+  defaults: Defaults;
+  needsCode: boolean;
+  /** The clinic being set up, by its address. Null on a clinic computer. */
+  clinic: string | null;
+}) {
   const [form, setForm] = useState({
     setupCode: "",
     clinicName: defaults.clinicName,
@@ -37,7 +46,7 @@ export default function SetupForm({ defaults, needsCode }: { defaults: Defaults;
       const res = await fetch(appPath("/api/setup"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, clinic }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Setup didn't complete. Try again.");

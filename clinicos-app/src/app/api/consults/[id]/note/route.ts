@@ -13,7 +13,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (auth.denied) return auth.denied;
 
   const { id } = await params;
-  const consult = await getConsult(id);
+  const consult = await getConsult(auth.user.clinicId, id);
   if (!consult) return NextResponse.json({ error: "Consult not found" }, { status: 404 });
   // A signed note is the record. Drafting again would overwrite the AI draft
   // and transcript it was signed against, and the edit log would stop matching.
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!transcript) return NextResponse.json({ error: "No transcript to work from" }, { status: 400 });
 
   // Prior visits, as context only. The prompt forbids carrying findings forward.
-  const context = (await previousSignedConsults(consult.patientId, id))
+  const context = (await previousSignedConsults(auth.user.clinicId, consult.patientId, id))
     .map((p) => {
       const n = parseNote(p.finalJson);
       const meds = n.medications.map((m) => m.name).filter(Boolean).join(", ") || "none";
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   try {
     const result = await getLlm().generateNote(transcript, context || undefined);
-    await setDraft(id, transcript, JSON.stringify(result.note), result.model, result.seconds);
+    await setDraft(auth.user.clinicId, id, transcript, JSON.stringify(result.note), result.model, result.seconds);
     return NextResponse.json({ note: result.note, model: result.model, seconds: result.seconds });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });

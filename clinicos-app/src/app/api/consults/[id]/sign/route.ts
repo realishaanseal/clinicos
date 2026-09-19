@@ -28,7 +28,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (auth.denied) return auth.denied;
 
   const { id } = await params;
-  const consult = await getConsult(id);
+  const consult = await getConsult(auth.user.clinicId, id);
   if (!consult) return NextResponse.json({ error: "Consult not found" }, { status: 404 });
   if (consult.signedAt) return NextResponse.json({ error: "Already signed" }, { status: 409 });
 
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }).filter(Boolean) as { field: string; before: string; after: string }[])
     : [];
 
-  await addEdits(id, edits);
+  await addEdits(auth.user.clinicId, id, edits);
 
   let audioDeleted = false;
   if (consult.audioPath) {
@@ -58,12 +58,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     audioDeleted = true;
   }
 
-  await signConsult(id, JSON.stringify(final), audioDeleted, auth.user.id);
+  await signConsult(auth.user.clinicId, id, JSON.stringify(final), audioDeleted, auth.user.id);
   // Signing is what tells the front desk the patient has been seen.
-  await markQueueDoneForConsult(id);
+  await markQueueDoneForConsult(auth.user.clinicId, id);
   const what = drafted
     ? `${edits.length} correction${edits.length === 1 ? "" : "s"} to the draft`
     : "written by hand, no AI draft";
-  await recordAudit(auth.user, "consult_sign", "consult", id, `${what}${audioDeleted ? ", audio deleted" : ""}`);
+  await recordAudit(auth.user.clinicId, auth.user, "consult_sign", "consult", id, `${what}${audioDeleted ? ", audio deleted" : ""}`);
   return NextResponse.json({ ok: true, editCount: drafted ? edits.length : null, handwritten: !drafted, audioDeleted });
 }

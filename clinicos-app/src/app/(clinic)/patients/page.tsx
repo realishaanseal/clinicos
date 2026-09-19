@@ -22,7 +22,7 @@ export default async function PatientsPage({
   const isAdmin = can(user, "admin");
 
   const { q } = await searchParams;
-  const patients = await searchPatients(q || "");
+  const patients = await searchPatients(user.clinicId, q || "");
 
   return (
     <div className="page">

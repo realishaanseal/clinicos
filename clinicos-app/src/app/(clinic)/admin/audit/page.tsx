@@ -21,11 +21,14 @@ const WHAT: Record<string, string> = {
   export_all: "Exported all records",
   backup_download: "Downloaded a backup",
   backup_restore: "Restored from a backup",
+  clinic_create: "Varaxis created this clinic",
+  clinic_update: "Varaxis changed this clinic's plan or status",
+  clinic_setup_code: "Varaxis issued a new setup code",
 };
 
 export default async function AuditPage() {
-  await requireUser("admin");
-  const events = await listAudit(300);
+  const user = await requireUser("admin");
+  const events = await listAudit(user.clinicId, 300);
 
   return (
     <div className="page">

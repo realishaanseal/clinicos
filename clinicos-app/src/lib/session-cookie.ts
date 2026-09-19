@@ -13,8 +13,28 @@ export const SESSION_COOKIE = "clinicos_session";
  */
 export const SESSION_SECONDS = 12 * 60 * 60;
 
-/** Reachable without signing in. Everything else needs a session. */
-export const PUBLIC_PATHS = ["/login", "/setup", "/api/auth/login", "/api/setup"];
+/** The clinic this browser last signed in to, by its address (slug). Not a
+ *  secret and not a credential: it only saves typing the clinic again. */
+export const CLINIC_COOKIE = "clinicos_clinic";
+
+/** Varaxis's own sign-in for the platform console, separate from every
+ *  clinic's so that no clinic account can reach it. */
+export const OPERATOR_COOKIE = "clinicos_operator";
+
+/** Reachable without signing in. Everything else needs a session. The
+ *  platform console and the sync endpoints check their own credentials. */
+export const PUBLIC_PATHS = ["/login", "/setup", "/c", "/api/auth/login", "/api/setup"];
+
+/** The platform console: its own cookie, checked by its own pages. */
+export function isPlatformPath(pathname: string): boolean {
+  return pathname === "/platform" || pathname.startsWith("/platform/") || pathname.startsWith("/api/platform/");
+}
+
+/** A clinic computer keeping in step with the online copy. It proves itself
+ *  with its device key on every request, not with a cookie. */
+export function isSyncPath(pathname: string): boolean {
+  return pathname.startsWith("/api/sync/");
+}
 
 export function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));

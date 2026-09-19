@@ -10,7 +10,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (auth.denied) return auth.denied;
 
   const { id } = await params;
-  const consult = await getConsult(id);
+  const consult = await getConsult(auth.user.clinicId, id);
   if (!consult) return NextResponse.json({ error: "Consult not found" }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
@@ -18,6 +18,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const bytes = consult.audioPath ? await audioBytes(consult.audioPath) : null;
 
-  await markRecordingEnded(id, seconds, bytes);
+  await markRecordingEnded(auth.user.clinicId, id, seconds, bytes);
   return NextResponse.json({ ok: true, bytes });
 }

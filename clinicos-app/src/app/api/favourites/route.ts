@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "There is nothing to save yet: add a diagnosis, a medicine, a test or advice first." }, { status: 400 });
   }
 
-  const saved = await saveFavourite(auth.user.id, name, JSON.stringify(plan));
+  const saved = await saveFavourite(auth.user.clinicId, auth.user.id, name, JSON.stringify(plan));
   if (!saved) {
     return NextResponse.json({ error: `You already have ${MAX_FAVOURITES} favourites. Delete one you no longer use first.` }, { status: 409 });
   }

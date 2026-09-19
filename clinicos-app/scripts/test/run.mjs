@@ -25,6 +25,8 @@
  *   workflow-test.cjs     the doctor's speed features: hand-written visits, repeat
  *                         medicines, favourites, search, step timings
  *   admin-tools-test.cjs  reset-password script; restoring a pre-accounts backup
+ *   tenancy-test.cjs      many clinics in one database, and Varaxis's platform
+ *                         console (online only; last, because it adds clinics)
  *
  * Don't run this while `npm run dev` is running in this folder: both use .next/.
  * Works on Windows and macOS.
@@ -47,7 +49,10 @@ const skipBuild = process.argv.includes("--no-build");
 const onPostgres = process.argv.includes("--pg");
 const pgPort = process.env.TEST_PG_PORT || "55432";
 const realPg = onPostgres ? process.env.TEST_DATABASE_URL || "" : "";
-const CLINIC_TABLES = ["AudioChunk", "QueueEntry", "Edit", "Consult", "Favourite", "Session", "AuditEvent", "Setting", "User", "Patient"];
+const CLINIC_TABLES = [
+  "AudioChunk", "QueueEntry", "Edit", "Consult", "Favourite", "Session", "AuditEvent", "Setting", "ClinicSetting",
+  "User", "Patient", "OperatorSession", "Operator",
+];
 
 fs.rmSync(work, { recursive: true, force: true });
 fs.mkdirSync(work, { recursive: true });
@@ -68,6 +73,8 @@ const env = {
   NEXT_TELEMETRY_DISABLED: "1",
   // Both runs guard /setup with a code, as the online copy must.
   SETUP_CODE: process.env.TEST_SETUP_CODE || "test-setup-code",
+  // The first clinic's fallback address, which no other clinic may inherit.
+  CLINIC_ADDRESS: "1 Fallback Road, Testville",
   DATA_BACKEND: onPostgres ? "postgres" : "sqlite",
   ...(onPostgres
     ? {
@@ -140,6 +147,9 @@ async function clinicRowCount(sql) {
     const [exists] = await sql`select to_regclass(${`public."${t}"`}) as r`;
     if (exists.r) total += (await sql`select count(*)::int as n from ${sql(t)}`)[0].n;
   }
+  // The first clinic is made by the migrations themselves; any other is a record.
+  const [tenant] = await sql`select to_regclass('public."Tenant"') as r`;
+  if (tenant.r) total += (await sql`select count(*)::int as n from "Tenant" where "id" <> 'first'`)[0].n;
   return total;
 }
 
@@ -206,6 +216,7 @@ async function emptyRealPg() {
   step("Emptying the clinic tables the run filled");
   await withRealPg(async (sql) => {
     await sql.unsafe(`truncate ${CLINIC_TABLES.map((t) => `"${t}"`).join(", ")}`);
+    await sql`delete from "Tenant" where "id" <> 'first'`;
     console.log(`Clinic rows left: ${await clinicRowCount(sql)}`);
   });
 }
@@ -242,6 +253,7 @@ const suites = [
   ["queue-test.cjs", [files.db]],
   ["workflow-test.cjs", [files.db]],
   ["admin-tools-test.cjs", [files.db, files.preV1]],
+  ["tenancy-test.cjs", [files.db]],
 ];
 const failed = [];
 for (const [script, args] of suites) {

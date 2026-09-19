@@ -1,5 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { SESSION_COOKIE, SESSION_SECONDS, isPublicPath } from "@/lib/session-cookie";
+import {
+  OPERATOR_COOKIE,
+  SESSION_COOKIE,
+  SESSION_SECONDS,
+  isPlatformPath,
+  isPublicPath,
+  isSyncPath,
+} from "@/lib/session-cookie";
 import { BASE_PATH } from "@/lib/base-path";
 
 /**
@@ -24,6 +31,22 @@ function publicOrigin(req: NextRequest): string {
 
 export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
+
+  // A clinic computer's sync requests carry their own key; the route checks it.
+  if (isSyncPath(pathname)) return NextResponse.next();
+
+  // Varaxis's console has its own sign-in, and a clinic's cookie opens none of it.
+  if (isPlatformPath(pathname)) {
+    const open = pathname === "/platform/login" || pathname === "/api/platform/login";
+    if (!open && !req.cookies.get(OPERATOR_COOKIE)?.value) {
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
+      }
+      return NextResponse.redirect(new URL(`${BASE_PATH}/platform/login`, publicOrigin(req)));
+    }
+    return NextResponse.next();
+  }
+
   const token = req.cookies.get(SESSION_COOKIE)?.value;
 
   if (!token && !isPublicPath(pathname)) {

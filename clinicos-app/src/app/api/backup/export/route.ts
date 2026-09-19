@@ -7,9 +7,9 @@ export async function GET() {
   const auth = await requireApiUser("admin");
   if (auth.denied) return auth.denied;
 
-  const data = await exportEverything();
+  const data = await exportEverything(auth.user.clinicId);
   const day = new Date().toISOString().slice(0, 10);
-  await recordAudit(auth.user, "export_all", "export", null, `${data.patients.length} patients`);
+  await recordAudit(auth.user.clinicId, auth.user, "export_all", "export", null, `${data.patients.length} patients`);
 
   return new NextResponse(JSON.stringify(data, null, 2), {
     headers: {

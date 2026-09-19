@@ -33,6 +33,10 @@ export interface Q {
 
 export type Backend = "sqlite" | "postgres";
 
+/** The clinic every record belonged to before there could be more than one:
+ *  the only clinic on a clinic computer, and the first one online. */
+export const FIRST_CLINIC = "first";
+
 export const BACKEND: Backend =
   (process.env.DATA_BACKEND || "sqlite").toLowerCase() === "postgres" ? "postgres" : "sqlite";
 
@@ -326,8 +330,64 @@ function openSqlite(): BetterSqlite3.Database {
   addColumn("Consult", "transcribedAt", "TEXT");    // speed pass (#3): when the transcript arrived
   addColumn("Consult", "draftedAt", "TEXT");        // speed pass (#3): when the AI draft arrived
 
+  // Clinics as tenants (19 Sep 2026). Online, one database holds many clinics
+  // and every record says whose it is. The clinic computer holds one clinic,
+  // FIRST_CLINIC, which every existing row belongs to by default — so an
+  // upgraded pilot database keeps every record exactly where it was. The table
+  // is called Tenant because the patient portal already owns a "Clinic" table
+  // in the online database. Its twin is migrations/pg/004_tenants.sql.
+  for (const table of ["Patient", "Consult", "Edit", "User", "QueueEntry", "Favourite"]) {
+    addColumn(table, "clinicId", `TEXT NOT NULL DEFAULT '${FIRST_CLINIC}'`);
+  }
+  // The log may outlive anything it mentions, so its clinic may be absent: an
+  // event about the platform itself belongs to no clinic.
+  addColumn("AuditEvent", "clinicId", `TEXT DEFAULT '${FIRST_CLINIC}'`);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS Tenant (
+      id            TEXT PRIMARY KEY,
+      slug          TEXT NOT NULL UNIQUE,
+      name          TEXT NOT NULL,
+      status        TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'suspended')),
+      plan          TEXT NOT NULL DEFAULT 'cloud',
+      features      TEXT NOT NULL DEFAULT '{}',
+      domain        TEXT UNIQUE,
+      setupCodeHash TEXT,
+      paidUntil     TEXT,
+      notes         TEXT,
+      createdAt     TEXT NOT NULL,
+      updatedAt     TEXT NOT NULL
+    );
+    INSERT INTO Tenant (id, slug, name, createdAt, updatedAt)
+      VALUES ('${FIRST_CLINIC}', '${FIRST_CLINIC}', 'This clinic', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+      ON CONFLICT DO NOTHING;
+
+    -- Clinic details per clinic. Setting (above) was one clinic's, keyed by
+    -- name alone; it is copied here once and then left alone, so an older copy
+    -- of the app reading it still finds what it expects.
+    CREATE TABLE IF NOT EXISTS ClinicSetting (
+      clinicId TEXT NOT NULL,
+      key      TEXT NOT NULL,
+      value    TEXT NOT NULL,
+      PRIMARY KEY (clinicId, key)
+    );
+    INSERT INTO ClinicSetting (clinicId, key, value)
+      SELECT '${FIRST_CLINIC}', key, value FROM Setting
+      WHERE NOT EXISTS (SELECT 1 FROM ClinicSetting)
+      ON CONFLICT DO NOTHING;
+
+    CREATE INDEX IF NOT EXISTS idx_patient_clinic ON Patient(clinicId, createdAt);
+    CREATE INDEX IF NOT EXISTS idx_consult_clinic ON Consult(clinicId, createdAt);
+    CREATE INDEX IF NOT EXISTS idx_edit_clinic ON Edit(clinicId);
+    CREATE INDEX IF NOT EXISTS idx_audit_clinic ON AuditEvent(clinicId, at);
+    -- Tokens restart at 1 each day in each clinic.
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_queue_clinic_token ON QueueEntry(clinicId, day, token);
+    DROP INDEX IF EXISTS idx_queue_token;
+  `);
+
   return db;
 }
+
 
 // ============================================================= Postgres
 function pgClient(): Sql {

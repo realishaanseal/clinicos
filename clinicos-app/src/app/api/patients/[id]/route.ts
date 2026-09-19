@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPatient, deletePatientCascade, recordAudit, countConsultsForPatient } from "@/lib/db";
-import { can, requireApiUser } from "@/lib/auth";
+import { can, PAUSED_MESSAGE, requireApiUser } from "@/lib/auth";
 import { removeAudio } from "@/lib/audio-store";
 
 /**
@@ -24,13 +24,16 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (!isAdmin && !can(auth.user, "frontdesk")) {
     return NextResponse.json({ error: "Your account doesn't have access to this." }, { status: 403 });
   }
+  if (!isAdmin && auth.user.clinicStatus === "suspended") {
+    return NextResponse.json({ error: PAUSED_MESSAGE }, { status: 403 });
+  }
 
   const { id } = await params;
 
-  const patient = await getPatient(id);
+  const patient = await getPatient(auth.user.clinicId, id);
   if (!patient) return NextResponse.json({ error: "Patient not found" }, { status: 404 });
 
-  if (!isAdmin && (await countConsultsForPatient(id)) > 0) {
+  if (!isAdmin && (await countConsultsForPatient(auth.user.clinicId, id)) > 0) {
     return NextResponse.json(
       { error: "This patient has consultations, so only a clinic admin can delete the record. Nothing was deleted." },
       { status: 403 }
@@ -49,7 +52,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     );
   }
 
-  const report = await deletePatientCascade(id);
+  const report = await deletePatientCascade(auth.user.clinicId, id);
   if (!report) return NextResponse.json({ error: "Patient not found" }, { status: 404 });
 
   // The database cannot remove files; clear any recording left on disk. One
@@ -63,6 +66,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   // Deliberately no name in the log. This is often an erasure request, and the
   // activity log must not become the one place the patient still exists.
   await recordAudit(
+    auth.user.clinicId,
     auth.user,
     "patient_delete",
     "patient",
