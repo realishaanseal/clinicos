@@ -26,7 +26,12 @@
  *                         medicines, favourites, search, step timings
  *   admin-tools-test.cjs  reset-password script; restoring a pre-accounts backup
  *   tenancy-test.cjs      many clinics in one database, and Varaxis's platform
- *                         console (online only; last, because it adds clinics)
+ *                         console (online only; after the others, because it
+ *                         adds clinics)
+ *   sync-test.cjs         a clinic computer keeping in step with its clinic
+ *                         online. The Postgres run starts two more copies of
+ *                         the app on SQLite, from the same build, as the
+ *                         clinic computers.
  *
  * Don't run this while `npm run dev` is running in this folder: both use .next/.
  * Works on Windows and macOS.
@@ -101,19 +106,24 @@ function runNode(script, args) {
 
 let server = null;
 let pgServer = null;
-function stopServer() {
-  if (pgServer && pgServer.exitCode === null) pgServer.kill("SIGTERM");
-  if (!server || server.exitCode !== null) return;
+const clinicComputers = [];
+function stopOne(proc) {
+  if (!proc || proc.exitCode !== null) return;
   if (process.platform === "win32") {
     // npm starts node as a child; /T takes the whole tree down.
-    spawnSync("taskkill", ["/pid", String(server.pid), "/T", "/F"], { stdio: "ignore" });
+    spawnSync("taskkill", ["/pid", String(proc.pid), "/T", "/F"], { stdio: "ignore" });
   } else {
     try {
-      process.kill(-server.pid, "SIGTERM");
+      process.kill(-proc.pid, "SIGTERM");
     } catch {
       /* already stopped */
     }
   }
+}
+function stopServer() {
+  if (pgServer && pgServer.exitCode === null) pgServer.kill("SIGTERM");
+  for (const c of clinicComputers) stopOne(c);
+  stopOne(server);
 }
 process.on("exit", stopServer);
 process.on("SIGINT", () => {
@@ -121,11 +131,11 @@ process.on("SIGINT", () => {
   process.exit(130);
 });
 
-async function waitForServer(ms = 90_000) {
+async function waitForServer(ms = 90_000, at = base) {
   const until = Date.now() + ms;
   while (Date.now() < until) {
     try {
-      const res = await fetch(`${base}/login`, { redirect: "manual" });
+      const res = await fetch(`${at}/login`, { redirect: "manual" });
       if (res.status < 500) return true;
     } catch {
       /* not listening yet */
@@ -248,12 +258,51 @@ if (!(await waitForServer())) {
   process.exit(1);
 }
 
+// Two clinic computers for the sync suite: the same build, run on SQLite with
+// their own databases. The build's /app prefix and online wording come along;
+// neither matters to what the suite checks. DATA_BACKEND is read when the
+// server runs, not when it is built.
+const locals = [];
+if (onPostgres && !deployedBase) {
+  for (const [i, localPort] of [String(Number(port) + 1), String(Number(port) + 2)].entries()) {
+    const dir = path.join(work, `computer${i + 1}`);
+    fs.mkdirSync(dir, { recursive: true });
+    const localEnv = {
+      ...env,
+      DATA_BACKEND: "sqlite",
+      DATABASE_URL: "",
+      DB_PATH: path.join(dir, "clinicos.db"),
+      AUDIO_DIR: path.join(dir, "audio"),
+      BACKUP_DIR: path.join(dir, "backups"),
+    };
+    const log = fs.openSync(path.join(dir, "server.log"), "w");
+    clinicComputers.push(
+      spawn("npm", ["run", "start", "--", "-p", localPort], {
+        cwd: appDir,
+        env: localEnv,
+        shell: true,
+        stdio: ["ignore", log, log],
+        detached: process.platform !== "win32",
+      })
+    );
+    locals.push({ base: `http://localhost:${localPort}${basePath}`, db: localEnv.DB_PATH, audio: localEnv.AUDIO_DIR });
+  }
+  for (const l of locals) {
+    if (!(await waitForServer(90_000, l.base))) {
+      console.error(`A clinic computer for the sync suite did not start. See ${work}`);
+      stopServer();
+      process.exit(1);
+    }
+  }
+}
+
 const suites = [
   ["perm-test.cjs", [files.db, files.fingerprint]],
   ["queue-test.cjs", [files.db]],
   ["workflow-test.cjs", [files.db]],
   ["admin-tools-test.cjs", [files.db, files.preV1]],
   ["tenancy-test.cjs", [files.db]],
+  ["sync-test.cjs", [files.db, JSON.stringify(locals)]],
 ];
 const failed = [];
 for (const [script, args] of suites) {

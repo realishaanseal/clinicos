@@ -16,6 +16,10 @@ import { clinicDayAt, fmtDate, localDayBounds } from "@/lib/time";
 import { getClinic } from "@/lib/clinic";
 import { listBackups } from "@/lib/backup";
 import BackupPanel from "@/components/BackupPanel";
+import SyncPanel from "@/components/SyncPanel";
+import DevicesPanel from "@/components/DevicesPanel";
+import { SYNC_CLIENT_ENABLED, getSyncStatus } from "@/lib/sync-client";
+import { listDevices } from "@/lib/sync-server";
 import DeletePatient from "@/components/DeletePatient";
 import ClinicSettingsForm from "@/components/ClinicSettingsForm";
 import { IcArrow, IcShield } from "@/components/Icons";
@@ -90,6 +94,10 @@ export default async function AdminPage() {
   const steps = await stepTimes(user.clinicId, localDayBounds(clinicDayAt(-6))[0]);
   const tenant = MULTI_CLINIC ? await getTenant(user.clinicId) : undefined;
   const address = tenant ? `${await publicAppUrl()}${clinicPath(tenant.slug)}` : null;
+  // Online, a clinic whose plan includes it can connect its own computers; on a
+  // clinic computer, this is where it connects to its clinic online.
+  const devices = tenant && parseFeatures(tenant.features).localSync ? await listDevices(user.clinicId) : null;
+  const syncStatus = SYNC_CLIENT_ENABLED ? await getSyncStatus() : null;
 
   return (
     <div className="page page-narrow">
@@ -288,6 +296,15 @@ export default async function AdminPage() {
       ) : (
         <BackupPanel backups={backups} lastBackupAt={backups[0]?.createdAt ?? null} />
       )}
+
+      {devices && address && (
+        <DevicesPanel
+          devices={devices.map(({ keyHash, ...d }) => (void keyHash, d))}
+          endpoint={appPath("/api/admin/devices")}
+          address={address}
+        />
+      )}
+      {syncStatus && <SyncPanel initial={syncStatus} />}
 
       <DeletePatient
         patients={patients.map((p) => ({ id: p.id, name: p.name, consultCount: p.consultCount }))}

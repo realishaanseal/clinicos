@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createTenant, getTenantByDomain, getTenantBySlug, recordAudit, setSettings } from "@/lib/db";
+import { createTenant, getTenantByDomain, getTenantBySlug, markSettingSeeded, recordAudit, setSettings } from "@/lib/db";
 import { isUniqueViolation } from "@/lib/sql";
 import { operatorActor, requireApiOperator } from "@/lib/platform";
 import { readClinicInput } from "@/lib/platform-rules";
@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
   }
   // Printed on prescriptions until the clinic changes it in Clinic admin.
   await setSettings(clinic.id, { clinic_name: clinic.name });
+  await markSettingSeeded(clinic.id, "clinic_name");
   await recordAudit(
     clinic.id,
     operatorActor(auth.op),

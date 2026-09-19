@@ -1082,6 +1082,15 @@ export async function setSettings(clinicId: ClinicId, values: Record<string, str
   });
 }
 
+/** A value Varaxis filled in when creating the clinic, dated long ago so that
+ *  the clinic's own value wins the first time a clinic computer brings one. */
+export async function markSettingSeeded(clinicId: ClinicId, key: string) {
+  await q().run(
+    `UPDATE "ClinicSetting" SET "updatedAt" = '1970-01-01T00:00:00.000Z' WHERE "clinicId" = ? AND key = ?`,
+    clinicId, key
+  );
+}
+
 // ----------------------------------------------------------------- tenants
 /**
  * The clinics themselves. Varaxis creates one when a clinic buys ClinicOS,

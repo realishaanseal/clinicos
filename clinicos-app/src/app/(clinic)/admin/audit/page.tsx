@@ -24,6 +24,10 @@ const WHAT: Record<string, string> = {
   clinic_create: "Varaxis created this clinic",
   clinic_update: "Varaxis changed this clinic's plan or status",
   clinic_setup_code: "Varaxis issued a new setup code",
+  sync_connect: "Connected a clinic computer to ClinicOS online",
+  sync_disconnect: "Stopped keeping this computer in step with ClinicOS online",
+  sync_device_create: "Made a key for a clinic computer",
+  sync_device_revoke: "Switched a clinic computer off",
 };
 
 export default async function AuditPage() {

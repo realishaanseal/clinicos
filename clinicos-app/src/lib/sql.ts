@@ -52,10 +52,11 @@ export function isUniqueViolation(e: unknown): boolean {
 // automatically. Without this, Postgres would run that helper on a different
 // connection, outside the transaction, and with a pool of one it would wait
 // forever for the connection the transaction is holding.
-const current = new AsyncLocalStorage<Q>();
+type Open = { q: Q; pg?: TransactionSql };
+const current = new AsyncLocalStorage<Open>();
 
 export function q(): Q {
-  return current.getStore() ?? base();
+  return current.getStore()?.q ?? base();
 }
 
 /**
@@ -65,6 +66,33 @@ export function q(): Q {
 export async function tx<T>(fn: () => Promise<T>): Promise<T> {
   if (current.getStore()) return fn();
   return BACKEND === "postgres" ? pgTx(fn) : sqliteTx(fn);
+}
+
+/**
+ * Inside tx(): run fn so that, if it throws, only what fn did is undone and
+ * the transaction carries on. For merging a batch of synced rows, where one
+ * row the database refuses must not cost the rest.
+ *
+ * Postgres needs the driver's own savepoint: postgres.js remembers any failed
+ * statement in a transaction and fails the whole transaction at the end, even
+ * if the error was caught — unless it failed inside tx.savepoint().
+ */
+export async function savepoint<T>(fn: () => Promise<T>): Promise<T> {
+  const open = current.getStore();
+  if (!open) throw new Error("savepoint() only works inside tx().");
+  if (open.pg) {
+    return (await open.pg.savepoint((sp) => current.run({ q: pgQ(sp), pg: sp }, fn))) as T;
+  }
+  await open.q.run(`SAVEPOINT clinicos_sp`);
+  try {
+    const value = await fn();
+    await open.q.run(`RELEASE SAVEPOINT clinicos_sp`);
+    return value;
+  } catch (e) {
+    await open.q.run(`ROLLBACK TO SAVEPOINT clinicos_sp`);
+    await open.q.run(`RELEASE SAVEPOINT clinicos_sp`);
+    throw e;
+  }
 }
 
 function base(): Q {
@@ -139,7 +167,7 @@ async function sqliteTx<T>(fn: () => Promise<T>): Promise<T> {
   try {
     db.exec("BEGIN IMMEDIATE");
     try {
-      const result = await current.run(sqliteQ(sqlite, false), fn);
+      const result = await current.run({ q: sqliteQ(sqlite, false) }, fn);
       db.exec("COMMIT");
       return result;
     } catch (e) {
@@ -385,7 +413,108 @@ function openSqlite(): BetterSqlite3.Database {
     DROP INDEX IF EXISTS idx_queue_token;
   `);
 
+  migrateSyncTracking(db, addColumn);
   return db;
+}
+
+/**
+ * Keeping a clinic computer in step with its clinic online (19 Sep 2026), for
+ * clinics whose plan includes it. The twin of migrations/pg/005_sync.sql.
+ *
+ * Every row that can travel carries updatedAt (when it last changed, which
+ * decides which copy wins when both changed) and syncSeq (a counter that only
+ * grows, so "what changed since the last push" never depends on this
+ * computer's clock, which a clinic may well have set wrong). Triggers keep
+ * both up to date, so no query in db.ts has to remember to. While changes that
+ * came from online are being written, SyncState.applying is 1 and the triggers
+ * stand aside: those changes are not this computer's to send back.
+ *
+ * A deleted patient or favourite leaves a tombstone, so the deletion travels
+ * too — an erasure request must reach every copy.
+ *
+ * Nothing here sends anything anywhere. Until the clinic connects this
+ * computer with a key from its online clinic, the counters simply count.
+ */
+function migrateSyncTracking(db: BetterSqlite3.Database, addColumn: (t: string, c: string, d: string) => void) {
+  const withUpdatedAt = ["Patient", "Consult", "User", "QueueEntry", "ClinicSetting"]; // Favourite already has it
+  const tracked = ["Patient", "Consult", "Edit", "User", "QueueEntry", "Favourite", "AuditEvent", "ClinicSetting"];
+  for (const t of withUpdatedAt) addColumn(t, "updatedAt", "TEXT");
+  for (const t of tracked) addColumn(t, "syncSeq", "INTEGER");
+
+  const now = `strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`;
+  const applying = `(SELECT applying FROM SyncState WHERE id = 1) = 0`;
+  const bump = `UPDATE SyncState SET seq = seq + 1 WHERE id = 1;`;
+  const seq = `(SELECT seq FROM SyncState WHERE id = 1)`;
+
+  let ddl = `
+    CREATE TABLE IF NOT EXISTS SyncState (
+      id       INTEGER PRIMARY KEY CHECK (id = 1),
+      seq      INTEGER NOT NULL DEFAULT 0,
+      applying INTEGER NOT NULL DEFAULT 0
+    );
+    INSERT INTO SyncState (id) VALUES (1) ON CONFLICT DO NOTHING;
+    -- A crash in the middle of writing changes from online must not leave the
+    -- triggers switched off for good.
+    UPDATE SyncState SET applying = 0 WHERE id = 1 AND applying <> 0;
+
+    CREATE TABLE IF NOT EXISTS SyncTombstone (
+      id        TEXT PRIMARY KEY,
+      clinicId  TEXT NOT NULL,
+      tableName TEXT NOT NULL,
+      rowId     TEXT NOT NULL,
+      deletedAt TEXT NOT NULL,
+      syncSeq   INTEGER
+    );
+
+    -- This computer's side of the connection: the online address, its key,
+    -- how far each table has been sent and fetched, and how the last attempt
+    -- went. Never sent anywhere, and no triggers: it is bookkeeping, not a record.
+    CREATE TABLE IF NOT EXISTS SyncConfig (
+      key   TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+  `;
+  for (const t of tracked) {
+    const stampUpdated = withUpdatedAt.includes(t) || t === "Favourite";
+    ddl += `
+    CREATE TRIGGER IF NOT EXISTS sync_${t}_ins AFTER INSERT ON ${t} WHEN ${applying}
+    BEGIN
+      ${bump}
+      UPDATE ${t} SET syncSeq = ${seq}${stampUpdated ? `, updatedAt = COALESCE(NEW.updatedAt, ${now})` : ""}
+      WHERE rowid = NEW.rowid;
+    END;
+    CREATE TRIGGER IF NOT EXISTS sync_${t}_upd AFTER UPDATE ON ${t} WHEN ${applying} AND NEW.syncSeq IS OLD.syncSeq
+    BEGIN
+      ${bump}
+      UPDATE ${t} SET syncSeq = ${seq}${
+        stampUpdated ? `, updatedAt = CASE WHEN NEW.updatedAt IS OLD.updatedAt THEN ${now} ELSE NEW.updatedAt END` : ""
+      }
+      WHERE rowid = NEW.rowid;
+    END;`;
+  }
+  for (const t of ["Patient", "Favourite"]) {
+    ddl += `
+    CREATE TRIGGER IF NOT EXISTS sync_${t}_del AFTER DELETE ON ${t} WHEN ${applying}
+    BEGIN
+      ${bump}
+      INSERT INTO SyncTombstone (id, clinicId, tableName, rowId, deletedAt, syncSeq)
+      VALUES (OLD.clinicId || ':${t}:' || OLD.id, OLD.clinicId, '${t}', OLD.id, ${now}, ${seq})
+      ON CONFLICT (id) DO UPDATE SET deletedAt = excluded.deletedAt, syncSeq = excluded.syncSeq;
+    END;`;
+  }
+  // Rows from before tracking get their first stamp. A no-op on every later
+  // start: only rows that have never been stamped match.
+  for (const t of ["Patient", "Consult", "User", "QueueEntry"]) {
+    const from = t === "QueueEntry" ? "addedAt" : "createdAt";
+    ddl += `\n    UPDATE ${t} SET updatedAt = ${from} WHERE updatedAt IS NULL;`;
+  }
+  ddl += `
+    UPDATE ClinicSetting SET updatedAt = ${now} WHERE updatedAt IS NULL;
+    UPDATE Favourite SET clinicId = clinicId WHERE syncSeq IS NULL;
+    UPDATE Edit SET clinicId = clinicId WHERE syncSeq IS NULL;
+    UPDATE AuditEvent SET clinicId = clinicId WHERE syncSeq IS NULL;
+  `;
+  db.exec(ddl);
 }
 
 
@@ -459,7 +588,7 @@ function pgBase(): Q {
 }
 
 async function pgTx<T>(fn: () => Promise<T>): Promise<T> {
-  return (await pgClient().begin((t) => current.run(pgQ(t), fn))) as T;
+  return (await pgClient().begin((t) => current.run({ q: pgQ(t), pg: t }, fn))) as T;
 }
 
 /** Close the pool, for scripts that must exit. */

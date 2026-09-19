@@ -23,7 +23,16 @@ import { fileURLToPath } from "node:url";
 
 const appDir = join(fileURLToPath(import.meta.url), "..", "..");
 const srcDir = join(appDir, "src");
-const skip = [/^app[\\/]api[\\/]/, /^middleware\.ts$/, /^lib[\\/]session-cookie\.ts$/, /^lib[\\/]base-path\.ts$/];
+// sync-client.ts calls another ClinicOS — the clinic's online copy — at the
+// full address the clinic pasted in, which already carries that copy's /app.
+// Its paths are the other server's, and appPath() would add this one's prefix.
+const skip = [
+  /^app[\\/]api[\\/]/,
+  /^middleware\.ts$/,
+  /^lib[\\/]session-cookie\.ts$/,
+  /^lib[\\/]base-path\.ts$/,
+  /^lib[\\/]sync-client\.ts$/,
+];
 
 function* files(dir) {
   for (const name of readdirSync(dir)) {

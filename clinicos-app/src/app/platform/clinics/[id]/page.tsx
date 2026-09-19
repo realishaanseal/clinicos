@@ -6,6 +6,9 @@ import { PLANS, clinicPath, parseFeatures } from "@/lib/tenant";
 import { publicAppUrl } from "@/lib/public-url";
 import { fmt } from "@/lib/time";
 import ClinicEditForm from "@/components/ClinicEditForm";
+import DevicesPanel from "@/components/DevicesPanel";
+import { listDevices } from "@/lib/sync-server";
+import { appPath } from "@/lib/base-path";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +68,14 @@ export default async function PlatformClinicPage({ params }: { params: Promise<{
         awaitingSetup={usage.people === 0}
         base={base}
       />
+
+      {features.localSync && (
+        <DevicesPanel
+          devices={(await listDevices(t.id)).map(({ keyHash, ...d }) => (void keyHash, d))}
+          endpoint={appPath(`/api/platform/clinics/${t.id}/devices`)}
+          address={`${base}${clinicPath(t.slug)}`}
+        />
+      )}
     </div>
   );
 }

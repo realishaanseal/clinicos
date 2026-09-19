@@ -5,6 +5,8 @@ import { setupCodeRequired } from "@/lib/setup-code";
 import { PROTOTYPE, ONLINE } from "@/lib/deployment";
 import { Mark } from "@/components/Icons";
 import { MULTI_CLINIC, resolveClinic } from "@/lib/tenant";
+import ConnectAtSetup from "@/components/ConnectAtSetup";
+import { SYNC_CLIENT_ENABLED } from "@/lib/sync-client";
 
 export const dynamic = "force-dynamic";
 
@@ -72,6 +74,7 @@ export default async function SetupPage({ searchParams }: { searchParams: Promis
             ` The ${existingPatients} patient record${existingPatients === 1 ? "" : "s"} already here stay exactly as they are.`}
         </p>
         <SetupForm defaults={defaults} needsCode={setupCodeRequired(clinic)} clinic={MULTI_CLINIC ? clinic.slug : null} />
+        {SYNC_CLIENT_ENABLED && <ConnectAtSetup />}
       </div>
       <p className="auth-foot">
         {PROTOTYPE

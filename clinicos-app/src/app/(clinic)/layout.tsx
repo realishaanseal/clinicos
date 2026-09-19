@@ -2,6 +2,7 @@ import SideNav from "@/components/SideNav";
 import { getCurrentUser } from "@/lib/auth";
 import { getClinic } from "@/lib/clinic";
 import { maybeAutoBackup } from "@/lib/backup";
+import { maybeSync } from "@/lib/sync-client";
 import { PROTOTYPE } from "@/lib/deployment";
 
 /** The clinic's screens: navigation down the side, the page beside it. */
@@ -15,6 +16,9 @@ export default async function ClinicLayout({ children }: { children: React.React
   // "switched off" by accident the way a separate scheduler can. It runs here,
   // for every signed-in page, so it happens whichever role uses the app that day.
   await maybeAutoBackup();
+  // The same idea for a clinic computer that keeps in step with its clinic
+  // online: never awaited, so a slow or absent internet never slows a page.
+  maybeSync();
 
   return (
     <div className="shell">
