@@ -58,6 +58,10 @@ if (onPg) {
     NEXT_PUBLIC_BASE_PATH: "/app",
     NEXT_PUBLIC_CLINIC_TIMEZONE: "Asia/Kolkata",
     NEXT_PUBLIC_CLINICOS_ONLINE: "1",
+    // Fixed, worthless keys, so sharing with patients works in the sandbox and
+    // survives a restart. Never these anywhere real: npm run portal:keys.
+    PORTAL_ENCRYPTION_KEY: process.env.PORTAL_ENCRYPTION_KEY || Buffer.alloc(32, 1).toString("base64"),
+    PORTAL_HMAC_KEY: process.env.PORTAL_HMAC_KEY || Buffer.alloc(32, 2).toString("base64"),
   });
   if (spawnSync(process.execPath, [path.join(appDir, "scripts", "migrate-pg.mjs")], { env, stdio: "inherit" }).status !== 0) {
     pg.kill();

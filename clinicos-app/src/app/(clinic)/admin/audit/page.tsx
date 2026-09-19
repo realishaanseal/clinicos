@@ -28,6 +28,8 @@ const WHAT: Record<string, string> = {
   sync_disconnect: "Stopped keeping this computer in step with ClinicOS online",
   sync_device_create: "Made a key for a clinic computer",
   sync_device_revoke: "Switched a clinic computer off",
+  consult_share: "Shared a prescription with the patient",
+  consult_share_revoke: "Stopped sharing a prescription",
 };
 
 export default async function AuditPage() {

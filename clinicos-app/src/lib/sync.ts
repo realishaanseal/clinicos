@@ -29,7 +29,9 @@
 import { BACKEND, isUniqueViolation, q, savepoint, tx, type Param } from "./sql";
 import type { ClinicId } from "./db";
 
-export const SYNC_TABLES = ["ClinicSetting", "User", "Patient", "Consult", "Edit", "QueueEntry", "Favourite", "AuditEvent"] as const;
+export const SYNC_TABLES = [
+  "ClinicSetting", "User", "Patient", "Consult", "PortalShare", "Edit", "QueueEntry", "Favourite", "AuditEvent",
+] as const;
 export type SyncTable = (typeof SYNC_TABLES)[number];
 
 export function isSyncTable(t: unknown): t is SyncTable {
@@ -52,6 +54,9 @@ export const COLUMNS: Record<SyncTable, string[]> = {
     "recordingEndedAt", "finalJson", "llmModel", "llmSeconds", "signedAt", "createdBy", "doctorId", "transcribedAt",
     "draftedAt", "createdAt", "updatedAt",
   ],
+  // Only what a clinic computer needs to show that a visit was shared: never the
+  // phone's HMAC, the code's hash or the encrypted prescription.
+  PortalShare: ["id", "consultId", "patientId", "visitDate", "sharedAt", "sharedBy", "consentBy", "revokedAt", "updatedAt"],
   Edit: ["id", "consultId", "field", "before", "after", "createdAt"],
   QueueEntry: ["id", "patientId", "day", "token", "status", "addedBy", "consultId", "calledBy", "addedAt", "calledAt", "doneAt", "updatedAt"],
   Favourite: ["id", "userId", "name", "noteJson", "useCount", "createdAt", "updatedAt"],
@@ -61,7 +66,7 @@ export const COLUMNS: Record<SyncTable, string[]> = {
 /** The row's identity. A setting is identified by its name within the clinic. */
 export const KEY: Record<SyncTable, string> = {
   ClinicSetting: "key",
-  User: "id", Patient: "id", Consult: "id", Edit: "id", QueueEntry: "id", Favourite: "id", AuditEvent: "id",
+  User: "id", Patient: "id", Consult: "id", PortalShare: "id", Edit: "id", QueueEntry: "id", Favourite: "id", AuditEvent: "id",
 };
 
 /** Only added to, never changed: the first copy of a row is the only one. */
@@ -267,6 +272,7 @@ function parentOf(table: SyncTable, r: Row): [string, string] | null {
   switch (table) {
     case "Consult": return ["Patient", String(r.patientId ?? "")];
     case "Edit": return ["Consult", String(r.consultId ?? "")];
+    case "PortalShare": return ["Consult", String(r.consultId ?? "")];
     case "QueueEntry": return ["Patient", String(r.patientId ?? "")];
     case "Favourite": return ["User", String(r.userId ?? "")];
     default: return null;

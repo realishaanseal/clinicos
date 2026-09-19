@@ -59,6 +59,47 @@ Also print the notice as an **A4 poster for the waiting area**. Visible notice p
 
 ---
 
+## If the clinic keeps its records on ClinicOS online — DRAFT, not yet in use
+
+> **Status (19 Sep 2026):** a draft for Ishaan to approve. Until it is approved, printed
+> and in use, ClinicOS online stays a prototype for made-up patients, and says so on every
+> screen (CLAUDE.md, invariant 2). Get a lawyer's eye on it before the first real clinic.
+
+For a clinic that uses ClinicOS online, or keeps its own computer in step with it, the
+spoken script changes in two places. Replace the line *"Your name and details are never
+given to any medicine company or anyone outside this clinic"* with the first line below,
+and add the second **only if** recordings are turned into text by an online service
+rather than on the clinic's own computer.
+
+> - "Your record is kept safely online, in India, for this clinic. Only this clinic can open it. It is never given to any medicine company or anyone else."
+> - "To turn the recording into text, it is sent to a secure service, which keeps nothing and learns nothing from it. The recording is deleted when the doctor signs."
+
+> - "আপনার রেকর্ড এই ক্লিনিকের জন্য ভারতেই অনলাইনে নিরাপদে রাখা থাকবে। শুধু এই ক্লিনিকই তা খুলতে পারবে। কোনো ওষুধ কোম্পানি বা অন্য কাউকে তা দেওয়া হবে না।"
+> - "রেকর্ডিংটি লেখায় বদলানোর জন্য একটি সুরক্ষিত পরিষেবায় পাঠানো হয়, যা কিছুই রেখে দেয় না বা তা থেকে কিছু শেখে না। ডাক্তারবাবু সই করলেই রেকর্ডিংটি মুছে ফেলা হয়।"
+
+The written form gains the same two points. The Bengali above, like the sharing script
+below, is a first draft: have a native speaker read it aloud before it is printed.
+
+---
+
+## Sharing the prescription online — optional, after signing
+
+Asked separately, after the doctor has signed, and only if the patient has a phone number
+on record. It is a second, independent consent: a patient who agreed to recording may
+say no to this, and saying no changes nothing. ClinicOS shows these words on the screen
+where the doctor shares, and records who asked and when.
+
+> "May we also put this prescription online, so you can see it on your phone? Only someone with your phone number and the code printed here can open it. You can say no — it changes nothing about your care — and you can ask us to take it down at any time."
+
+> "এই প্রেসক্রিপশনটি কি অনলাইনে রাখব, যাতে আপনি নিজের ফোনে দেখতে পান? শুধু আপনার ফোন নম্বর আর এখানে ছাপা কোডটি দিয়েই এটি খোলা যাবে। আপনি না বলতে পারেন — তাতে আপনার চিকিৎসায় কোনো পার্থক্য হবে না — আর যে কোনো সময় বললে আমরা এটি সরিয়ে দেব।"
+
+What the patient gets online is exactly the printed prescription — never the recording,
+the transcript or anything else. The doctor can stop sharing at any time from the visit's
+page, and the patient can remove a prescription from their list or delete their account
+on their phone.
+
+---
+
 ## If the patient says no
 
 Say — and mean — *"Thik achhe, kono osubidha nei."* / **"ঠিক আছে, কোনো অসুবিধা নেই।"**

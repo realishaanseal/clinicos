@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   },
   twitter: { card: "summary_large_image" },
   description:
-    "Local-first clinical documentation for clinics and hospitals. The note is drafted from the consultation already taking place, and patient data never leaves your hardware. A Varaxis product.",
+    "Clinical documentation for clinics and hospitals. The note is drafted from the consultation already taking place. Run it on your own hardware, online, or both. A Varaxis product.",
   openGraph: {
     title: "ClinicOS — clinical documentation that writes itself",
     description:

@@ -55,7 +55,9 @@ This means we will:
 - process patient data **only** to provide ClinicOS to this Clinic, and for no other purpose;
 - apply reasonable technical and organisational security measures to protect it;
 - tell the Clinic in writing about any third-party service we use to process the data (our current list is at Schedule A), and not add new ones without notice;
-- delete the **raw audio recording** of each consultation once the Doctor has approved and signed the resulting note;
+- keep the Clinic's records only where the Clinic chose: on its own computer, on ClinicOS online (stored in India), or both kept in step;
+- delete the **raw audio recording** of each consultation once the Doctor has approved and signed the resulting note, wherever it was recorded;
+- put a signed prescription online for a patient only when the Doctor shares it with that patient's separate consent, and take it down when the Doctor or the patient asks;
 - not transfer patient data to anyone else except as set out in this agreement or as required by law.
 
 ### 5. No pharmaceutical access. Ever.
@@ -130,9 +132,12 @@ Services we use that may process consultation data. Keep this current; clause 4 
 
 | Service | What it does | Where data is processed |
 |---|---|---|
-| | Speech recognition | |
-| | Note generation | |
-| | Hosting / database | |
+| *None* | ClinicOS on the Clinic's own computer, not connected online: speech recognition (Whisper) and note drafting run on that computer | The Clinic's computer |
+| Vercel Inc. | Runs ClinicOS online: the application, and the patient portal | Mumbai, India (bom1) |
+| Supabase Inc. | ClinicOS online's database: records, shared prescriptions, and recordings until the Doctor signs | Mumbai, India (ap-south-1) |
+| *To be chosen* | Speech recognition and note drafting for ClinicOS online | *Name it here, with where it processes data and a written promise that it neither keeps nor trains on the audio or text, before any real patient's recording is sent to it* |
+
+A Clinic using only its own computer ticks here and strikes out the other rows: ☐
 
 **Fill this in honestly before your first pilot.** A doctor who later discovers an unlisted third party in the chain will not give you a second chance, and in a district-density strategy that story travels.
 

@@ -181,12 +181,34 @@ The clinic app also runs on the clinic computer, exactly as before. Start it wit
     copy).
   - **Tooling:** `npm run dev:sandbox:pg` runs the online service locally on PGlite, with
     a sandbox operator.
+- **v0.5 Part C, the patient portal** (19 Sep 2026, branch `saas`), inside the online app
+  rather than as a separate `portal/` app:
+  - After signing, **Share with the patient**: a separate spoken consent (the words on
+    screen in English and Bengali), then a 10-character code printed at the foot of the
+    prescription with the portal's address and a QR code. Works online, and from a
+    clinic computer connected to its clinic online.
+  - The patient opens `vxclinicos.vercel.app/app/p` on their phone: phone number + code
+    the first time (choosing a 6-digit PIN), phone + PIN after. Later visits shared to
+    the same phone appear by themselves. They can print, remove a visit from their list,
+    or delete their account (typed DELETE). Five wrong PINs lock for 15 minutes; a code
+    resets the PIN.
+  - The doctor can make a new code (the old one stops working) or stop sharing (gone
+    even by direct address). Deleting the patient deletes what was shared.
+  - Stored encrypted (AES-256-GCM), phones only as HMACs, codes only as hashes. Needs
+    `PORTAL_ENCRYPTION_KEY` and `PORTAL_HMAC_KEY` on Vercel (§7).
+  - 38 checks in `portal-test.cjs`, and 3 more in the sync suite for sharing from a
+    clinic computer. **393 checks pass on Postgres, 232 on SQLite.**
+- **Part D, drafted:** the sharing consent is written and in use on screen; the consent
+  script's lines for keeping records online are a **draft awaiting Ishaan** in
+  `docs/Patient_Consent_Script_EN_BN.md`; the pilot agreement lists Vercel and Supabase
+  (Mumbai) as sub-processors, with the AI service still to be named; the website says
+  records can be kept on the clinic's computer, online, or both.
 
 ### Not built yet
 
-- **v0.5 Part C:** the patient portal (§6). The database exists — Supabase in Mumbai, the
-  four tables applied from `portal/migrations/` — but nothing reads or writes it yet.
-- **v0.5 Part D:** the rules, consent script and website copy, updated for sharing (§6).
+- Prescription extras (#9, #20, #25) and billing and follow-up (#12, #10) — next (§6).
+- `portal/` and its four Supabase tables are superseded by the portal inside the app;
+  nothing reads or writes them. Safe to delete later.
 
 ### How to verify
 
@@ -322,11 +344,12 @@ recorded; Varaxis processes it for them), and the prototype banner switched off 
 1. **The doctor's speed features** — built on `workflow-speed` (§3), waiting to merge.
 1a. **ClinicOS as a service, and clinic computer sync** (Ishaan, 19 Sep 2026) — built on
    `saas` (§3), which contains `workflow-speed`; waiting to merge.
-2. **The patient portal**, Part C below, with Part D. Now that the clinic app itself is
-   online, the portal could live inside it rather than as a separate app; decide that
-   before starting, because clinics on their own computer still need the push design.
-   (With sync built, a clinic computer's shared visits can reach the portal through its
-   clinic online, so the portal can live inside the online app.)
+2. **The patient portal**, Part C below, with Part D — **built on `saas` (19 Sep 2026),
+   inside the online app**: with sync, a clinic computer's shares go through its clinic
+   online, so the separate `portal/` app and its push design were not needed. The
+   design below still describes what it does, except that shares live in `PortalShare`
+   in the app's own database, patients' accounts in `PortalAccount`, and there is no
+   per-clinic portal key.
 3. **Prescription extras:** #9 a Bengali card showing when to take each medicine, #20
    a "come back immediately if…" card (the doctor's own words, printed), #25 the
    clinic's logo on the letterhead.
@@ -434,6 +457,10 @@ the times are measured (§3). Cutting them further needs real consultations to m
    tables and columns to the online database by itself (migrations 002–005); nothing
    needs typing into a dashboard. Until then, the branch's Vercel Preview shows errors,
    because previews never change the database.
+   **Then add the two portal keys**: run `npm run portal:keys` in `clinicos-app` and paste
+   the two lines into the `vxclinicos-app` project's environment (Production, marked
+   Sensitive), then redeploy. Set them once: changing them later makes what was shared
+   unreadable.
    **Then make your operator account**, from `clinicos-app` on a computer with the online
    database's connection string (the one in `portal/.env.local` on the Mac):
    `DATABASE_URL="…" npm run operator -- add ishaan "Ishaan Seal"`. It prints a temporary
@@ -780,6 +807,10 @@ and `--scope varaxis` reaches the projects (`demo`, `vxclinicos-app`, `scholar`,
       postgres.js was found to fail a whole transaction on a caught error unless it
       happens inside its own savepoint (CLAUDE.md, gotchas).
     - CLAUDE.md's invariant 2 rewritten for the service and sync.
+    - **The patient portal** (Part C), inside the app at `/p`, and Part D's texts
+      drafted: the sharing consent in use, the online-records consent lines awaiting
+      Ishaan, sub-processors listed, and the website's "where the data lives" copy
+      updated for "your computer, online, or both".
 
 ### Where to pick up
 

@@ -146,6 +146,7 @@ variables on that project, never a code branch:
 | `NEXT_PUBLIC_CLINICOS_ONLINE` | `1` | wording only: no "running locally" |
 | `NEXT_PUBLIC_CLINICOS_PROTOTYPE` | unset (banner on) | `0` removes the made-up-patients banner — Ishaan's decision, once Part D is done (invariant 2) |
 | `ASR_PROVIDER` / `LLM_PROVIDER` | `http` / `openai` | hosted AI; needs URLs, models and keys |
+| `PORTAL_ENCRYPTION_KEY` / `PORTAL_HMAC_KEY` | from `npm run portal:keys` | the patient portal; set once — changing them loses what was shared |
 
 Schema changes for the online copy are numbered files in
 `clinicos-app/migrations/pg/`. Every SQLite change in `sql.ts` needs its Postgres twin
@@ -185,6 +186,9 @@ clinicos-app/
                      the other copy's rows are merged — the same code on both sides
     sync-server.ts   online: device keys (hash only) and requireDevice() for /api/sync/*
     sync-client.ts   clinic computer: connect, run every minute, status. Never awaited by a page
+    share.ts         sharing a signed visit with the patient: shareVisit / revokeShare (online)
+    portal.ts        patients' accounts and sessions: phone + printed code, then a PIN
+    portal-crypto.ts the portal's secrets: AES-GCM prescriptions, HMAC'd phones, hashed codes
     auth.ts          passwords (scrypt), sessions, requireUser / requireApiUser, roles
     session-cookie.ts  cookie name + idle limit shared with middleware (no Node imports)
     users.ts         role labels and account validation, safe for client components
@@ -216,6 +220,7 @@ clinicos-app/
   src/app/setup, login    first-run owner account; sign-in
   src/app/c/[slug]        a clinic's own address: its setup until it has an account, then sign-in
   src/app/platform/       Varaxis's console: clinics, plans, pausing. Counts only, never records
+  src/app/p/              the patient portal (online only): a patient's shared prescriptions
   src/app/api/            route handlers — every one starts with requireApiUser(), except
                           /api/platform (requireApiOperator) and /api/sync (requireDevice)
   scripts/reset-password.mjs   npm run reset-password -- <username> [clinic-id], at the laptop
@@ -250,9 +255,10 @@ happen on Postgres — see `addToQueue`, `startQueueEntry` and `createFirstAccou
 
 Tables: `Patient`, `Consult`, `Edit`, and since v0.5 `User`, `Session`, `AuditEvent`,
 `Setting` (no longer written), `QueueEntry`, `Favourite`. Since 19 Sep 2026 `Tenant` (the
-clinics — `Clinic` belongs to the portal's tables in the same database), `ClinicSetting`,
-`SyncTombstone`; SQLite only `SyncState`, `SyncConfig`; Postgres only `AudioChunk`,
-`Operator`, `OperatorSession`, `SyncDevice`.
+clinics — `Clinic` belongs to the old standalone portal's unused tables in the same
+database), `ClinicSetting`, `SyncTombstone`, `PortalShare`; SQLite only `SyncState`,
+`SyncConfig`; Postgres only `AudioChunk`, `Operator`, `OperatorSession`, `SyncDevice`,
+`PortalAccount`, `PortalLogin`, `PortalAttempt`.
 
 **Clinics are tenants.** Every table of records has `clinicId`, and every function in
 `db.ts` that touches records takes a `ClinicId` first and filters on it — in the WHERE of
@@ -281,6 +287,16 @@ merge rules are at the top of `sync.ts` and hold for both sides. **Adding a colu
 synced table means adding it to `COLUMNS` in `sync.ts`**, or it silently stays on one
 copy; a new table needs a decision about whether it travels. Settings travel only when
 their key starts `clinic_` or `rx_`.
+
+**Sharing with the patient (the portal).** A second, optional consent after signing,
+asked aloud (the words are on the screen, in English and Bengali). The share is made
+online: directly there, or by a connected clinic computer through `/api/sync/share`. What
+the patient gets is exactly the signed prescription, encrypted with
+`PORTAL_ENCRYPTION_KEY` — never the transcript, recording, draft or edits. Phone numbers
+are stored only as an HMAC (`PORTAL_HMAC_KEY`), the printed code only as a hash, the PIN
+only as scrypt. The code is shown once, printed with a QR code whose `#code=` fragment is
+never sent to a server; a new code replaces a lost one. `PortalShare`'s three secret
+columns never sync. Without the two keys set, the Share button says so.
 
 **A note written by hand has no AI draft** (a quick visit, or a patient who said no to
 recording). `draftJson` stays NULL, signing logs no `Edit` rows, and it counts in
@@ -424,12 +440,12 @@ Built and tested:
 - **Clinic computer sync (19 Sep 2026, branch `saas`):** a clinic's own computer keeps a
   full copy in step with its clinic online, where the plan includes it. Verified by
   `sync-test.cjs`, which runs two clinic computers beside the online copy.
+- **v0.5 Part C, the patient portal (19 Sep 2026, branch `saas`):** inside the online app
+  at `/p`. Verified by `portal-test.cjs`. Part D's text is drafted: the sharing consent is
+  in use; the consent script for keeping records online is a draft awaiting Ishaan.
 
-Next, in the order Ishaan asked for ("all one by one"): v0.5 Part C (patient portal:
-a doctor shares a signed visit with the patient's consent) with Part D (invariant 2,
-consent script and website copy updated to match); then prescription extras (#9
-Bengali medicine card, #20 red-flag card, #25 logo); then billing and follow-up (#12,
-#10). The full plan is in CONTEXT.md §6. Backlog numbered 1–37 across tiers 0–7.
+Next, in the order Ishaan asked for ("all one by one"): prescription extras (#9 Bengali
+medicine card, #20 red-flag card, #25 logo); then billing and follow-up (#12, #10). The full plan is in CONTEXT.md §6. Backlog numbered 1–37 across tiers 0–7.
 
 **Online since 17 Sep 2026** (Ishaan's decision, reversing "not hosted"): the same
 app at vxclinicos.vercel.app/app, on Postgres, as a prototype for made-up patients.

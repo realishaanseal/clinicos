@@ -149,8 +149,10 @@ export default function Page() {
                 Install ClinicOS on the clinic’s own computer and transcription, drafting and every
                 record stay there, with no internet needed. Consultation data never crosses a
                 network, which turns data residency into a question you do not have to answer. Or
-                use it online with nothing to install: records are kept in a database in India.
-                The online version is a prototype today, so try it with made-up patients.
+                use it online with nothing to install: records are kept in a database in India, and
+                each clinic sees only its own. Or both: a full copy on the clinic’s computer that
+                keeps working without internet and stays in step with the online one. The online
+                version is a prototype today, so try it with made-up patients.
               </p>
             </Reveal>
 

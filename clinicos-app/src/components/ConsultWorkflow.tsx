@@ -6,6 +6,7 @@ import { useAutosave, readLocalMirror } from "@/lib/useAutosave";
 import { ClinicalNote, Medication, mergeMedicines, noteHasContent } from "@/lib/types";
 import Prescription from "./Prescription";
 import Favourites from "./Favourites";
+import SharePanel, { type ShareState } from "./SharePanel";
 import type { FavouriteView } from "@/lib/db";
 import {
   IcMic, IcRec, IcStop, IcDoc, IcCheck, IcAlert, IcPrint, IcPlus, IcTrash, IcShield,
@@ -41,13 +42,15 @@ type Props = {
   lastVisit: LastVisit | null;
   /** The signed-in doctor's own favourites. */
   favourites: FavouriteView[];
+  /** Sharing the signed prescription with the patient (v0.5 Part C). */
+  sharing: { share: ShareState; available: boolean; reason: string | null };
 };
 
 type LastVisit = { signedAt: string; diagnosis: string; medications: Medication[] };
 
 const STEPS = ["Consent", "Record", "Transcript", "Review & sign"];
 
-export default function ConsultWorkflow({ consultId, patient, initial, clinic, lastVisit, favourites }: Props) {
+export default function ConsultWorkflow({ consultId, patient, initial, clinic, lastVisit, favourites, sharing }: Props) {
   const [consent, setConsent] = useState(initial.consentGiven);
   const [transcript, setTranscript] = useState(initial.transcript);
   const [note, setNote] = useState<ClinicalNote>(initial.note);
@@ -61,6 +64,8 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic, l
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [restored, setRestored] = useState<string | null>(null);
+  // Set when the prescription has just been shared: printed on it, this once.
+  const [portal, setPortal] = useState<{ address: string; code: string } | null>(null);
 
   const rec = useRecorder(consultId);
   const save = useAutosave(consultId, !signedAt);
@@ -198,7 +203,15 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic, l
           <button onClick={() => window.print()}><IcPrint size={16} /> Print prescription</button>
           <a href={appPath("/")}><button className="ghost">Back to today</button></a>
         </div>
-        <Prescription note={note} patient={patient} clinic={clinic} date={signedAt} visitId={consultId} />
+        <SharePanel
+          consultId={consultId}
+          hasPhone={!!patient.phone && patient.phone.replace(/\D/g, "").length >= 10}
+          initial={sharing.share}
+          available={sharing.available}
+          unavailableReason={sharing.reason}
+          onCode={setPortal}
+        />
+        <Prescription note={note} patient={patient} clinic={clinic} date={signedAt} visitId={consultId} portal={portal} />
       </>
     );
   }

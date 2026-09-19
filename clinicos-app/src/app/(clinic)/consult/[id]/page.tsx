@@ -5,6 +5,10 @@ import ConsultWorkflow from "@/components/ConsultWorkflow";
 import { prescriptionIdentity } from "@/lib/clinic";
 import { requireUser } from "@/lib/auth";
 import Link from "next/link";
+import { getShare } from "@/lib/share";
+import { BACKEND } from "@/lib/sql";
+import { portalReady, PORTAL_NOT_READY } from "@/lib/portal-crypto";
+import { getSyncStatus } from "@/lib/sync-client";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +36,22 @@ export default async function ConsultPage({ params }: { params: Promise<{ id: st
         medications: lastNote.medications.filter((m) => m.name.trim()),
       }
     : null;
+
+  // Sharing with the patient happens online, where the portal is: directly
+  // there, or through the clinic online from a connected clinic computer.
+  let sharing = { share: null as { sharedAt: string; revokedAt: string | null } | null, available: false, reason: null as string | null };
+  if (c.signedAt) {
+    const s = await getShare(user.clinicId, c.id);
+    const connected = BACKEND === "sqlite" && (await getSyncStatus()).connected;
+    sharing = {
+      share: s ? { sharedAt: s.sharedAt, revokedAt: s.revokedAt } : null,
+      available: BACKEND === "postgres" ? portalReady() : connected,
+      reason:
+        BACKEND === "postgres"
+          ? PORTAL_NOT_READY
+          : "Sharing with the patient needs this computer connected to its clinic on ClinicOS online (Clinic admin → ClinicOS online).",
+    };
+  }
 
   return (
     <div className="page">
@@ -82,6 +102,7 @@ export default async function ConsultPage({ params }: { params: Promise<{ id: st
         clinic={identity}
         lastVisit={lastVisit}
         favourites={c.signedAt ? [] : (await listFavourites(user.id)).map(favouriteView)}
+        sharing={sharing}
       />
     </div>
   );

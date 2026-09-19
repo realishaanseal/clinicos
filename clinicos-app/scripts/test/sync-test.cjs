@@ -238,6 +238,20 @@ const note = (over = {}) => ({
   r = await call(CLOUD, "PATCH", `/api/consults/${c4}/draft`, { jar: O, body: { note: note({ chiefComplaint: "too late" }) } });
   check("…and then online refuses to change it too", r.status === 409, r.status);
 
+  // ------------------------------------------------ 5b. sharing with the patient, from the clinic computer
+  r = await call(pc1.base, "POST", `/api/consults/${c1}/share`, { jar: L, body: { consent: true } });
+  const shareCode = r.json?.code;
+  check("A connected clinic computer shares a signed visit through its clinic online", r.status === 200 && shareCode && r.json.portalUrl === `${CLOUD}/p`, JSON.stringify(r.json));
+  r = await call(CLOUD, "POST", "/api/portal/start", { body: { phone: "9800000001", code: shareCode, pin: "246810" } });
+  check("…and the patient opens it online with the printed code", r.status === 200, JSON.stringify(r.json));
+  await call(pc1.base, "POST", "/api/admin/sync/run", { jar: L });
+  {
+    const db = local(pc1.db);
+    const s = db.get(`SELECT "sharedAt", "phoneHmac", "codeHash", "payloadEnc" FROM PortalShare WHERE "consultId" = ?`, c1);
+    check("The clinic computer learns it was shared, without the share's secrets", s && s.sharedAt && s.phoneHmac === null && s.codeHash === null && s.payloadEnc === null, JSON.stringify(s));
+    db.close();
+  }
+
   // ------------------------------------------------ 6. deletions travel
   r = await call(CLOUD, "DELETE", `/api/patients/${p3}`, { jar: O, body: { confirmName: "Online Syncpatient" } });
   check("A patient is deleted online", r.status === 200, JSON.stringify(r.json));

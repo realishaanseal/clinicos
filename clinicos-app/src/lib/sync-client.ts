@@ -395,3 +395,31 @@ async function run(): Promise<RunReport> {
     throw e;
   }
 }
+
+// ------------------------------------------------------------ sharing
+/**
+ * Share a signed visit with the patient from a clinic computer: the portal is
+ * online, so online makes the share. Syncs first, so the signed visit is there
+ * to share, and again afterwards (without waiting) to bring the share's record
+ * back here. Needs the internet at that moment; says so plainly if not.
+ */
+export async function shareThroughOnline(
+  consultId: string,
+  action: "share" | "revoke",
+  by: string,
+  consentBy: string
+): Promise<{ code?: string; portalUrl: string; ok?: boolean }> {
+  const cfg = await getConfig();
+  if (!cfg.sync_url || !cfg.sync_key) {
+    throw new SyncError("Sharing with patients needs this computer connected to ClinicOS online (Clinic admin → ClinicOS online).");
+  }
+  if (action === "share") await syncNow();
+  const res = await call<{ code?: string; ok?: boolean }>(cfg.sync_url, cfg.sync_key, "/api/sync/share", {
+    consultId,
+    action,
+    by,
+    consentBy,
+  });
+  void syncNow().catch(() => {});
+  return { ...res, portalUrl: `${cfg.sync_url}/p` };
+}

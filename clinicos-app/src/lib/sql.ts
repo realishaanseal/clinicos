@@ -413,6 +413,30 @@ function openSqlite(): BetterSqlite3.Database {
     DROP INDEX IF EXISTS idx_queue_token;
   `);
 
+  // A signed visit shared with the patient (v0.5 Part C). The patient portal
+  // itself lives online; a clinic computer keeps these rows only to show what
+  // has been shared, and never holds their secret columns (phoneHmac,
+  // codeHash, payloadEnc), which never travel. The twin of 006_portal.sql.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS PortalShare (
+      id         TEXT PRIMARY KEY,
+      clinicId   TEXT NOT NULL,
+      consultId  TEXT NOT NULL REFERENCES Consult(id) ON DELETE CASCADE,
+      patientId  TEXT NOT NULL,
+      visitDate  TEXT NOT NULL,
+      sharedAt   TEXT NOT NULL,
+      sharedBy   TEXT,
+      consentBy  TEXT,
+      revokedAt  TEXT,
+      hiddenAt   TEXT,
+      phoneHmac  TEXT,
+      codeHash   TEXT UNIQUE,
+      payloadEnc TEXT,
+      updatedAt  TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_share_consult ON PortalShare(clinicId, consultId);
+  `);
+
   migrateSyncTracking(db, addColumn);
   return db;
 }
@@ -436,8 +460,9 @@ function openSqlite(): BetterSqlite3.Database {
  * computer with a key from its online clinic, the counters simply count.
  */
 function migrateSyncTracking(db: BetterSqlite3.Database, addColumn: (t: string, c: string, d: string) => void) {
-  const withUpdatedAt = ["Patient", "Consult", "User", "QueueEntry", "ClinicSetting"]; // Favourite already has it
-  const tracked = ["Patient", "Consult", "Edit", "User", "QueueEntry", "Favourite", "AuditEvent", "ClinicSetting"];
+  // Favourite and PortalShare were made with updatedAt already.
+  const withUpdatedAt = ["Patient", "Consult", "User", "QueueEntry", "ClinicSetting"];
+  const tracked = ["Patient", "Consult", "Edit", "User", "QueueEntry", "Favourite", "AuditEvent", "ClinicSetting", "PortalShare"];
   for (const t of withUpdatedAt) addColumn(t, "updatedAt", "TEXT");
   for (const t of tracked) addColumn(t, "syncSeq", "INTEGER");
 
@@ -475,7 +500,7 @@ function migrateSyncTracking(db: BetterSqlite3.Database, addColumn: (t: string, 
     );
   `;
   for (const t of tracked) {
-    const stampUpdated = withUpdatedAt.includes(t) || t === "Favourite";
+    const stampUpdated = withUpdatedAt.includes(t) || t === "Favourite" || t === "PortalShare";
     ddl += `
     CREATE TRIGGER IF NOT EXISTS sync_${t}_ins AFTER INSERT ON ${t} WHEN ${applying}
     BEGIN

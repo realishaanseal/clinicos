@@ -530,6 +530,21 @@ tbody tr:hover { background: #fbfcfc; }
 .rx-sign .sig .ln { border-top: 1.5px solid var(--ink-800); padding-top: 5px; min-width: 210px; font-size: 12.5px; font-weight: 650; }
 .rx-sign .sig .sub { font-size: 10.5px; color: var(--slate-500); }
 
+/* The patient's own copy online: address, code and QR, printed once. */
+.rx-portal {
+  margin: 16px 26px 0; padding: 10px 12px; border: 1px dashed var(--teal-300); border-radius: var(--r-sm);
+  display: flex; gap: 12px; align-items: center; font-size: 11px; color: var(--slate-600); line-height: 1.45;
+}
+.rx-portal .qr { width: 64px; height: 64px; flex: none; }
+.rx-portal .qr svg { width: 100%; height: 100%; display: block; }
+.rx-portal .h { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; color: var(--teal-700); }
+.rx-portal b { color: var(--ink-900); }
+.rx-portal .code { font-family: var(--font-mono); font-size: 16px; font-weight: 700; letter-spacing: 0.12em; color: var(--ink-900); margin-top: 2px; }
+
+/* The patient portal: a phone first. */
+.portal .page { padding-top: 26px; }
+.portal .delrow { text-decoration: none; }
+
 .rx-foot {
   margin-top: 18px; padding: 9px 26px; background: var(--ink-900); color: #8ea19d;
   font-size: 9.5px; display: flex; justify-content: space-between; align-items: center; gap: 12px;

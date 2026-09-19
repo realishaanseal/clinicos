@@ -1,5 +1,7 @@
 "use client";
 
+import { useMemo } from "react";
+import qrcode from "qrcode-generator";
 import { ClinicalNote } from "@/lib/types";
 import { Mark } from "./Icons";
 import { fmt, fmtDate } from "@/lib/time";
@@ -17,6 +19,9 @@ type Props = {
   };
   date: string;
   visitId: string;
+  /** Just shared with the patient: where they read it online, and their code.
+   *  Printed at the foot, with a QR code, this once. */
+  portal?: { address: string; code: string } | null;
 };
 
 /**
@@ -27,8 +32,16 @@ type Props = {
  * it is also the most visible signal of whether the practice is modern. Treat
  * it as the product, not as output.
  */
-export default function Prescription({ note, patient, clinic, date, visitId }: Props) {
+export default function Prescription({ note, patient, clinic, date, visitId, portal }: Props) {
   const d = new Date(date);
+  // The code goes after "#": a phone opening the QR never sends it to a server.
+  const qr = useMemo(() => {
+    if (!portal) return null;
+    const q = qrcode(0, "M");
+    q.addData(`${portal.address}#code=${portal.code}`);
+    q.make();
+    return q.createSvgTag({ cellSize: 2, margin: 0, scalable: true });
+  }, [portal]);
   const meds = note.medications.filter((m) => m.name?.trim());
   const investigations = note.investigations.filter((x) => x?.trim());
 
@@ -191,6 +204,25 @@ export default function Prescription({ note, patient, clinic, date, visitId }: P
             <div className="sub">{clinic.doctorQualification}</div>
           </div>
         </div>
+
+        {portal && qr && (
+          <div className="rx-portal">
+            <div
+              className="qr"
+              aria-label="QR code for this prescription online"
+              // An SVG built by the QR library from the address alone.
+              dangerouslySetInnerHTML={{ __html: qr }}
+            />
+            <div>
+              <div className="h">This prescription on your phone · আপনার ফোনে এই প্রেসক্রিপশন</div>
+              <div>
+                Open <b>{portal.address.replace(/^https?:\/\//, "")}</b>, or scan the code, with your phone number and
+                this code:
+              </div>
+              <div className="code">{portal.code}</div>
+            </div>
+          </div>
+        )}
 
         <footer className="rx-foot">
           <div className="lhs">

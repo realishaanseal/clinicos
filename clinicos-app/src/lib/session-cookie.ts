@@ -22,8 +22,9 @@ export const CLINIC_COOKIE = "clinicos_clinic";
 export const OPERATOR_COOKIE = "clinicos_operator";
 
 /** Reachable without signing in. Everything else needs a session. The
- *  platform console and the sync endpoints check their own credentials. */
-export const PUBLIC_PATHS = ["/login", "/setup", "/c", "/api/auth/login", "/api/setup"];
+ *  platform console, the sync endpoints and the patient portal (/p) check
+ *  their own credentials. */
+export const PUBLIC_PATHS = ["/login", "/setup", "/c", "/api/auth/login", "/api/setup", "/p", "/api/portal"];
 
 /** The platform console: its own cookie, checked by its own pages. */
 export function isPlatformPath(pathname: string): boolean {

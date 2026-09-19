@@ -32,6 +32,8 @@
  *                         online. The Postgres run starts two more copies of
  *                         the app on SQLite, from the same build, as the
  *                         clinic computers.
+ *   portal-test.cjs       sharing a signed visit with the patient, and the
+ *                         patient's side of the portal
  *
  * Don't run this while `npm run dev` is running in this folder: both use .next/.
  * Works on Windows and macOS.
@@ -55,8 +57,9 @@ const onPostgres = process.argv.includes("--pg");
 const pgPort = process.env.TEST_PG_PORT || "55432";
 const realPg = onPostgres ? process.env.TEST_DATABASE_URL || "" : "";
 const CLINIC_TABLES = [
-  "AudioChunk", "QueueEntry", "Edit", "Consult", "Favourite", "Session", "AuditEvent", "Setting", "ClinicSetting",
-  "User", "Patient", "OperatorSession", "Operator",
+  "AudioChunk", "QueueEntry", "Edit", "PortalLogin", "PortalAccount", "PortalAttempt", "PortalShare", "Consult",
+  "Favourite", "Session", "AuditEvent", "Setting", "ClinicSetting", "User", "Patient", "OperatorSession", "Operator",
+  "SyncDevice", "SyncTombstone",
 ];
 
 fs.rmSync(work, { recursive: true, force: true });
@@ -80,6 +83,9 @@ const env = {
   SETUP_CODE: process.env.TEST_SETUP_CODE || "test-setup-code",
   // The first clinic's fallback address, which no other clinic may inherit.
   CLINIC_ADDRESS: "1 Fallback Road, Testville",
+  // Throwaway portal keys, so sharing with patients can be tested. Never these online.
+  PORTAL_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64"),
+  PORTAL_HMAC_KEY: Buffer.alloc(32, 9).toString("base64"),
   DATA_BACKEND: onPostgres ? "postgres" : "sqlite",
   ...(onPostgres
     ? {
@@ -303,6 +309,7 @@ const suites = [
   ["admin-tools-test.cjs", [files.db, files.preV1]],
   ["tenancy-test.cjs", [files.db]],
   ["sync-test.cjs", [files.db, JSON.stringify(locals)]],
+  ["portal-test.cjs", [files.db]],
 ];
 const failed = [];
 for (const [script, args] of suites) {
