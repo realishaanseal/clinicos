@@ -443,9 +443,13 @@ Built and tested:
 - **v0.5 Part C, the patient portal (19 Sep 2026, branch `saas`):** inside the online app
   at `/p`. Verified by `portal-test.cjs`. Part D's text is drafted: the sharing consent is
   in use; the consent script for keeping records online is a draft awaiting Ishaan.
+- **Prescription extras (19 Sep 2026, branch `saas`):** the clinic's logo (#25), "come back
+  at once if…" in the doctor's own words (#20, `returnIf` — never filled by the AI), and
+  the medicine timing card in English, Bengali or Hindi (#9, `rx-card.ts` — re-reads what
+  the doctor wrote, never guesses). Verified by `rx-test.cjs`.
 
-Next, in the order Ishaan asked for ("all one by one"): prescription extras (#9 Bengali
-medicine card, #20 red-flag card, #25 logo); then billing and follow-up (#12, #10). The full plan is in CONTEXT.md §6. Backlog numbered 1–37 across tiers 0–7.
+Next, in the order Ishaan asked for ("all one by one"): billing and follow-up recall
+(#12, #10) — designed in CONTEXT.md §6, item 4, not yet built. The full plan is in CONTEXT.md §6. Backlog numbered 1–37 across tiers 0–7.
 
 **Online since 17 Sep 2026** (Ishaan's decision, reversing "not hosted"): the same
 app at vxclinicos.vercel.app/app, on Postgres, as a prototype for made-up patients.
