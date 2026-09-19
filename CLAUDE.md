@@ -22,8 +22,15 @@ dropped. ClinicOS records the consultation that was already happening, transcrib
 it locally, drafts a structured clinical note, and asks the doctor only to review
 and sign. A branded prescription prints from the signed note.
 
-Everything runs on the clinic's own laptop, with no cloud and no internet required.
-Since v0.5, people sign in with accounts that also live only on that laptop.
+It runs two ways, from one codebase:
+
+- **On a clinic's own computer** (SQLite): no cloud and no internet required, accounts
+  on that laptop only. How ClinicOS began, and still fully supported.
+- **Online, as a service clinics buy** (Postgres, since 19 Sep 2026 by Ishaan's
+  decision): many clinics share one database and each sees only its own records.
+  Varaxis creates each clinic from its platform console when it buys. A clinic whose
+  plan includes it can also keep a full copy on its own computer, in step with its
+  clinic online — a paid add-on Varaxis switches on per clinic.
 
 **Owner:** Ishaan Seal — part-time student founder, near-zero capital. Assume
 constrained time and money in every recommendation.
@@ -41,15 +48,23 @@ trade them away for a feature.
    regulation; software that quantifies a physiological parameter to drive a
    clinical decision does not. Show raw numbers and trends; let the doctor set
    any flag. Backlog items 26–35 are marked risky for exactly this reason.
-2. **Identifiable data never leaves the machine — on the clinic computer.** No cloud
-   sync of patient data, no telemetry containing consultation content, no exceptions
-   "just for testing". Since 17 Sep 2026 there is also an **online copy**, by Ishaan's
-   decision (CONTEXT.md §4): it keeps records in Supabase (Mumbai) and would send audio
-   to a hosted AI service. The consent script does not cover that yet, so the online
-   copy is a prototype for made-up patients only, and says so on every screen. The
-   two never exchange data. Do not let a clinic-computer install reach the cloud.
+2. **Identifiable data goes only where the clinic chose to keep it.** No telemetry
+   containing consultation content, no exceptions "just for testing".
+   - A clinic computer that is not connected sends nothing anywhere.
+   - A clinic computer reaches the cloud only through sync: its clinic's plan must
+     include it (set by Varaxis), and the clinic's admin must connect it with a key
+     made online. Nothing else in a clinic-computer install may call out.
+   - Online, one clinic's records are never shown to, sent to, or changed by another
+     clinic, and never opened by Varaxis: the platform console shows counts only.
+   - The online copy keeps records in Supabase (Mumbai) and would send audio to a
+     hosted AI service. The consent script does not cover that yet, so the online copy
+     is a prototype for made-up patients only, says so on every screen, and a clinic
+     computer connecting to it must confirm its patients are made up. Rewriting the
+     consent script for online use (Part D) is what lifts this, with Ishaan's say-so.
 3. **Audio is deleted when the doctor signs.** Promised aloud to the patient in the
    consent script, and enforced in `signConsult()`. Do not add audio retention.
+   Recordings never sync; a visit signed on one copy deletes the other copy's
+   recording of it when the signature arrives (`mergeConsult()` in `sync.ts`).
 4. **Never train on patient audio.** Settled decision. Pilot Agreement clause 8
    permits de-identified data only, with an opt-out.
 5. **Consent is enforced server-side.** The recording endpoints return 403 when
@@ -125,10 +140,11 @@ variables on that project, never a code branch:
 |---|---|---|
 | `DATA_BACKEND` | `postgres` | Postgres instead of the SQLite file; recordings in `AudioChunk` |
 | `DATABASE_URL` | Supabase transaction pooler (6543) | the database |
-| `SETUP_CODE` | random, given to the owner | `/setup` needs it; with Postgres and no code, setup is refused |
+| `SETUP_CODE` | random | the **first** clinic's `/setup` only; every clinic Varaxis creates gets its own one-time code |
 | `NEXT_PUBLIC_BASE_PATH` | `/app` | Next.js `basePath`; `appPath()` for hand-written paths |
 | `NEXT_PUBLIC_CLINIC_TIMEZONE` | `Asia/Kolkata` | "today" and every time on screen (Vercel runs on UTC) |
-| `NEXT_PUBLIC_CLINICOS_ONLINE` | `1` | wording only: prototype banner, no "running locally" |
+| `NEXT_PUBLIC_CLINICOS_ONLINE` | `1` | wording only: no "running locally" |
+| `NEXT_PUBLIC_CLINICOS_PROTOTYPE` | unset (banner on) | `0` removes the made-up-patients banner — Ishaan's decision, once Part D is done (invariant 2) |
 | `ASR_PROVIDER` / `LLM_PROVIDER` | `http` / `openai` | hosted AI; needs URLs, models and keys |
 
 Schema changes for the online copy are numbered files in
@@ -161,7 +177,14 @@ clinicos-app/
     audio-store.ts   recordings: a file locally, AudioChunk rows online
     base-path.ts     appPath() for paths written by hand under /app online
     deployment.ts    ONLINE flag — wording only, never a security control
-    setup-code.ts    the /setup code check
+    setup-code.ts    the /setup code check: each clinic's own one-time code, or SETUP_CODE
+    tenant.ts        which clinic a sign-in is for (/c/<slug>, remembered, domain, only one);
+                     plans and features (localSync)
+    platform.ts      Varaxis's operator sessions for the platform console (online only)
+    sync.ts          what travels between a clinic computer and its clinic online, and how
+                     the other copy's rows are merged — the same code on both sides
+    sync-server.ts   online: device keys (hash only) and requireDevice() for /api/sync/*
+    sync-client.ts   clinic computer: connect, run every minute, status. Never awaited by a page
     auth.ts          passwords (scrypt), sessions, requireUser / requireApiUser, roles
     session-cookie.ts  cookie name + idle limit shared with middleware (no Node imports)
     users.ts         role labels and account validation, safe for client components
@@ -170,11 +193,12 @@ clinicos-app/
     llm.ts           note generation provider interface (ollama | openai)
                      SYSTEM_PROMPT lives here — the clinical safety text
     types.ts         ClinicalNote shape and parseNote()
-    clinic.ts        clinic identity: Setting table first, .env as fallback
+    clinic.ts        clinic identity: ClinicSetting first, .env as fallback (first clinic only)
     useRecorder.ts   streams 5-second audio chunks to disk while recording
     useAutosave.ts   debounced server save + localStorage mirror
     useQueue.ts      polls today's list every 5 seconds while the tab is visible
-  src/middleware.ts       redirects to /login when there is no session cookie (only)
+  src/middleware.ts       redirects to /login when there is no session cookie (only);
+                          /platform has its own cookie; /api/sync/* checks its own key
   src/components/
     ConsultWorkflow.tsx   the 4-step consultation UI
     Prescription.tsx      printable A4 prescription
@@ -185,11 +209,19 @@ clinicos-app/
     BackupPanel.tsx       clinic admin: backup, restore, export
     DeletePatient.tsx     type-the-name-to-confirm deletion
     UsersAdmin.tsx        clinic admin: add people, manage access, reset passwords
+    SyncPanel.tsx         clinic computer: connect to the clinic online, and how it is going
+    DevicesPanel.tsx      online: the clinic's connected computers, keys, switching off
+  src/app/(clinic)/       every clinic screen, inside the clinic's navigation (a route group:
+                          no change to addresses)
   src/app/setup, login    first-run owner account; sign-in
-  src/app/admin/          clinic details, people, activity log, backups, deletion
-  src/app/api/            route handlers — every one starts with requireApiUser()
-  scripts/reset-password.mjs   npm run reset-password -- <username>, at the laptop
-  scripts/dev-sandbox.mjs      npm run dev:sandbox — the app on :3002 against .sandbox/
+  src/app/c/[slug]        a clinic's own address: its setup until it has an account, then sign-in
+  src/app/platform/       Varaxis's console: clinics, plans, pausing. Counts only, never records
+  src/app/api/            route handlers — every one starts with requireApiUser(), except
+                          /api/platform (requireApiOperator) and /api/sync (requireDevice)
+  scripts/reset-password.mjs   npm run reset-password -- <username> [clinic-id], at the laptop
+  scripts/operator.mjs         npm run operator -- add|reset|deactivate: operator accounts, online
+  scripts/dev-sandbox.mjs      npm run dev:sandbox — the app on :3002 against .sandbox/;
+                               dev:sandbox:pg — the online service there, on PGlite
   scripts/test/           npm run test:e2e — see Tooling
   asr/server.py           FastAPI + faster-whisper sidecar
   go.sh                   setup and launch
@@ -217,7 +249,38 @@ flags in both. A race SQLite cannot have (its transactions run one at a time) ca
 happen on Postgres — see `addToQueue`, `startQueueEntry` and `createFirstAccount`.
 
 Tables: `Patient`, `Consult`, `Edit`, and since v0.5 `User`, `Session`, `AuditEvent`,
-`Setting`, `QueueEntry`, `Favourite`.
+`Setting` (no longer written), `QueueEntry`, `Favourite`. Since 19 Sep 2026 `Tenant` (the
+clinics — `Clinic` belongs to the portal's tables in the same database), `ClinicSetting`,
+`SyncTombstone`; SQLite only `SyncState`, `SyncConfig`; Postgres only `AudioChunk`,
+`Operator`, `OperatorSession`, `SyncDevice`.
+
+**Clinics are tenants.** Every table of records has `clinicId`, and every function in
+`db.ts` that touches records takes a `ClinicId` first and filters on it — in the WHERE of
+updates and deletes too, so a missed check upstream still cannot reach another clinic.
+`ClinicId` is a branded type: it comes only from the signed-in session
+(`user.clinicId`), a verified device key or a tenant lookup, and passing a record id in
+its place does not compile. A clinic computer holds one clinic, `FIRST_CLINIC_ID`
+(`"first"`), which every pre-SaaS row belongs to by default; online, `first` is the
+original prototype clinic. Usernames are unique within a clinic. A new query that
+forgets `"clinicId" = ?` is a data leak between clinics: `tenancy-test.cjs` tries every
+route with another clinic's ids, and a new route must be added to it.
+
+**The platform console** (`/platform`, online only) is Varaxis's: operators are made with
+`npm run operator` from a computer holding the database string — never from a screen —
+and sign in with their own cookie. It creates clinics (name, ID, plan, whether clinic
+computer sync is included), issues one-time setup codes, and pauses a clinic. It shows
+counts, never a record; operator changes are written into the clinic's own activity log
+as "Varaxis (name)". A paused clinic's admins can still sign in and export everything.
+
+**Keeping a clinic computer in step (sync).** Triggers, not queries, keep `updatedAt` and
+a change marker on every row that travels: `syncSeq` from a counter on SQLite (a clinic's
+clock may be wrong), `syncedAt` from the database clock online, plus `syncOrigin` so a
+computer is not sent its own changes back. While merging, SQLite's triggers stand aside
+(`SyncState.applying`) and merged rows get `syncSeq = -1` so they are not sent back. The
+merge rules are at the top of `sync.ts` and hold for both sides. **Adding a column to a
+synced table means adding it to `COLUMNS` in `sync.ts`**, or it silently stays on one
+copy; a new table needs a decision about whether it travels. Settings travel only when
+their key starts `clinic_` or `rx_`.
 
 **A note written by hand has no AI draft** (a quick visit, or a patient who said no to
 recording). `draftJson` stays NULL, signing logs no `Edit` rows, and it counts in
@@ -312,6 +375,15 @@ is never the control:
   one session and, under a burst, can hand one client's statement another's
   parameters. `test:e2e:pg` sets `PG_POOL_MAX=1`, so its race tests prove correctness,
   not concurrency; those are real only against Supabase (`TEST_DATABASE_URL`).
+- **postgres.js fails a whole transaction on any failed statement, even a caught one.**
+  Catching the error and running `ROLLBACK TO SAVEPOINT` by hand is not enough: `begin`
+  still rejects at the end. Use `savepoint()` from `sql.ts`, which uses the driver's own.
+- **`next build` collects pages in parallel workers, each running the SQLite migrations.**
+  Every statement in `openSqlite()` must be safe to run twice at once: `IF NOT EXISTS`,
+  `ON CONFLICT DO NOTHING`, and updates that match nothing the second time.
+- **Tombstone ids include the clinic** (`<clinicId>:<table>:<rowId>`). Without it, one
+  clinic's computer could record a deletion under another clinic's row id and stand in
+  the way of that clinic's real deletion reaching its computers.
 
 ---
 
@@ -346,6 +418,12 @@ Built and tested:
   repeated in one tap (#17), favourites (#15, #16), Ctrl+K search from anywhere
   (#19), and the speed pass (#3): step times on Clinic admin, transcription starting
   when recording stops. Verified by `scripts/test/workflow-test.cjs` on both databases.
+- **ClinicOS as a service (19 Sep 2026, branch `saas`):** many clinics in one online
+  database, each with its own address `/c/<slug>`, setup code and accounts; the Varaxis
+  platform console; pausing a clinic. Verified by `tenancy-test.cjs`.
+- **Clinic computer sync (19 Sep 2026, branch `saas`):** a clinic's own computer keeps a
+  full copy in step with its clinic online, where the plan includes it. Verified by
+  `sync-test.cjs`, which runs two clinic computers beside the online copy.
 
 Next, in the order Ishaan asked for ("all one by one"): v0.5 Part C (patient portal:
 a doctor shares a signed visit with the patient's consent) with Part D (invariant 2,
@@ -355,9 +433,12 @@ Bengali medicine card, #20 red-flag card, #25 logo); then billing and follow-up 
 
 **Online since 17 Sep 2026** (Ishaan's decision, reversing "not hosted"): the same
 app at vxclinicos.vercel.app/app, on Postgres, as a prototype for made-up patients.
+Since 19 Sep 2026 it is being built into the product: a service clinics buy.
 
-**Not built and deliberately so:** standalone desktop packaging, multi-clinic
-accounts, any AI beyond transcription and note drafting.
+**Not built and deliberately so:** standalone desktop packaging, online payment
+collection (Varaxis records what each clinic bought; invoicing stays in its own
+paperwork until there are clinics paying), any AI beyond transcription and note
+drafting.
 
 ---
 
@@ -366,13 +447,16 @@ accounts, any AI beyond transcription and note drafting.
 **Tests.** `cd clinicos-app && npm run test:e2e` seeds a prototype-era database in
 `clinicos-app/.test-data/`, builds the app against it, starts it on port 3100 and runs
 the suites in `scripts/test/` over real HTTP: upgrade safety and the permission
-matrix, the day's list, the doctor's speed features, and the recovery tools. Run it after any change to the
-clinic app, and add checks when you add routes. Don't run it while `npm run dev` is
-running in the same folder — both use `.next/`. Add `-- --no-build` to reuse a build.
+matrix, the day's list, the doctor's speed features, the recovery tools, many clinics
+in one database, and clinic computer sync. Run it after any change to the clinic app,
+and add checks when you add routes — to `tenancy-test.cjs` too, with another clinic's
+ids. Don't run it while `npm run dev` is running in the same folder — both use `.next/`.
+Add `-- --no-build` to reuse a build.
 
 `npm run test:e2e:pg` runs the same suites on Postgres the way the online copy runs —
 built under `/app`, with the setup code and clinic time zone — against PGlite, so
-nothing needs installing. Two more targets, both refusing to start unless the clinic
+nothing needs installing. For the sync suite it also starts two more copies of the same
+build on SQLite (ports 3101 and 3102) as clinic computers. Two more targets, both refusing to start unless the clinic
 tables are empty and emptying them afterwards:
 
 - `TEST_DATABASE_URL=<Supabase pooler>` builds locally against the real database, for

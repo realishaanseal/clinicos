@@ -7,7 +7,7 @@
 >
 > **Keep it current.** When you finish something, update §3, §6, §7 and §10.
 >
-> Last updated: 18 September 2026.
+> Last updated: 19 September 2026.
 
 ---
 
@@ -54,7 +54,7 @@ they are history and can be deleted. Start new work on a fresh feature branch of
 
 ---
 
-## 3. Current state (17 September 2026)
+## 3. Current state (19 September 2026)
 
 ### Live
 
@@ -158,6 +158,30 @@ The clinic app also runs on the clinic computer, exactly as before. Start it wit
   - **Tooling:** `npm run dev:sandbox` (the app on :3002 against `.sandbox/`, setup code
     `sandbox`), and production deploys apply Postgres migrations (§4).
 
+- **ClinicOS as a service** (19 Sep 2026, branch `saas`, built on `workflow-speed`;
+  waiting for Ishaan's go-ahead to merge into `main` — §7):
+  - **Many clinics, one online database.** Every record carries its clinic; every query
+    is scoped to the signed-in account's clinic. Existing records belong to the first
+    clinic (`first`), so the current online copy and every clinic computer upgrade
+    without change.
+  - **Each clinic's own address**, `vxclinicos.vercel.app/app/c/<clinic-id>`: its setup
+    until the first account exists (with its own one-time setup code), its sign-in after.
+    Sign-in remembers the clinic; with several clinics and none remembered, it asks.
+  - **The Varaxis platform console**, `/app/platform`: operators (made with
+    `npm run operator`) create a clinic with its plan and whether clinic computer sync is
+    included, get its setup code, change its plan, give it its own web address, pause it.
+    Counts only — it cannot open a record. A paused clinic's admins can still export.
+  - **Clinic computer sync**, the paid add-on: a clinic whose plan includes it connects
+    its own computer (Clinic admin → ClinicOS online, with a key made online), and the
+    two keep in step every minute while ClinicOS is open. A new computer can connect at
+    setup instead. Recordings never travel; signing on either copy deletes the recording
+    wherever it is. Deletions travel. Works offline and catches up.
+  - **Tests:** 352 checks pass on Postgres and 230 on SQLite, including the new tenancy
+    suite (67) and sync suite (59, with two clinic computers running beside the online
+    copy).
+  - **Tooling:** `npm run dev:sandbox:pg` runs the online service locally on PGlite, with
+    a sandbox operator.
+
 ### Not built yet
 
 - **v0.5 Part C:** the patient portal (§6). The database exists — Supabase in Mumbai, the
@@ -217,6 +241,14 @@ The clinic app also runs on the clinic computer, exactly as before. Start it wit
 | 18 Sep 2026 | Favourites are written by each doctor, hold the plan only (diagnosis, medicines, tests, advice, follow-up), are private to that doctor, and never overwrite what is already in a note. ClinicOS ships none. | A shipped "viral fever" template would be clinical advice (invariant 1); a patient's complaint or findings must never be carried to another patient. Deleting one is a two-tap confirm, not a typed one: it is the doctor's shortcut, not a record. |
 | 18 Sep 2026 | Production deploys of the app apply Postgres migrations before building; Preview builds never touch the database. Migrations must be additive. | The manual step needed the database password, which lives on one laptop, and forgetting it would break pages online. Previews share the production database, so an unreviewed branch must not change it. |
 | 18 Sep 2026 | Step times are shown as the middle value and the longest, with the number of visits, on Clinic admin — never an average, a score or a per-doctor ranking. | One tab left open over lunch would wreck an average. The numbers are operational, with nothing about any patient. |
+| 19 Sep 2026 | **ClinicOS is sold as a cloud service (SaaS).** Many clinics in one online database, each seeing only its own records. | Ishaan: "we will ship it as a saas cloud storage product". Reverses "multi-clinic accounts: not built, deliberately". |
+| 19 Sep 2026 | **A clinic's own computer can keep a full copy in step with its clinic online — a paid add-on**, switched on per clinic by Varaxis when the clinic buys it. | Ishaan: "that feature would be set for that clinic domain and product from our side during their purchase … we will charge accordingly". Invariant 2 rewritten to match. |
+| 19 Sep 2026 | Each clinic's address is `/app/c/<clinic-id>` on the website's own address; a clinic's own web address can be added later (Tenant.domain). | Works on the free `vercel.app` address with no DNS. Subdomains per clinic would need a bought domain with wildcard DNS. |
+| 19 Sep 2026 | Varaxis's platform console shows counts, never records; operator accounts are made from the command line only, and every operator change appears in the clinic's own log. | A SaaS provider opening clinics' records would break invariant 2 and the clinic's trust. |
+| 19 Sep 2026 | Pausing a clinic (for a lapsed subscription) stops consultations and the list, but its admins can always sign in and export everything. | Invariant 8, no lock-in, holds whatever the reason for a pause. |
+| 19 Sep 2026 | Plans are labels (Trial, Cloud, Cloud + clinic computer) and features are switches on each clinic. Prices and invoices stay in Varaxis's own paperwork; no payment gateway yet. | Near-zero budget, no paying clinics yet; the gate (20 interviews) still stands. |
+| 19 Sep 2026 | Sync merges row by row: a signed visit stands, the AI draft is never replaced, otherwise the later change wins; deletions win; recordings never travel. Token clashes resolve the same way on both copies (first added keeps the number). | A signed note is the legal record; invariants 3 and 6. |
+| 19 Sep 2026 | The online copy stays "made-up patients only" until Part D rewrites the consent script for online use; a clinic computer connecting to it must confirm its patients are made up. | The consent script still promises patients their data stays on the clinic computer. |
 | Prototype era | The invariants in CLAUDE.md. | No clinical judgement. Audio deleted at signing. No training on audio. Consent enforced server-side. `draftJson` immutable. Backups via the SQLite backup API. No lock-in. |
 
 ---
@@ -276,16 +308,25 @@ laptop exactly as before. `DATA_BACKEND=postgres` is the online copy on Vercel.
   with `basePath: /app` online only.
 
 **Left before real patients use it:** a hosted AI service for transcription and notes
-(§7.1); the consent script (English and Bengali), CLAUDE.md invariant 2 and the pilot
-agreement's sub-processors rewritten for online use — Part D's work, now needed for the
-online copy as well as the portal; paid plans with backups (§7).
+(§7.1); the consent script (English and Bengali) and the pilot agreement's
+sub-processors rewritten for online use — Part D's work, now needed for the online copy
+as well as the portal (CLAUDE.md invariant 2 was rewritten on 19 Sep 2026 for the
+service and sync, and still holds the online copy to made-up patients until then); paid
+plans with backups (§7). As a service sold to clinics, also: a privacy notice and a
+data-processing agreement for clinics under India's DPDP Act (the clinic decides what is
+recorded; Varaxis processes it for them), and the prototype banner switched off with
+`NEXT_PUBLIC_CLINICOS_PROTOTYPE=0` only once all of that is done.
 
 ### Order of work (Ishaan, 18 Sep 2026: "all one by one")
 
 1. **The doctor's speed features** — built on `workflow-speed` (§3), waiting to merge.
+1a. **ClinicOS as a service, and clinic computer sync** (Ishaan, 19 Sep 2026) — built on
+   `saas` (§3), which contains `workflow-speed`; waiting to merge.
 2. **The patient portal**, Part C below, with Part D. Now that the clinic app itself is
    online, the portal could live inside it rather than as a separate app; decide that
    before starting, because clinics on their own computer still need the push design.
+   (With sync built, a clinic computer's shared visits can reach the portal through its
+   clinic online, so the portal can live inside the online app.)
 3. **Prescription extras:** #9 a Bengali card showing when to take each medicine, #20
    a "come back immediately if…" card (the doctor's own words, printed), #25 the
    clinic's logo on the letterhead.
@@ -387,11 +428,18 @@ the times are measured (§3). Cutting them further needs real consultations to m
 
 ## 7. Waiting on Ishaan
 
-0. **Say whether `workflow-speed` can go into `main`.** Merging puts the doctor's speed
-   features live at vxclinicos.vercel.app/app. The production build will add the new
-   tables and columns to the online database by itself (§4); nothing needs typing into
-   a dashboard. Until then, the branch's Vercel Preview shows errors on the
-   consultation and Clinic admin pages, because previews never change the database.
+0. **Say whether `saas` can go into `main`.** It contains `workflow-speed`, so merging
+   puts the doctor's speed features, many clinics, the platform console and clinic
+   computer sync live at vxclinicos.vercel.app/app. The production build adds the new
+   tables and columns to the online database by itself (migrations 002–005); nothing
+   needs typing into a dashboard. Until then, the branch's Vercel Preview shows errors,
+   because previews never change the database.
+   **Then make your operator account**, from `clinicos-app` on a computer with the online
+   database's connection string (the one in `portal/.env.local` on the Mac):
+   `DATABASE_URL="…" npm run operator -- add ishaan "Ishaan Seal"`. It prints a temporary
+   password; sign in at vxclinicos.vercel.app/app/platform/login and choose your own
+   (12+ characters). The existing online clinic appears there as "First clinic" with ID
+   `first`: rename it and give it a proper ID from its page.
 1. **Transcription and note drafting online need a hosted AI service.** Create an
    account with an OpenAI-compatible provider that offers both speech-to-text and chat
    (Groq is one with a free tier), create an API key, and add four variables to the
@@ -715,10 +763,28 @@ and `--scope varaxis` reaches the projects (`demo`, `vxclinicos-app`, `scholar`,
     Each feature was also tried in the browser against the sandbox: a hand-written
     visit, repeating medicines, saving and using a favourite, search as a doctor and as
     the front desk, the new-line fix, and the step-times card.
+- **19 Sep 2026:**
+  - Ishaan: ship ClinicOS as a cloud service, with syncing to a clinic's own computer as
+    an option set per clinic by Varaxis at purchase and charged for; then carry on with
+    the plan. Built on branch `saas` (from `workflow-speed`), one commit each:
+    - **Many clinics** (`f0aa138`): `Tenant`, `clinicId` on every record, every query in
+      `db.ts` scoped by a branded `ClinicId` from the session, per-clinic addresses and
+      setup codes, the platform console, pausing. A bug found on the way: a new clinic
+      inherited the first clinic's `.env` address on its prescriptions; now only the
+      first clinic falls back to `.env`.
+    - **Clinic computer sync** (`96d8699`): triggers keep change markers on both
+      databases; one merge module runs on both sides; device keys; the clinic
+      computer's Clinic admin card and connect-at-setup. Two flaws found while writing
+      its tests and fixed before commit: token clashes could leave the two copies with
+      different numbers, and deletion records were not scoped to their clinic.
+      postgres.js was found to fail a whole transaction on a caught error unless it
+      happens inside its own savepoint (CLAUDE.md, gotchas).
+    - CLAUDE.md's invariant 2 rewritten for the service and sync.
 
 ### Where to pick up
 
-0. Ishaan: say whether `workflow-speed` can be merged into `main` (§7.0).
+0. Ishaan: say whether `saas` (which contains `workflow-speed`) can be merged into
+   `main`, then make an operator account (§7.0).
 1. Ishaan: set up the online clinic with the setup code (§7.2), and add a hosted AI
    service so transcription and drafting work online (§7.1).
 2. Ishaan: reset the Supabase password, then update `DATABASE_URL` on `vxclinicos-app`

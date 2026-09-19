@@ -77,6 +77,11 @@ const note = (over = {}) => ({
     check("…and pulling without a key reaches nothing", r.status === 404, r.status);
     return done();
   }
+  if (locals.length < 2) {
+    // Testing an app already deployed: there are no clinic computers to drive.
+    check("Sync needs clinic computers beside the online copy; this run has none, so it was not tried", true);
+    return done();
+  }
   const [pc1, pc2] = locals;
   let localQueue = "";
 
