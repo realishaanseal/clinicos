@@ -198,10 +198,16 @@ export default function Prescription({ note, patient, clinic, date, visitId, por
             </div>
           )}
 
-          {note.followUp && (
+          {(note.followUp || note.followUpOn) && (
             <div className="rx-followup">
               <strong>Follow up</strong>
               {note.followUp}
+              {note.followUpOn && (
+                <span className="rx-on">
+                  {inTheirLanguage("Come back on", "আবার আসুন", "फिर आएँ")}{" "}
+                  <b>{fmtDate(new Date(`${note.followUpOn}T12:00:00Z`), { weekday: "short", day: "numeric", month: "short", year: "numeric" })}</b>
+                </span>
+              )}
             </div>
           )}
 

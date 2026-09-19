@@ -30,6 +30,11 @@ const WHAT: Record<string, string> = {
   sync_device_revoke: "Switched a clinic computer off",
   consult_share: "Shared a prescription with the patient",
   consult_share_revoke: "Stopped sharing a prescription",
+  bill_create: "Made a bill",
+  bill_pay: "Took a payment",
+  bill_void: "Cancelled a bill",
+  followup_messaged: "Messaged a patient about their follow-up",
+  followup_dismissed: "Marked a follow-up not needed",
 };
 
 export default async function AuditPage() {

@@ -322,8 +322,9 @@ async function run(): Promise<RunReport> {
         // How far to move the cursor: past the rows online dealt with.
         const sentEntries = entries.slice(0, entries.findIndex((e) => e.row === rows.at(-1)) + 1 || entries.length);
         const res = rows.length
-          ? await call<{ accepted: number; conflicts: string[] }>(url, key, "/api/sync/push", { table, rows })
+          ? await call<{ accepted: number; conflicts: string[] }>(url, key, "/api/sync/push", { table, rows }).catch(olderOnline)
           : { accepted: 0, conflicts: [] };
+        if (!res) break; // this table waits until the online copy knows it
         report.sent += res.accepted;
         report.conflicts.push(...res.conflicts);
         // Walk the entries, counting sent rows, to find where online stopped.
@@ -361,7 +362,8 @@ async function run(): Promise<RunReport> {
           table,
           after,
           limit: PULL_ROWS,
-        });
+        }).catch(olderOnline);
+        if (!got) break;
         let result: ApplyResult = { accepted: got.rows.length, conflicts: [], audioToRemove: [] };
         if (got.rows.length) {
           result = await inApplyTransaction(null, () =>
@@ -394,6 +396,16 @@ async function run(): Promise<RunReport> {
     await setConfig({ sync_last_error: message });
     throw e;
   }
+}
+
+/**
+ * A table this computer knows and the online copy does not yet: the computer
+ * was updated first. Its rows wait here, unsent, until online catches up,
+ * rather than stopping every other table from keeping in step.
+ */
+function olderOnline(e: unknown): null {
+  if (e instanceof SyncError && e.status === 400 && e.message === "Unknown table.") return null;
+  throw e;
 }
 
 // ------------------------------------------------------------ sharing

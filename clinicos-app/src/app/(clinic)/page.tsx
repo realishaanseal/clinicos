@@ -8,6 +8,10 @@ import {
   countConsultsToday,
   minutesSaved,
   todaysQueue,
+  takingsOn,
+  followUpsDue,
+  localDay,
+  RECALL_DAYS,
 } from "@/lib/db";
 import NewPatient from "@/components/NewPatient";
 import FrontDeskToday from "@/components/FrontDeskToday";
@@ -16,7 +20,7 @@ import Link from "next/link";
 import { parseNote } from "@/lib/types";
 import { IcDoc, IcArrow, IcAlert } from "@/components/Icons";
 import { requireUser } from "@/lib/auth";
-import { fmt, fmtDate, fmtTime } from "@/lib/time";
+import { clinicDayAt, fmt, fmtDate, fmtTime } from "@/lib/time";
 import { ONLINE } from "@/lib/deployment";
 
 export const dynamic = "force-dynamic";
@@ -40,7 +44,11 @@ export default async function Home() {
           <h1>Today</h1>
           <p className="sub">Find or register patients, and keep the day&apos;s list moving.</p>
         </div>
-        <FrontDeskToday initial={await todaysQueue(user.clinicId)} />
+        <FrontDeskToday
+          initial={await todaysQueue(user.clinicId)}
+          collectedPaise={(await takingsOn(user.clinicId, localDay())).total}
+          followUpsDue={(await followUpsDue(user.clinicId, localDay(), localDay(clinicDayAt(-RECALL_DAYS)))).length}
+        />
       </div>
     );
   }

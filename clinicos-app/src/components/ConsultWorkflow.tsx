@@ -11,7 +11,7 @@ import type { FavouriteView } from "@/lib/db";
 import {
   IcMic, IcRec, IcStop, IcDoc, IcCheck, IcAlert, IcPrint, IcPlus, IcTrash, IcShield,
 } from "./Icons";
-import { fmt, fmtDate, fmtTime } from "@/lib/time";
+import { clinicDayAt, fmt, fmtDate, fmtTime, localDay } from "@/lib/time";
 import { appPath } from "@/lib/base-path";
 
 type Props = {
@@ -438,6 +438,48 @@ function LastVisitStrip({ visit, onRepeat }: { visit: LastVisit; onRepeat?: () =
   );
 }
 
+/** The date the doctor asks the patient back (backlog #10). One tap for the
+ *  usual intervals, counted from the clinic's today; the date box for anything
+ *  else. Printed on the prescription, and on that day the front desk sees the
+ *  patient on Follow-ups if they have not been back. */
+function FollowUpDate({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const today = localDay();
+  const quick: [string, number][] = [["3 days", 3], ["1 week", 7], ["2 weeks", 14], ["1 month", 30]];
+  return (
+    <div className="field">
+      <label htmlFor="followUpOn">Come back on (optional)</label>
+      <div className="btnrow">
+        <input
+          id="followUpOn"
+          type="date"
+          value={value}
+          min={today}
+          onChange={(e) => onChange(e.target.value)}
+          style={{ maxWidth: 190 }}
+        />
+        {quick.map(([label, days]) => {
+          const day = localDay(clinicDayAt(days));
+          return (
+            <button key={label} type="button" className={`ghost small ${value === day ? "on" : ""}`} onClick={() => onChange(day)} aria-pressed={value === day}>
+              {label}
+            </button>
+          );
+        })}
+        {value && (
+          <button type="button" className="quiet small" onClick={() => onChange("")}>
+            No date
+          </button>
+        )}
+      </div>
+      <p className="hint">
+        {value
+          ? `Printed on the prescription. On ${fmtDate(new Date(`${value}T12:00:00Z`), { weekday: "short", day: "numeric", month: "short" })}, if they haven't been back, the front desk sees them on Follow-ups.`
+          : "If you set a date, it is printed on the prescription and the front desk is reminded on that day."}
+      </p>
+    </div>
+  );
+}
+
 function NoteEditor({
   favourites, lastVisit, manual, note, setNote, set, stats, onSign, busy, saveState, savedAt,
 }: {
@@ -574,9 +616,11 @@ function NoteEditor({
         </div>
 
         <div className="field">
-          <label>Follow-up</label>
-          <input value={note.followUp} onChange={(e) => set("followUp")(e.target.value)} placeholder="Review in 3 days if fever persists" />
+          <label htmlFor="followUp">Follow-up</label>
+          <input id="followUp" value={note.followUp} onChange={(e) => set("followUp")(e.target.value)} placeholder="Review in 3 days if fever persists" />
         </div>
+
+        <FollowUpDate value={note.followUpOn} onChange={set("followUpOn")} />
 
         <div className="field">
           <label htmlFor="returnIf">Come back at once if… (optional)</label>
@@ -593,7 +637,7 @@ function NoteEditor({
         <div className="note info" style={{ marginTop: 20 }}>
           <IcAlert size={17} />
           <span>
-            <strong>Signing is the clinical act.</strong> Nothing above has been checked by anyone but you.
+            <strong>Signing is the clinical act.</strong> Nothing above has been checked by anyone but you.{" "}
             {manual
               ? "Signing files the note."
               : "Signing files the note and permanently deletes the audio recording."}

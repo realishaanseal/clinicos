@@ -176,6 +176,9 @@ const done = () => {
   check("Clinic A's first token of the day is 1", r.status === 200 && r.json?.entry?.token === 1, JSON.stringify(r.json));
   r = await call("POST", "/api/favourites", { jar: a, body: { name: "Sharma fever", plan: { diagnosis: "Fever", medications: [], investigations: [], advice: "", followUp: "" } } });
   const aFav = r.json?.favourite?.id;
+  r = await call("POST", "/api/bills", { jar: a, body: { patientId: aPatient, items: [{ label: "Consultation", amount: 25000 }], pay: "cash" } });
+  const aBill = r.json?.bill?.id;
+  check("Clinic A's receipts start at 0001 of its own", r.status === 200 && r.json?.bill?.receiptNo === "0001", JSON.stringify(r.json));
   const aUser = (await (async () => { const db = peek(dbPath); const u = await db.get(`SELECT id FROM "User" WHERE "clinicId" = ? AND username = 'doctor'`, A.id); await db.close(); return u?.id; })());
 
   r = await call("POST", "/api/patients", { jar: b, body: { name: "Bina Tenantcheck", queue: true } });
@@ -187,6 +190,10 @@ const done = () => {
   check("…nor by phone", r.status === 200 && r.json.patients.length === 0, JSON.stringify(r.json));
   r = await call("GET", "/api/patients?q=", { jar: b });
   check("…and B's full list has only B's patients", r.status === 200 && r.json.patients.every((p) => p.name !== "Asha Tenantcheck") && r.json.patients.length === 1, r.json?.patients?.length);
+  r = await call("GET", "/api/bills/patients?q=Asha", { jar: b });
+  check("…nor when billing", r.status === 200 && r.json.patients.length === 0, JSON.stringify(r.json));
+  r = await call("GET", "/api/bills", { jar: b });
+  check("B's bills desk shows none of A's takings", r.status === 200 && r.json.takings.total === 0 && r.json.paidToday.length === 0, JSON.stringify(r.json?.takings));
   r = await call("GET", "/api/queue", { jar: b });
   check("B's day's list has only B's patients", r.status === 200 && r.json.queue.length === 1 && r.json.queue[0].patientName === "Bina Tenantcheck", JSON.stringify(r.json?.queue?.map((q) => q.patientName)));
 
@@ -210,6 +217,12 @@ const done = () => {
     ["POST", `/api/admin/users/${aUser}/reset`, 404],
     ["DELETE", `/api/favourites/${aFav}`, 404],
     ["POST", `/api/favourites/${aFav}/use`, 404],
+    ["GET", `/api/bills/${aBill}`, 404],
+    ["GET", `/bills/${aBill}`, 404],
+    ["POST", "/api/bills", 404, { patientId: aPatient, items: [{ label: "Consultation", amount: 100 }], pay: "cash" }],
+    ["POST", `/api/bills/${aBill}/pay`, 404, { method: "cash" }],
+    ["POST", `/api/bills/${aBill}/cancel`, 404, { reason: "B cancels A's bill", confirm: "CANCEL" }],
+    ["POST", `/api/followups/${aConsult}`, 404, { action: "dismissed" }],
   ];
   const leaks = [];
   for (const [m, p, want, body] of aOnly) {
@@ -223,7 +236,13 @@ const done = () => {
     const c = await db.get(`SELECT "signedAt", "workingJson", "consentGiven" FROM "Consult" WHERE id = ?`, aConsult);
     const q = await db.get(`SELECT status FROM "QueueEntry" WHERE id = ?`, aEntry);
     const u = await db.get(`SELECT active FROM "User" WHERE id = ?`, aUser);
-    check("…and A's records are exactly as A left them", p?.clinicId === A.id && !c?.signedAt && !c?.workingJson && q?.status === "waiting" && u?.active === 1, JSON.stringify({ p, c, q, u }));
+    const bl = await db.get(`SELECT "voidedAt", "receiptNo" FROM "Bill" WHERE id = ?`, aBill);
+    const bills = (await db.get(`SELECT CAST(COUNT(*) AS INTEGER) AS n FROM "Bill" WHERE "patientId" = ?`, aPatient)).n;
+    check(
+      "…and A's records are exactly as A left them",
+      p?.clinicId === A.id && !c?.signedAt && !c?.workingJson && q?.status === "waiting" && u?.active === 1 && bl && !bl.voidedAt && bills === 1,
+      JSON.stringify({ p, c, q, u, bl, bills })
+    );
     await db.close();
   }
 
@@ -246,6 +265,8 @@ const done = () => {
   check("Operator pauses clinic B", r.status === 200, JSON.stringify(r.json));
   r = await call("GET", "/api/patients?q=", { jar: b });
   check("A paused clinic's consultations and lists stop", r.status === 403, r.status);
+  r = await call("GET", "/api/bills", { jar: b });
+  check("…and its billing", r.status === 403, r.status);
   r = await call("GET", "/", { jar: b });
   check("…its Today says it is paused", goesTo(r, "/paused"), `${r.status} ${r.location}`);
   r = await call("GET", "/api/backup/export", { jar: b });

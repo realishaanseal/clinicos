@@ -68,14 +68,14 @@ export default function DeletePatientDialog({
           {empty ? (
             <p style={{ marginTop: 0 }}>
               This will delete <strong>{patient.name}</strong>. They have no consultations, so only their
-              registration details and any place on today&apos;s list go with them.
+              registration details, any bills and any place on today&apos;s list go with them.
             </p>
           ) : (
             <>
               <p style={{ marginTop: 0 }}>
                 This will delete <strong>{patient.name}</strong>, all {patient.consultCount} consultation
                 {patient.consultCount === 1 ? "" : "s"}, every clinical note and prescription, the edit
-                history, and any recording still stored.
+                history, their bills and receipts, and any recording still stored.
               </p>
               <p className="muted">
                 <a href={appPath(`/api/patients/${patient.id}/export`)} download>

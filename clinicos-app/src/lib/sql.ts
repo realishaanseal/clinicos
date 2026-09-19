@@ -437,6 +437,62 @@ function openSqlite(): BetterSqlite3.Database {
     CREATE INDEX IF NOT EXISTS idx_share_consult ON PortalShare(clinicId, consultId);
   `);
 
+  // Billing and follow-up recall (backlog #12, #10). The twin of
+  // migrations/pg/007_billing.sql.
+  //
+  // A bill holds what the desk typed — "Consultation", "Dressing" — and never
+  // anything clinical. Amounts are whole paise, so no sum is ever off by a
+  // fraction of a rupee. A receipt number is given when the bill is paid,
+  // never before; a clinic computer puts its own tag in front of its numbers
+  // (receiptPrefix), so it and the clinic online can never hand out the same
+  // one. A paid bill is never changed or deleted, only cancelled, with a reason.
+  //
+  // followUpOn is the date the doctor asked the patient back, copied from the
+  // signed note so the follow-up list is a plain query. A Recall is what the
+  // desk did about a visit that came due: one per visit, its id made from the
+  // visit's, so two desks acting on it in two places end up with one row.
+  addColumn("Consult", "followUpOn", "TEXT");
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS Bill (
+      id            TEXT PRIMARY KEY,
+      clinicId      TEXT NOT NULL,
+      patientId     TEXT NOT NULL REFERENCES Patient(id) ON DELETE CASCADE,
+      itemsJson     TEXT NOT NULL,
+      totalPaise    INTEGER NOT NULL,
+      day           TEXT NOT NULL,
+      receiptNo     TEXT,
+      receiptPrefix TEXT,
+      receiptSeq    INTEGER,
+      paidAt        TEXT,
+      paidDay       TEXT,
+      method        TEXT,
+      receivedBy    TEXT,
+      voidedAt      TEXT,
+      voidedBy      TEXT,
+      voidReason    TEXT,
+      createdBy     TEXT,
+      createdAt     TEXT NOT NULL,
+      updatedAt     TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_bill_patient ON Bill(clinicId, patientId);
+    CREATE INDEX IF NOT EXISTS idx_bill_day ON Bill(clinicId, day);
+    CREATE INDEX IF NOT EXISTS idx_bill_paid ON Bill(clinicId, paidDay);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_bill_receipt ON Bill(clinicId, receiptNo) WHERE receiptNo IS NOT NULL;
+
+    CREATE TABLE IF NOT EXISTS Recall (
+      id        TEXT PRIMARY KEY,
+      clinicId  TEXT NOT NULL,
+      consultId TEXT NOT NULL REFERENCES Consult(id) ON DELETE CASCADE,
+      patientId TEXT NOT NULL,
+      action    TEXT NOT NULL CHECK (action IN ('messaged', 'dismissed')),
+      at        TEXT NOT NULL,
+      byUser    TEXT,
+      updatedAt TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_recall_consult ON Recall(clinicId, consultId);
+    CREATE INDEX IF NOT EXISTS idx_consult_followup ON Consult(clinicId, followUpOn);
+  `);
+
   migrateSyncTracking(db, addColumn);
   return db;
 }
@@ -460,9 +516,12 @@ function openSqlite(): BetterSqlite3.Database {
  * computer with a key from its online clinic, the counters simply count.
  */
 function migrateSyncTracking(db: BetterSqlite3.Database, addColumn: (t: string, c: string, d: string) => void) {
-  // Favourite and PortalShare were made with updatedAt already.
+  // Favourite, PortalShare, Bill and Recall were made with updatedAt already.
   const withUpdatedAt = ["Patient", "Consult", "User", "QueueEntry", "ClinicSetting"];
-  const tracked = ["Patient", "Consult", "Edit", "User", "QueueEntry", "Favourite", "AuditEvent", "ClinicSetting", "PortalShare"];
+  const madeWithUpdatedAt = ["Favourite", "PortalShare", "Bill", "Recall"];
+  const tracked = [
+    "Patient", "Consult", "Edit", "User", "QueueEntry", "Favourite", "AuditEvent", "ClinicSetting", "PortalShare", "Bill", "Recall",
+  ];
   for (const t of withUpdatedAt) addColumn(t, "updatedAt", "TEXT");
   for (const t of tracked) addColumn(t, "syncSeq", "INTEGER");
 
@@ -500,7 +559,7 @@ function migrateSyncTracking(db: BetterSqlite3.Database, addColumn: (t: string, 
     );
   `;
   for (const t of tracked) {
-    const stampUpdated = withUpdatedAt.includes(t) || t === "Favourite" || t === "PortalShare";
+    const stampUpdated = withUpdatedAt.includes(t) || madeWithUpdatedAt.includes(t);
     ddl += `
     CREATE TRIGGER IF NOT EXISTS sync_${t}_ins AFTER INSERT ON ${t} WHEN ${applying}
     BEGIN

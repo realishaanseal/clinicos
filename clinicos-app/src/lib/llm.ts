@@ -52,9 +52,10 @@ function extractJson(text: string): ClinicalNote {
       ...raw,
       medications: Array.isArray(raw.medications) ? raw.medications : [],
       investigations: Array.isArray(raw.investigations) ? raw.investigations : [],
-      // Warning signs are the doctor's to write, never the model's, whatever
-      // it sent back.
+      // Warning signs and the date to come back are the doctor's to write,
+      // never the model's, whatever it sent back.
       returnIf: "",
+      followUpOn: "",
     };
   } catch {
     return { ...EMPTY_NOTE, history: `[Could not parse model output]\n\n${text}` };

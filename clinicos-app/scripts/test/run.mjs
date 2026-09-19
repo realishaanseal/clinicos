@@ -26,6 +26,8 @@
  *                         medicines, favourites, search, step timings
  *   rx-test.cjs           prescription extras: the clinic's logo, warning signs
  *                         in the doctor's words, the medicine timing card
+ *   billing-test.cjs      bills, payments, receipts and cancelling; follow-up
+ *                         dates and the desk's WhatsApp reminders
  *   admin-tools-test.cjs  reset-password script; restoring a pre-accounts backup
  *   tenancy-test.cjs      many clinics in one database, and Varaxis's platform
  *                         console (online only; after the others, because it
@@ -59,7 +61,7 @@ const onPostgres = process.argv.includes("--pg");
 const pgPort = process.env.TEST_PG_PORT || "55432";
 const realPg = onPostgres ? process.env.TEST_DATABASE_URL || "" : "";
 const CLINIC_TABLES = [
-  "AudioChunk", "QueueEntry", "Edit", "PortalLogin", "PortalAccount", "PortalAttempt", "PortalShare", "Consult",
+  "AudioChunk", "Recall", "Bill", "QueueEntry", "Edit", "PortalLogin", "PortalAccount", "PortalAttempt", "PortalShare", "Consult",
   "Favourite", "Session", "AuditEvent", "Setting", "ClinicSetting", "User", "Patient", "OperatorSession", "Operator",
   "SyncDevice", "SyncTombstone",
 ];
@@ -309,6 +311,7 @@ const suites = [
   ["queue-test.cjs", [files.db]],
   ["workflow-test.cjs", [files.db]],
   ["rx-test.cjs", [files.db]],
+  ["billing-test.cjs", [files.db]],
   ["admin-tools-test.cjs", [files.db, files.preV1]],
   ["tenancy-test.cjs", [files.db]],
   ["sync-test.cjs", [files.db, JSON.stringify(locals)]],

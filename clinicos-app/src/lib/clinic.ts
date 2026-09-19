@@ -39,6 +39,17 @@ export async function getClinicName(clinicId: ClinicId): Promise<string> {
   return (await getSetting(clinicId, "clinic_name")) || env.CLINIC_NAME || "Demo Clinic";
 }
 
+/** The consultation fee that starts every new bill (in paise, or null when the
+ *  clinic has not set one), and the follow-up reminder's words, or "" for the
+ *  default. Both are clinic_ settings, so they travel to a clinic computer. */
+export async function getBillingSettings(clinicId: ClinicId): Promise<{ feePaise: number | null; recallMessage: string }> {
+  const fee = Number((await getSetting(clinicId, "clinic_fee")) || "");
+  return {
+    feePaise: Number.isInteger(fee) && fee > 0 ? fee : null,
+    recallMessage: (await getSetting(clinicId, "clinic_recall_message")) ?? "",
+  };
+}
+
 export type PrescriptionIdentity = ClinicIdentity & {
   doctorName: string;
   doctorQualification: string;

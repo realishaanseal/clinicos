@@ -58,7 +58,7 @@ export async function exportEverything(clinicId: ClinicId) {
     for (const c of consults) {
       withEdits.push({ ...c, audioPath: undefined, edits: await editsFor(clinicId, c.id) });
     }
-    out.push({ ...p, consults: withEdits });
+    out.push({ ...p, consults: withEdits, bills: exportBills(await billsForPatient(clinicId, p.id)), recalls: await recallsForPatient(clinicId, p.id) });
   }
   // Favourites are the doctors' own work, so they leave with the clinic too.
   const favourites = await q().all<{ doctor: string | null; name: string; noteJson: string }>(
@@ -73,6 +73,11 @@ export async function exportEverything(clinicId: ClinicId) {
     patients: out,
     favourites: favourites.map((f) => ({ doctor: f.doctor, name: f.name, note: JSON.parse(f.noteJson) })),
   };
+}
+
+/** Bills as they leave in an export, with their lines read back into a list. */
+function exportBills(bills: Bill[]) {
+  return bills.map(({ itemsJson, ...b }) => ({ ...b, items: JSON.parse(itemsJson) as unknown }));
 }
 
 function editsFor(clinicId: ClinicId, consultId: string) {
@@ -133,6 +138,7 @@ export type Consult = {
   doctorId: string | null;
   transcribedAt: string | null;
   draftedAt: string | null;
+  followUpOn: string | null;
   createdAt: string;
 };
 
@@ -281,13 +287,22 @@ export async function setDraft(clinicId: ClinicId, id: string, transcript: strin
   );
 }
 
-export async function signConsult(clinicId: ClinicId, id: string, finalJson: string, audioDeleted: boolean, doctorId: string | null) {
+/** followUpOn is the note's date to come back, copied to its own column so the
+ *  desk's follow-up list is a plain query rather than a read of every note. */
+export async function signConsult(
+  clinicId: ClinicId,
+  id: string,
+  finalJson: string,
+  audioDeleted: boolean,
+  doctorId: string | null,
+  followUpOn: string | null = null
+) {
   await q().run(
     `UPDATE "Consult"
      SET "finalJson" = ?, "signedAt" = ?, "audioPath" = NULL, "audioDeletedAt" = ?,
-         "workingJson" = NULL, "recordingEndedAt" = COALESCE("recordingEndedAt", ?), "doctorId" = ?
+         "workingJson" = NULL, "recordingEndedAt" = COALESCE("recordingEndedAt", ?), "doctorId" = ?, "followUpOn" = ?
      WHERE id = ? AND "clinicId" = ?`,
-    finalJson, now(), audioDeleted ? now() : null, now(), doctorId, id, clinicId
+    finalJson, now(), audioDeleted ? now() : null, now(), doctorId, followUpOn || null, id, clinicId
   );
 }
 
@@ -444,7 +459,13 @@ export async function exportPatient(clinicId: ClinicId, id: string) {
   );
   const withEdits = [];
   for (const c of consults) withEdits.push({ ...c, audioPath: undefined, edits: await editsFor(clinicId, c.id) });
-  return { exportedAt: now(), patient, consults: withEdits };
+  return {
+    exportedAt: now(),
+    patient,
+    consults: withEdits,
+    bills: exportBills(await billsForPatient(clinicId, id)),
+    recalls: await recallsForPatient(clinicId, id),
+  };
 }
 
 export async function databaseStats(clinicId: ClinicId) {
@@ -670,6 +691,310 @@ export async function markQueueDoneForConsult(clinicId: ClinicId, consultId: str
     `UPDATE "QueueEntry" SET status = 'done', "doneAt" = ?
      WHERE "clinicId" = ? AND "consultId" = ? AND status = 'with-doctor'`,
     now(), clinicId, consultId
+  );
+}
+
+// ------------------------------------------------------------------- bills
+/**
+ * Bills and receipts (backlog #12). What the desk typed and what was paid —
+ * never anything clinical. Amounts are whole paise (money.ts).
+ *
+ * A receipt number is given at payment, never at billing, so the numbers on
+ * paper run in the order money was taken. Online they are plain (0042); a
+ * clinic computer puts its own tag in front (KTR-0042), so a clinic computer
+ * and its clinic online, or two clinic computers, can never print the same
+ * one. A paid bill is never changed or deleted: it can only be cancelled, by
+ * someone who manages the clinic, with a reason.
+ */
+export type Bill = {
+  id: string;
+  clinicId: string;
+  patientId: string;
+  itemsJson: string;
+  totalPaise: number;
+  day: string;
+  receiptNo: string | null;
+  receiptPrefix: string | null;
+  receiptSeq: number | null;
+  paidAt: string | null;
+  paidDay: string | null;
+  method: string | null;
+  receivedBy: string | null;
+  voidedAt: string | null;
+  voidedBy: string | null;
+  voidReason: string | null;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+/** A bill with the names needed to show and print it. Nothing clinical: the
+ *  front desk reads this. */
+export type BillRow = Bill & {
+  patientName: string;
+  patientPhone: string | null;
+  patientAge: number | null;
+  patientSex: string | null;
+  receivedByName: string | null;
+  voidedByName: string | null;
+};
+
+const BILL_SELECT = `
+  SELECT b.*, p.name AS "patientName", p.phone AS "patientPhone", p.age AS "patientAge", p.sex AS "patientSex",
+         r.name AS "receivedByName", v.name AS "voidedByName"
+  FROM "Bill" b
+  JOIN "Patient" p ON p.id = b."patientId"
+  LEFT JOIN "User" r ON r.id = b."receivedBy"
+  LEFT JOIN "User" v ON v.id = b."voidedBy"`;
+
+export function getBill(clinicId: ClinicId, id: string): Promise<BillRow | undefined> {
+  return q().get<BillRow>(`${BILL_SELECT} WHERE b.id = ? AND b."clinicId" = ?`, id, clinicId);
+}
+
+export async function createBill(
+  clinicId: ClinicId,
+  patientId: string,
+  items: { label: string; amount: number }[],
+  createdBy: string | null
+): Promise<Bill> {
+  const id = newId();
+  const at = now();
+  await q().run(
+    `INSERT INTO "Bill" (id, "clinicId", "patientId", "itemsJson", "totalPaise", day, "createdBy", "createdAt", "updatedAt")
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    id, clinicId, patientId, JSON.stringify(items), items.reduce((s, i) => s + i.amount, 0), localDay(), createdBy, at, at
+  );
+  return (await q().get<Bill>(`SELECT * FROM "Bill" WHERE id = ? AND "clinicId" = ?`, id, clinicId))!;
+}
+
+export function formatReceiptNo(prefix: string | null, seq: number): string {
+  const n = String(seq).padStart(4, "0");
+  return prefix ? `${prefix}-${n}` : n;
+}
+
+// Consonants only, and never L: a tag can spell no word, and none of its
+// letters can be misread as 1, 0 or another letter on a printed receipt.
+const TAG_LETTERS = "BCDFGHJKMNPQRSTVWXZ";
+
+/**
+ * What goes in front of this copy's receipt numbers: nothing online, and on a
+ * clinic computer a three-letter tag made the first time it takes a payment.
+ * The tag is kept in a setting that never travels, so each computer keeps its
+ * own for good, connected or not, and avoids any tag already on this clinic's
+ * receipts from another computer.
+ */
+async function receiptPrefix(clinicId: ClinicId): Promise<string> {
+  if (BACKEND === "postgres") return "";
+  const kept = await getSetting(clinicId, "receipt_tag");
+  if (kept) return kept;
+  const taken = new Set(
+    (await q().all<{ p: string | null }>(`SELECT DISTINCT "receiptPrefix" AS p FROM "Bill" WHERE "clinicId" = ?`, clinicId)).map((r) => r.p)
+  );
+  let tag = "";
+  do {
+    tag = "";
+    for (const b of randomBytes(3)) tag += TAG_LETTERS[b % TAG_LETTERS.length];
+  } while (taken.has(tag));
+  await q().run(
+    `INSERT INTO "ClinicSetting" ("clinicId", key, value) VALUES (?, 'receipt_tag', ?) ON CONFLICT DO NOTHING`,
+    clinicId, tag
+  );
+  return (await getSetting(clinicId, "receipt_tag")) ?? tag;
+}
+
+class BillTaken extends Error {}
+
+export type PayOutcome =
+  | { state: "paid"; bill: BillRow }
+  | { state: "already"; bill: BillRow }
+  | { state: "cancelled"; bill: BillRow };
+
+/**
+ * Take payment for a bill and give it the next receipt number.
+ *
+ * Two desks paying two bills at the same instant on Postgres can both read the
+ * same highest number; the unique index refuses the second, which then reads
+ * again and takes the next — the same shape as addToQueue. Two desks paying
+ * the same bill: the second finds it already paid and is told so.
+ */
+export async function payBill(clinicId: ClinicId, id: string, method: string, receivedBy: string | null): Promise<PayOutcome | null> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await tx(async (): Promise<PayOutcome | null> => {
+        const bill = await getBill(clinicId, id);
+        if (!bill) return null;
+        if (bill.voidedAt) return { state: "cancelled", bill };
+        if (bill.paidAt) return { state: "already", bill };
+
+        const prefix = await receiptPrefix(clinicId);
+        const seq = (await q().get<{ n: number }>(
+          `SELECT CAST(COALESCE(MAX("receiptSeq"), 0) + 1 AS INTEGER) AS n FROM "Bill"
+           WHERE "clinicId" = ? AND COALESCE("receiptPrefix", '') = ? AND "receiptSeq" IS NOT NULL`,
+          clinicId, prefix
+        ))!.n;
+        const { changes } = await q().run(
+          `UPDATE "Bill" SET "receiptNo" = ?, "receiptPrefix" = ?, "receiptSeq" = ?, "paidAt" = ?, "paidDay" = ?, method = ?, "receivedBy" = ?
+           WHERE id = ? AND "clinicId" = ? AND "paidAt" IS NULL AND "voidedAt" IS NULL`,
+          formatReceiptNo(prefix, seq), prefix, seq, now(), localDay(), method, receivedBy, id, clinicId
+        );
+        if (changes !== 1) throw new BillTaken();
+        return { state: "paid", bill: (await getBill(clinicId, id))! };
+      });
+    } catch (e) {
+      if (e instanceof BillTaken) {
+        const bill = await getBill(clinicId, id);
+        if (!bill) return null;
+        return bill.voidedAt ? { state: "cancelled", bill } : { state: "already", bill };
+      }
+      if (!isUniqueViolation(e) || attempt >= 20) throw e;
+    }
+  }
+}
+
+/** Cancel a bill, paid or not. It stays on record, marked cancelled, and no
+ *  longer counts towards anything collected or owed. */
+export async function voidBill(clinicId: ClinicId, id: string, by: string, reason: string): Promise<boolean> {
+  const { changes } = await q().run(
+    `UPDATE "Bill" SET "voidedAt" = ?, "voidedBy" = ?, "voidReason" = ? WHERE id = ? AND "clinicId" = ? AND "voidedAt" IS NULL`,
+    now(), by, reason, id, clinicId
+  );
+  return changes === 1;
+}
+
+/** Bills not yet paid or cancelled, from any day: money still owed. */
+export function unpaidBills(clinicId: ClinicId, limit = 100): Promise<BillRow[]> {
+  return q().all<BillRow>(
+    `${BILL_SELECT} WHERE b."clinicId" = ? AND b."paidAt" IS NULL AND b."voidedAt" IS NULL ORDER BY b."createdAt" DESC LIMIT ?`,
+    clinicId, limit
+  );
+}
+
+/** Bills paid on one of the clinic's days, cancelled ones included (shown struck through). */
+export function billsPaidOn(clinicId: ClinicId, day: string): Promise<BillRow[]> {
+  return q().all<BillRow>(
+    `${BILL_SELECT} WHERE b."clinicId" = ? AND b."paidDay" = ? ORDER BY b."paidAt" DESC`,
+    clinicId, day
+  );
+}
+
+export function billsForPatient(clinicId: ClinicId, patientId: string): Promise<Bill[]> {
+  return q().all<Bill>(
+    `SELECT * FROM "Bill" WHERE "clinicId" = ? AND "patientId" = ? ORDER BY "createdAt"`,
+    clinicId, patientId
+  );
+}
+
+export type DayTakings = { total: number; count: number; byMethod: Record<string, number> };
+
+/** What was collected on one of the clinic's days, by method: the drawer's
+ *  cash, and what came by UPI or card. Cancelled bills do not count. */
+export async function takingsOn(clinicId: ClinicId, day: string): Promise<DayTakings> {
+  const rows = await q().all<{ method: string | null; total: number; n: number }>(
+    `SELECT method, CAST(SUM("totalPaise") AS INTEGER) AS total, CAST(COUNT(*) AS INTEGER) AS n FROM "Bill"
+     WHERE "clinicId" = ? AND "paidDay" = ? AND "voidedAt" IS NULL GROUP BY method`,
+    clinicId, day
+  );
+  const byMethod: Record<string, number> = {};
+  for (const r of rows) byMethod[r.method ?? "other"] = (byMethod[r.method ?? "other"] ?? 0) + r.total;
+  return { total: rows.reduce((s, r) => s + r.total, 0), count: rows.reduce((s, r) => s + r.n, 0), byMethod };
+}
+
+/** Everything still owed, and on how many bills. */
+export async function owedTotal(clinicId: ClinicId): Promise<{ total: number; count: number }> {
+  const r = await q().get<{ total: number; n: number }>(
+    `SELECT CAST(COALESCE(SUM("totalPaise"), 0) AS INTEGER) AS total, CAST(COUNT(*) AS INTEGER) AS n FROM "Bill"
+     WHERE "clinicId" = ? AND "paidAt" IS NULL AND "voidedAt" IS NULL`,
+    clinicId
+  );
+  return { total: r?.total ?? 0, count: r?.n ?? 0 };
+}
+
+/** Collected per day since a day, for Clinic admin: plain sums, nothing else. */
+export function collectedSince(clinicId: ClinicId, sinceDay: string): Promise<{ day: string; total: number; count: number }[]> {
+  return q().all(
+    `SELECT "paidDay" AS day, CAST(SUM("totalPaise") AS INTEGER) AS total, CAST(COUNT(*) AS INTEGER) AS count FROM "Bill"
+     WHERE "clinicId" = ? AND "paidDay" >= ? AND "voidedAt" IS NULL GROUP BY "paidDay" ORDER BY "paidDay"`,
+    clinicId, sinceDay
+  );
+}
+
+// ---------------------------------------------------------------- recalls
+/**
+ * Follow-up recall (backlog #10). A signed visit whose date to come back has
+ * arrived, for a patient who has not been back since, is shown to the desk
+ * until someone messages the patient or marks it not needed.
+ *
+ * Only the date, the patient and the doctor: never a diagnosis. The front desk
+ * reads this, and a reminder must not tell anyone who sees the patient's phone
+ * what they were treated for.
+ */
+export type FollowUpDue = {
+  consultId: string;
+  patientId: string;
+  patientName: string;
+  patientPhone: string | null;
+  followUpOn: string;
+  signedAt: string;
+  doctorName: string | null;
+};
+
+/** How far back an unanswered follow-up stays on the list. */
+export const RECALL_DAYS = 60;
+
+/** Due between fromDay and today, both the clinic's days, oldest first. "Back
+ *  since" means a later visit was opened, or they were put on the day's list. */
+export function followUpsDue(clinicId: ClinicId, today: string, fromDay: string): Promise<FollowUpDue[]> {
+  return q().all<FollowUpDue>(
+    `SELECT c.id AS "consultId", c."patientId", p.name AS "patientName", p.phone AS "patientPhone",
+            c."followUpOn", c."signedAt", d.name AS "doctorName"
+     FROM "Consult" c
+     JOIN "Patient" p ON p.id = c."patientId"
+     LEFT JOIN "User" d ON d.id = c."doctorId"
+     WHERE c."clinicId" = ? AND c."signedAt" IS NOT NULL AND c."followUpOn" IS NOT NULL
+       AND c."followUpOn" <= ? AND c."followUpOn" >= ?
+       AND NOT EXISTS (SELECT 1 FROM "Recall" r WHERE r."clinicId" = c."clinicId" AND r."consultId" = c.id)
+       AND NOT EXISTS (SELECT 1 FROM "Consult" later
+                       WHERE later."clinicId" = c."clinicId" AND later."patientId" = c."patientId" AND later."createdAt" > c."createdAt")
+       AND NOT EXISTS (SELECT 1 FROM "QueueEntry" qe
+                       WHERE qe."clinicId" = c."clinicId" AND qe."patientId" = c."patientId"
+                         AND qe."addedAt" > c."signedAt" AND qe.status <> 'left')
+     ORDER BY c."followUpOn", p.name`,
+    clinicId, today, fromDay
+  );
+}
+
+export type RecallAction = "messaged" | "dismissed";
+
+/** What the desk did about a due follow-up. One row per visit: its id comes
+ *  from the visit's, so a second tap, or the same visit dealt with on another
+ *  copy, updates it rather than adding another. */
+export async function recordRecall(
+  clinicId: ClinicId,
+  consultId: string,
+  action: RecallAction,
+  by: string | null
+): Promise<boolean> {
+  const c = await q().get<{ patientId: string }>(
+    `SELECT "patientId" FROM "Consult" WHERE id = ? AND "clinicId" = ? AND "signedAt" IS NOT NULL`,
+    consultId, clinicId
+  );
+  if (!c) return false;
+  const at = now();
+  await q().run(
+    `INSERT INTO "Recall" (id, "clinicId", "consultId", "patientId", action, at, "byUser", "updatedAt")
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT (id) DO UPDATE SET action = excluded.action, at = excluded.at, "byUser" = excluded."byUser",
+       "updatedAt" = excluded."updatedAt"
+     WHERE "Recall"."clinicId" = excluded."clinicId"`,
+    `rc-${consultId}`, clinicId, consultId, c.patientId, action, at, by, at
+  );
+  return true;
+}
+
+function recallsForPatient(clinicId: ClinicId, patientId: string) {
+  return q().all(
+    `SELECT "consultId", action, at FROM "Recall" WHERE "clinicId" = ? AND "patientId" = ? ORDER BY at`,
+    clinicId, patientId
   );
 }
 

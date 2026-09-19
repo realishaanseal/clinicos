@@ -22,6 +22,13 @@ export type ClinicalNote = {
    * signs is clinical judgement (CLAUDE.md, invariant 1).
    */
   returnIf: string;
+  /**
+   * The date the doctor asked the patient back, YYYY-MM-DD, or "" (backlog
+   * #10). Printed on the prescription and used for the desk's follow-up list.
+   * Like returnIf it is only ever set by the doctor — the AI draft never fills
+   * it (llm.ts) — and it belongs to one visit, so a favourite never keeps it.
+   */
+  followUpOn: string;
 };
 
 export const EMPTY_NOTE: ClinicalNote = {
@@ -34,6 +41,7 @@ export const EMPTY_NOTE: ClinicalNote = {
   advice: "",
   followUp: "",
   returnIf: "",
+  followUpOn: "",
 };
 
 export function parseNote(json: string | null | undefined): ClinicalNote {
@@ -77,7 +85,18 @@ export function normalizeNote(raw: unknown): ClinicalNote {
     advice: text(r.advice),
     followUp: text(r.followUp),
     returnIf: text(r.returnIf),
+    followUpOn: cleanDay(r.followUpOn),
   };
+}
+
+/** A calendar date as the date box sends it, or "" for anything else. */
+export function cleanDay(v: unknown): string {
+  const s = typeof v === "string" ? v.trim() : "";
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return "";
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  // 2026-02-31 parses, as 3 March; a date that moved was not a real date.
+  return d.toISOString().slice(0, 10) === s ? s : "";
 }
 
 /** True if anything at all has been written. An empty note must never be signed. */
@@ -163,8 +182,8 @@ export function mergeMedicines(current: Medication[], extra: Medication[]): { me
 }
 
 /** The fields compared with the AI draft at signing, to count corrections.
- *  Not returnIf: the AI never writes it, so the doctor writing it is not a
- *  correction of anything. */
+ *  Not returnIf or followUpOn: the AI never writes them, so the doctor
+ *  writing them is not a correction of anything. */
 export const NOTE_FIELDS: (keyof ClinicalNote)[] = [
   "chiefComplaint",
   "history",

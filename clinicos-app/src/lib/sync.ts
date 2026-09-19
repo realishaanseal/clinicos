@@ -23,6 +23,8 @@
  *   - a deletion wins over everything: a deleted patient stays deleted, and
  *     anything that arrives for them later is dropped with them
  *   - edits and the activity log are only ever added to
+ *   - a payment or a cancellation on a bill, once recorded anywhere, stands:
+ *     the receipt number was printed and handed to someone
  *
  * Server only.
  */
@@ -30,7 +32,8 @@ import { BACKEND, isUniqueViolation, q, savepoint, tx, type Param } from "./sql"
 import type { ClinicId } from "./db";
 
 export const SYNC_TABLES = [
-  "ClinicSetting", "User", "Patient", "Consult", "PortalShare", "Edit", "QueueEntry", "Favourite", "AuditEvent",
+  "ClinicSetting", "User", "Patient", "Consult", "PortalShare", "Edit", "QueueEntry", "Bill", "Recall", "Favourite",
+  "AuditEvent",
 ] as const;
 export type SyncTable = (typeof SYNC_TABLES)[number];
 
@@ -52,13 +55,18 @@ export const COLUMNS: Record<SyncTable, string[]> = {
     "id", "patientId", "consentGiven", "consentAt", "consentBy", "audioBytes", "audioSeconds", "audioDeletedAt",
     "transcript", "asrModel", "asrSeconds", "draftJson", "workingJson", "workingSavedAt", "recordingStartedAt",
     "recordingEndedAt", "finalJson", "llmModel", "llmSeconds", "signedAt", "createdBy", "doctorId", "transcribedAt",
-    "draftedAt", "createdAt", "updatedAt",
+    "draftedAt", "followUpOn", "createdAt", "updatedAt",
   ],
   // Only what a clinic computer needs to show that a visit was shared: never the
   // phone's HMAC, the code's hash or the encrypted prescription.
   PortalShare: ["id", "consultId", "patientId", "visitDate", "sharedAt", "sharedBy", "consentBy", "revokedAt", "updatedAt"],
   Edit: ["id", "consultId", "field", "before", "after", "createdAt"],
   QueueEntry: ["id", "patientId", "day", "token", "status", "addedBy", "consultId", "calledBy", "addedAt", "calledAt", "doneAt", "updatedAt"],
+  Bill: [
+    "id", "patientId", "itemsJson", "totalPaise", "day", "receiptNo", "receiptPrefix", "receiptSeq", "paidAt", "paidDay",
+    "method", "receivedBy", "voidedAt", "voidedBy", "voidReason", "createdBy", "createdAt", "updatedAt",
+  ],
+  Recall: ["id", "consultId", "patientId", "action", "at", "byUser", "updatedAt"],
   Favourite: ["id", "userId", "name", "noteJson", "useCount", "createdAt", "updatedAt"],
   AuditEvent: ["id", "userId", "userName", "action", "targetType", "targetId", "detail", "at"],
 };
@@ -66,7 +74,8 @@ export const COLUMNS: Record<SyncTable, string[]> = {
 /** The row's identity. A setting is identified by its name within the clinic. */
 export const KEY: Record<SyncTable, string> = {
   ClinicSetting: "key",
-  User: "id", Patient: "id", Consult: "id", PortalShare: "id", Edit: "id", QueueEntry: "id", Favourite: "id", AuditEvent: "id",
+  User: "id", Patient: "id", Consult: "id", PortalShare: "id", Edit: "id", QueueEntry: "id", Bill: "id", Recall: "id",
+  Favourite: "id", AuditEvent: "id",
 };
 
 /** Only added to, never changed: the first copy of a row is the only one. */
@@ -274,6 +283,8 @@ function parentOf(table: SyncTable, r: Row): [string, string] | null {
     case "Edit": return ["Consult", String(r.consultId ?? "")];
     case "PortalShare": return ["Consult", String(r.consultId ?? "")];
     case "QueueEntry": return ["Patient", String(r.patientId ?? "")];
+    case "Bill": return ["Patient", String(r.patientId ?? "")];
+    case "Recall": return ["Consult", String(r.consultId ?? "")];
     case "Favourite": return ["User", String(r.userId ?? "")];
     default: return null;
   }
@@ -367,6 +378,7 @@ async function mergeRow(clinicId: ClinicId, table: SyncTable, r: Row, result: Ap
     return;
   }
   if (table === "Consult") return mergeConsult(clinicId, r, existing, result);
+  if (table === "Bill") return mergeBill(clinicId, r, existing, result);
   if (newer(r, existing)) await updateRow(clinicId, table, r);
 }
 
@@ -386,6 +398,53 @@ async function mergeConsult(clinicId: ClinicId, r: Row, existing: Row, result: A
   }
   await updateRow(clinicId, "Consult", merged);
 }
+
+const PAYMENT = ["receiptNo", "receiptPrefix", "receiptSeq", "paidAt", "paidDay", "method", "receivedBy"] as const;
+const CANCELLATION = ["voidedAt", "voidedBy", "voidReason"] as const;
+
+/**
+ * The rules for a bill. Its lines can only be written when it is made, so the
+ * later version of the row is otherwise as good as the other; but a payment and
+ * a cancellation are each recorded once and never undone. A copy that has not
+ * heard of the payment yet must not wipe it out by being the later change —
+ * the receipt was printed and is in a patient's hand.
+ *
+ * Paid in both places while the two were apart: the payment recorded first is
+ * kept, and the clinic is told plainly so it can check whether the patient
+ * paid twice. When the merged bill differs from what the other copy sent, it
+ * goes back to that copy, which then agrees.
+ */
+async function mergeBill(clinicId: ClinicId, r: Row, existing: Row, result: ApplyResult) {
+  // Starting from the later version keeps its updatedAt, so both copies settle
+  // on the same row instead of sending it back and forth.
+  const merged: Row = newer(r, existing) ? { ...r } : pick(existing, COLUMNS.Bill);
+  if (existing.paidAt && r.paidAt) {
+    if (existing.receiptNo !== r.receiptNo) {
+      const [kept, other] = `${existing.paidAt}` <= `${r.paidAt}` ? [existing, r] : [r, existing];
+      for (const c of PAYMENT) merged[c] = kept[c];
+      result.conflicts.push(
+        `One bill was paid in two places: receipt ${kept.receiptNo} was kept and receipt ${other.receiptNo} set aside. Check whether the patient paid twice.`
+      );
+    }
+  } else {
+    const paid = existing.paidAt ? existing : r.paidAt ? r : null;
+    if (paid) for (const c of PAYMENT) merged[c] = paid[c];
+  }
+  const cancelled = [existing, r].filter((x) => x.voidedAt).sort((a, b) => String(a.voidedAt).localeCompare(String(b.voidedAt)))[0];
+  if (cancelled) for (const c of CANCELLATION) merged[c] = cancelled[c];
+
+  const differs = (a: Row, b: Row) => COLUMNS.Bill.some((c) => (a[c] ?? null) !== (b[c] ?? null));
+  if (!differs(merged, existing)) return;
+  if (!differs(merged, r)) {
+    await updateRow(clinicId, "Bill", merged);
+    return;
+  }
+  // The other copy is missing part of this: write it as this copy's own change,
+  // so it is sent back.
+  await asOwnChange(() => updateRow(clinicId, "Bill", merged), "Bill", String(merged.id), clinicId);
+}
+
+const pick = (row: Row, cols: string[]): Row => Object.fromEntries(cols.map((c) => [c, row[c] ?? null]));
 
 /**
  * Two desks — one online, one on the clinic computer — can hand out the same
@@ -467,6 +526,7 @@ function describeRefusal(table: SyncTable, r: Row, e: unknown): string {
   if (isUniqueViolation(e)) {
     if (table === "User") return `Two different accounts are called "${r.username}". Only the one already here was kept.`;
     if (table === "Favourite") return `A doctor has two favourites called "${r.name}". Only the one already here was kept.`;
+    if (table === "Bill") return `Receipt ${r.receiptNo} was given to two different bills. Only the one already here was kept; tell Varaxis.`;
     return `A ${table} record clashed with one already here and was left out.`;
   }
   return `A ${table} record was refused: ${e instanceof Error ? e.message : String(e)}`;

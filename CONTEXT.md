@@ -215,12 +215,36 @@ The clinic app also runs on the clinic computer, exactly as before. Start it wit
     duration, under the medicines. It only re-reads what the doctor wrote
     (`src/lib/rx-card.ts`: `1-0-1`, BD, TDS, HS…); anything uncertain, like OD with no
     time of day, prints as written.
-  - `rx-test.cjs` (18 checks). **419 checks pass on Postgres, 258 on SQLite** (20 Sep).
+  - `rx-test.cjs` (18 checks).
+- **Billing and follow-up recall** (20 Sep 2026, branch `saas`), the last items in Ishaan's
+  order:
+  - **Bills (#12):** a **Bills** page for everyone who takes money (doctor, front desk,
+    clinic admin): find the patient, type the lines ("Consultation" starts at the clinic's
+    fee, set in Clinic admin), then **Paid now** by cash, UPI, card or other, or **Pay
+    later**. Collected today by method, what is still owed, bills not yet paid, and today's
+    receipts. A **Bill** button on each row of the front desk's list, and **Collected
+    today** on its Today; collected per day for 7 days on Clinic admin.
+  - **Receipts:** half a page — clinic, receipt number, patient, lines, total, method, who
+    took it. Nothing clinical. Numbers are given at payment, in the order money was taken:
+    plain online (`0001`); a clinic computer's carry its own three-letter tag (`KTR-0001`).
+  - **Cancelling** is Clinic admin's only, with a reason and `CANCEL` typed. The bill stays
+    on record, struck through; it no longer counts as collected or owed.
+  - **Follow-up date (#10):** "Come back on" in the note editor — 3 days, 1 week, 2 weeks,
+    1 month, or a date. Printed on the prescription. Only the doctor sets it.
+  - **Follow-ups page** (doctor and front desk): patients whose date has come (up to 60
+    days back) and who have not been back or put on the day's list. **Message on
+    WhatsApp** opens WhatsApp with the reminder typed in (a `wa.me` link; ClinicOS sends
+    nothing), from a template in Clinic admin, English and Bengali by default. **Not
+    needed** takes them off the list. The front desk's Today says when some are due.
+  - Bills, payments and follow-up actions travel between a clinic computer and its clinic
+    online; a payment or cancellation made on either copy is never lost.
+  - `billing-test.cjs` (61 checks), plus bill and follow-up routes in the permission,
+    tenancy and sync suites.
 
 ### Not built yet
 
-- **Billing (#12) and follow-up recall (#10)** — the last items in Ishaan's order.
-  Designed but **no code written yet**; the design is in §6, item 4, ready to build.
+- Everything in Ishaan's order of work is built. What is left is his (§7) and the
+  interviews (CLAUDE.md, the gate).
 - `portal/` and its four Supabase tables are superseded by the portal inside the app;
   nothing reads or writes them. Safe to delete later.
 
@@ -231,14 +255,14 @@ The clinic app also runs on the clinic computer, exactly as before. Start it wit
 - **Clinic app:** `cd clinicos-app && npm run test:e2e`
   - Builds the app and runs it on port 3100 against a throwaway seeded database in
     `clinicos-app/.test-data/` (git-ignored). It never uses `data/`.
-  - Suites, in order: upgrade safety and the permission matrix (118 checks), the day's
+  - Suites, in order: upgrade safety and the permission matrix (133 checks), the day's
     list and phone search (50), the doctor's speed features (52), prescription extras
-    (18), reset script and restoring a pre-accounts backup (14), many clinics (67,
-    Postgres only), clinic computer sync (62, Postgres only), the patient portal (38,
-    Postgres only). On SQLite the last three only check that their online parts are
-    absent.
-  - All passed on 20 September 2026: 419 checks on Postgres (PGlite), 258 on SQLite, on
-    the Windows laptop.
+    (18), billing and follow-ups (61), reset script and restoring a pre-accounts backup
+    (14), many clinics (71, Postgres only), clinic computer sync (71, Postgres only),
+    the patient portal (38, Postgres only). On SQLite the last three only check that
+    their online parts are absent.
+  - All passed on 20 September 2026: 508 checks on Postgres (PGlite), 334 on SQLite,
+    on the Windows laptop.
   - Don't run it while `npm run dev` is running in that folder.
 - **Website:** `cd landing && npm run build`
   - Rebuilding the film needs the two AI tools, which are not in the repo; the
@@ -285,6 +309,10 @@ The clinic app also runs on the clinic computer, exactly as before. Start it wit
 | 19 Sep 2026 | Plans are labels (Trial, Cloud, Cloud + clinic computer) and features are switches on each clinic. Prices and invoices stay in Varaxis's own paperwork; no payment gateway yet. | Near-zero budget, no paying clinics yet; the gate (20 interviews) still stands. |
 | 19 Sep 2026 | Sync merges row by row: a signed visit stands, the AI draft is never replaced, otherwise the later change wins; deletions win; recordings never travel. Token clashes resolve the same way on both copies (first added keeps the number). | A signed note is the legal record; invariants 3 and 6. |
 | 19 Sep 2026 | The online copy stays "made-up patients only" until Part D rewrites the consent script for online use; a clinic computer connecting to it must confirm its patients are made up. | The consent script still promises patients their data stays on the clinic computer. |
+| 20 Sep 2026 | Everyone who takes money can bill — doctor, front desk and clinic admin — and only Clinic admin cancels, with a reason and `CANCEL` typed. Bills are never edited or deleted. | In a small clinic whoever is free takes the money. A bill carries nothing clinical, so the admin's no-clinical-access rule still holds; the admin gets billing's own patient search, not the front desk's. |
+| 20 Sep 2026 | Receipt numbers are given at payment. Online they are plain; each clinic computer puts its own three-letter tag in front, made the first time it takes a payment and kept in a setting that never travels. | Replaces the design's `L-` then device-id prefix: a tag that changed at connect time would split one computer's receipts into two series, and two unconnected computers would both print `L-0001`. Consonants only, never L, so a tag spells no word. |
+| 20 Sep 2026 | A cancel reason stays on the bill, never in the activity log. | It is typed freely and could name the patient; a deleted patient must not survive in the log. |
+| 20 Sep 2026 | Follow-ups stay on the list for 60 days, leave it when the patient is back (a later visit, or put on the day's list) or the desk acts, and the reminder's template has only `{name}`, `{clinic}`, `{doctor}`, `{date}`. | A phone's lock screen shows the message to anyone; there is deliberately no way to put a diagnosis in it. WhatsApp through `wa.me` costs nothing and needs no account or API. |
 | Prototype era | The invariants in CLAUDE.md. | No clinical judgement. Audio deleted at signing. No training on audio. Consent enforced server-side. `draftJson` immutable. Backups via the SQLite backup API. No lock-in. |
 
 ---
@@ -369,7 +397,11 @@ recorded; Varaxis processes it for them), and the prototype banner switched off 
    clinic's logo on the letterhead. **Built on `saas` (19 Sep 2026, `d577d4f`), §3.**
 4. **Billing and follow-up:** #12 collected, pending and a printed receipt; #10
    WhatsApp follow-up through a `wa.me` link the desk taps (no WhatsApp API, no cost).
-   **Next to build. Designed on 20 Sep 2026, no code yet:**
+   **Built on `saas` (20 Sep 2026), §3,** from the design below, with these changes:
+   receipt numbers use a per-computer tag instead of `L-` and the device id (§4); the
+   cancel route is `/api/bills/[id]/cancel`; a clinic admin bills through its own patient
+   search (`/api/bills/patients`); Clinic admin's settings for the fee and the reminder
+   are one card (`/api/admin/billing`). The design as it was written:
 
    **Billing (#12).**
    - A `Bill` table on both databases (twin in `sql.ts` and a new
@@ -527,9 +559,10 @@ the times are measured (§3). Cutting them further needs real consultations to m
 
 0. **Say whether `saas` can go into `main`.** It contains `workflow-speed`, so merging
    puts the doctor's speed features, many clinics, the platform console and clinic
-   computer sync live at vxclinicos.vercel.app/app. The production build adds the new
-   tables and columns to the online database by itself (migrations 002–005); nothing
-   needs typing into a dashboard. Until then, the branch's Vercel Preview shows errors,
+   computer sync, the patient portal, prescription extras, and billing and follow-ups live
+   at vxclinicos.vercel.app/app. The production build adds the new tables and columns to
+   the online database by itself (migrations 002–007); nothing needs typing into a
+   dashboard. Until then, the branch's Vercel Preview shows errors,
    because previews never change the database.
    **Then add the two portal keys**: run `npm run portal:keys` in `clinicos-app` and paste
    the two lines into the `vxclinicos-app` project's environment (Production, marked
@@ -580,6 +613,9 @@ the times are measured (§3). Cutting them further needs real consultations to m
    `~/Desktop/Varaxis/ClinicOS-worktrees/app-online` (Mac).
 8. **Optional:** if Varaxis has a brand typeface file, add it and the lockup can use it.
    Until then it uses the system display face.
+9. **Read the Bengali follow-up reminder** (Clinic admin → Bills and follow-ups, or
+   `DEFAULT_RECALL_MESSAGE` in `clinicos-app/src/lib/recall.ts`). It was written by the
+   assistant; a clinic can change it, but the default should read naturally.
 
 The Vercel **MCP connector** still cannot see the `Varaxis` team — it returns an empty team
 list. The **CLI can**: it was authenticated on the Mac on 17 Sep 2026 as `realishaanseal`,
@@ -891,14 +927,24 @@ and `--scope varaxis` reaches the projects (`demo`, `vxclinicos-app`, `scholar`,
   `.playwright-mcp/` (browser screenshots) was added to `.gitignore` and
   `.vercelignore`. Billing and follow-up recall were designed (§6, item 4); Ishaan asked
   for this file to be brought up to date so a new session can continue from here.
+  - Ishaan: "resume from where it left off". **Billing and follow-up recall were built**
+    on `saas` (§3): the `Bill` and `Recall` tables on both databases
+    (`migrations/pg/007_billing.sql`), both travelling with sync; a `billing` capability;
+    the Bills page, receipt, Follow-ups page, the come-back date in the note and on the
+    prescription, and Clinic admin's fee, reminder and 7-day takings. A newer clinic
+    computer now waits, rather than failing, on a table an older online copy does not know
+    yet. 508 checks pass on Postgres and 334 on SQLite. Tried in a browser against the
+    sandbox: the fee, a bill paid and one paid later, the receipt on screen and printed,
+    cancelling, the come-back date, the Follow-ups list and its WhatsApp message, the desk's
+    Today. Found on the way: screen-reader-only text in the front desk's list made every
+    page with such a table scroll sideways on a phone (fixed in `globals.css`).
 
 ### Where to pick up
 
 **For the next session:** work is on branch **`saas`** (pushed; `git fetch` then
-`git checkout saas`). It contains `workflow-speed` and everything since. Nothing of it is
-in `main` yet. Next to build is billing and follow-up recall — the design is in §6, item
-4 — then CLAUDE.md's "State of the work" and this file updated, both test runs green,
-commit and push `saas`. Ask Ishaan before merging into `main`.
+`git checkout saas`). It contains `workflow-speed` and everything since, billing and
+follow-up recall included. Nothing of it is in `main` yet. Every item in Ishaan's order of
+work is built; ask Ishaan before merging into `main`.
 
 0. Ishaan: say whether `saas` (which contains `workflow-speed`) can be merged into
    `main`, then make an operator account and add the portal keys (§7.0).
@@ -908,5 +954,5 @@ commit and push `saas`. Ask Ishaan before merging into `main`.
    (§7.3); fix the Tally form's privacy link (§7.4).
 3. Before real patients use the online copy: the consent script, invariant 2 and the
    pilot agreement rewritten for online use, and paid plans with backups (§6, §7.6).
-4. Then the next item in §6's order: billing and follow-up recall (§6, item 4).
+4. Ishaan: read the Bengali follow-up reminder (§7.9).
 5. Always: CLAUDE.md's gate — the 20 doctor interviews have still not been done.

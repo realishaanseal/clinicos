@@ -1,12 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { QueueRow } from "@/lib/db";
 import { elapsed, useQueue } from "@/lib/useQueue";
 import NewPatient from "./NewPatient";
-import { IcAlert, IcCheck, IcUsers } from "./Icons";
+import { IcAlert, IcCalendar, IcCheck, IcUsers } from "./Icons";
 import { fmtTime } from "@/lib/time";
 import { appPath } from "@/lib/base-path";
+import { formatPaise } from "@/lib/money";
 
 type Found = { id: string; name: string; age: number | null; sex: string | null; phone: string | null; consultCount: number };
 
@@ -14,7 +16,16 @@ type Found = { id: string; name: string; age: number | null; sex: string | null;
  * The front desk's Today: find or register a patient, put them on the list,
  * and watch the list move. No clinical information appears anywhere here.
  */
-export default function FrontDeskToday({ initial }: { initial: QueueRow[] }) {
+export default function FrontDeskToday({
+  initial,
+  collectedPaise,
+  followUpsDue,
+}: {
+  initial: QueueRow[];
+  /** Taken at the desk today, cancelled bills aside. As of when the page opened. */
+  collectedPaise: number;
+  followUpsDue: number;
+}) {
   const { rows, refresh, stale } = useQueue(initial);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -47,7 +58,22 @@ export default function FrontDeskToday({ initial }: { initial: QueueRow[] }) {
           <div className="v">{seen}</div>
           <div className="n">consultation signed</div>
         </div>
+        <Link href="/bills" className="stat stat-link">
+          <div className="k">Collected today</div>
+          <div className="v">{formatPaise(collectedPaise)}</div>
+          <div className="n">open Bills →</div>
+        </Link>
       </div>
+
+      {followUpsDue > 0 && (
+        <div className="note info" role="note">
+          <IcCalendar size={17} />
+          <span>
+            {followUpsDue} patient{followUpsDue === 1 ? " is" : "s are"} due a follow-up and {followUpsDue === 1 ? "hasn't" : "haven't"} been
+            back. <Link href="/followups">Open Follow-ups →</Link>
+          </span>
+        </div>
+      )}
 
       {notice && (
         <div className="note ok" role="status">
@@ -260,12 +286,19 @@ function QueueTable({
                       (r.doneAt ? fmtTime(new Date(r.doneAt), { hour: "numeric", minute: "2-digit" }) : "")}
                   </td>
                   <td style={{ textAlign: "right" }}>
-                    {r.status === "waiting" && (
-                      <button type="button" className="ghost small" onClick={() => markLeft(r)} disabled={busyId !== null}>
-                        {busyId === r.id ? "Saving…" : "Left"}
-                        <span className="visually-hidden"> — {r.patientName} went home without being seen</span>
-                      </button>
-                    )}
+                    <div className="row-actions">
+                      {r.status !== "left" && (
+                        <Link href={`/bills?patient=${r.patientId}`} className="button-link">
+                          Bill<span className="visually-hidden"> {r.patientName}</span>
+                        </Link>
+                      )}
+                      {r.status === "waiting" && (
+                        <button type="button" className="ghost small" onClick={() => markLeft(r)} disabled={busyId !== null}>
+                          {busyId === r.id ? "Saving…" : "Left"}
+                          <span className="visually-hidden"> — {r.patientName} went home without being seen</span>
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

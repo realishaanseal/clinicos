@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import {
+  collectedSince,
   databaseStats,
   getTenant,
   listUsers,
@@ -13,7 +14,8 @@ import {
 import { MULTI_CLINIC, PLANS, clinicPath, parseFeatures } from "@/lib/tenant";
 import { publicAppUrl } from "@/lib/public-url";
 import { clinicDayAt, fmtDate, localDayBounds } from "@/lib/time";
-import { getClinic } from "@/lib/clinic";
+import { getBillingSettings, getClinic } from "@/lib/clinic";
+import { formatPaise } from "@/lib/money";
 import { listBackups } from "@/lib/backup";
 import BackupPanel from "@/components/BackupPanel";
 import SyncPanel from "@/components/SyncPanel";
@@ -23,6 +25,7 @@ import { listDevices } from "@/lib/sync-server";
 import DeletePatient from "@/components/DeletePatient";
 import ClinicSettingsForm from "@/components/ClinicSettingsForm";
 import PrescriptionSettings from "@/components/PrescriptionSettings";
+import BillingSettings from "@/components/BillingSettings";
 import { IcArrow, IcShield } from "@/components/Icons";
 import { ONLINE } from "@/lib/deployment";
 import { appPath } from "@/lib/base-path";
@@ -44,6 +47,14 @@ async function signedByDoctor(clinicId: ClinicId) {
     counts.get(who)![idx]++;
   }
   return { days, rows: [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0])) };
+}
+
+/** Collected at the desk on each of the clinic's last seven days: plain sums,
+ *  cancelled bills left out. */
+async function collectedByDay(clinicId: ClinicId) {
+  const days = Array.from({ length: 7 }, (_, i) => clinicDayAt(i - 6));
+  const got = new Map((await collectedSince(clinicId, localDay(days[0]))).map((r) => [r.day, r]));
+  return days.map((d) => ({ d, total: got.get(localDay(d))?.total ?? 0, count: got.get(localDay(d))?.count ?? 0 }));
 }
 
 /** "45 s", "3 min 20 s", "12 min", "1 h 5 min". */
@@ -94,6 +105,8 @@ export default async function AdminPage() {
   const week = await signedByDoctor(user.clinicId);
   const steps = await stepTimes(user.clinicId, localDayBounds(clinicDayAt(-6))[0]);
   const clinic = await getClinic(user.clinicId);
+  const billing = await getBillingSettings(user.clinicId);
+  const collected = await collectedByDay(user.clinicId);
   const tenant = MULTI_CLINIC ? await getTenant(user.clinicId) : undefined;
   const address = tenant ? `${await publicAppUrl()}${clinicPath(tenant.slug)}` : null;
   // Online, a clinic whose plan includes it can connect its own computers; on a
@@ -143,6 +156,8 @@ export default async function AdminPage() {
       </div>
 
       <PrescriptionSettings logo={clinic.logo} cardLanguage={clinic.cardLanguage} />
+
+      <BillingSettings feePaise={billing.feePaise} recallMessage={billing.recallMessage} />
 
       <div className="card flush">
         <div className="card-head">
@@ -212,6 +227,45 @@ export default async function AdminPage() {
             </table>
           </div>
         )}
+      </div>
+
+      <div className="card flush">
+        <div className="card-head">
+          <span className="title">Collected, last 7 days</span>
+          <span className="muted">cancelled bills left out</span>
+        </div>
+        <div style={{ overflowX: "auto" }}>
+          <table className="week">
+            <thead>
+              <tr>
+                <th />
+                {collected.map(({ d }) => (
+                  <th key={d.toISOString()} className="num">
+                    {fmtDate(d, { weekday: "short" })}
+                    <div className="sub">{fmtDate(d, { day: "numeric" })}</div>
+                  </th>
+                ))}
+                <th className="num">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style={{ fontWeight: 580 }}>Collected</td>
+                {collected.map(({ d, total }) => (
+                  <td key={d.toISOString()} className={`num ${total === 0 ? "dim" : ""}`}>{formatPaise(total)}</td>
+                ))}
+                <td className="num" style={{ fontWeight: 620 }}>{formatPaise(collected.reduce((a, b) => a + b.total, 0))}</td>
+              </tr>
+              <tr>
+                <td className="dim">Receipts</td>
+                {collected.map(({ d, count }) => (
+                  <td key={d.toISOString()} className="num dim">{count}</td>
+                ))}
+                <td className="num dim">{collected.reduce((a, b) => a + b.count, 0)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="card flush">

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Mark, IcPulse, IcUsers, IcShield, IcCog, IcDoc, IcSearch } from "./Icons";
+import { Mark, IcPulse, IcUsers, IcShield, IcCog, IcDoc, IcSearch, IcRupee, IcCalendar } from "./Icons";
 import { describeAccess, type Role } from "@/lib/users";
 import { ONLINE } from "@/lib/deployment";
 import { appPath } from "@/lib/base-path";
@@ -29,6 +29,9 @@ export default function SideNav({ user, clinicName }: { user: NavUser; clinicNam
   const links = [
     frontdesk && { href: "/", label: "Today", icon: <IcPulse size={17} /> },
     frontdesk && { href: "/patients", label: "Patients", icon: <IcUsers size={17} /> },
+    frontdesk && { href: "/followups", label: "Follow-ups", icon: <IcCalendar size={17} /> },
+    // Everyone can take money: in a small clinic, whoever is free does.
+    { href: "/bills", label: "Bills", icon: <IcRupee size={17} /> },
     admin && { href: "/admin", label: "Clinic admin", icon: <IcCog size={17} /> },
     admin && { href: "/admin/users", label: "People", icon: <IcShield size={17} /> },
     admin && { href: "/admin/audit", label: "Activity log", icon: <IcDoc size={17} /> },
@@ -51,7 +54,9 @@ export default function SideNav({ user, clinicName }: { user: NavUser; clinicNam
     }
   }
 
-  const home = links[0]?.href ?? "/account/password";
+  // Where each account lands (homeFor in auth.ts): Bills is open to everyone,
+  // so the first link is no longer a clinic admin's home.
+  const home = frontdesk ? "/" : "/admin";
 
   return (
     <>

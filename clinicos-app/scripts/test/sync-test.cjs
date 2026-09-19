@@ -252,6 +252,48 @@ const note = (over = {}) => ({
     db.close();
   }
 
+  // ------------------------------------------------ 5c. bills and follow-ups travel
+  r = await call(pc1.base, "POST", "/api/bills", { jar: L, body: { patientId: p2, items: [{ label: "Consultation", amount: 30000 }], pay: "cash" } });
+  const localReceipt = r.json?.bill?.receiptNo;
+  check("The clinic computer takes a payment, under its own receipt tag", r.status === 200 && /^[A-Z]{3}-0001$/.test(localReceipt || ""), JSON.stringify(r.json));
+  r = await call(pc1.base, "POST", "/api/bills", { jar: L, body: { patientId: p2, items: [{ label: "Dressing", amount: 15000 }] } });
+  const owed = r.json?.bill?.id;
+  r = await call(pc1.base, "POST", "/api/consults", { jar: L, body: { patientId: p2 } });
+  const cF = r.json?.consult?.id;
+  await call(pc1.base, "POST", `/api/consults/${cF}/sign`, { jar: L, body: { note: note({ chiefComplaint: "Review", followUpOn: "2026-10-01" }) } });
+  await call(pc1.base, "POST", "/api/admin/sync/run", { jar: L });
+  await cloud(async (db) => {
+    const bills = await db.all(`SELECT "receiptNo", "paidAt", "totalPaise" FROM "Bill" WHERE "clinicId" = ? ORDER BY "totalPaise" DESC`, clinicId);
+    check("The bills reach the clinic online: the paid one with its receipt number, the other still owed", bills.length === 2 && bills[0].receiptNo === localReceipt && bills[1].paidAt === null, JSON.stringify(bills));
+    const c = await db.get(`SELECT "followUpOn" FROM "Consult" WHERE id = ?`, cF);
+    check("…and so does the date the doctor asked the patient back", c?.followUpOn === "2026-10-01", JSON.stringify(c));
+    const tag = await db.get(`SELECT value FROM "ClinicSetting" WHERE "clinicId" = ? AND key = 'receipt_tag'`, clinicId);
+    check("The clinic computer's receipt tag stays its own", !tag, JSON.stringify(tag));
+  });
+  // Online takes payment for the bill still owed; before hearing of it, the
+  // clinic computer cancels the same bill. Neither may be lost.
+  r = await call(CLOUD, "POST", `/api/bills/${owed}/pay`, { jar: O, body: { method: "upi" } });
+  const onlineReceipt = r.json?.bill?.receiptNo;
+  check("Online takes payment for it, with its own plain numbers", r.status === 200 && onlineReceipt === "0001", JSON.stringify(r.json));
+  await new Promise((res) => setTimeout(res, 20));
+  r = await call(pc1.base, "POST", `/api/bills/${owed}/cancel`, { jar: L, body: { reason: "Billed by mistake", confirm: "CANCEL" } });
+  check("…while the clinic computer, not yet told, cancels it", r.status === 200, JSON.stringify(r.json));
+  r = await call(CLOUD, "POST", `/api/followups/${cF}`, { jar: O, body: { action: "messaged" } });
+  await call(pc1.base, "POST", "/api/admin/sync/run", { jar: L });
+  let localBill;
+  {
+    const db = local(pc1.db);
+    localBill = db.get(`SELECT "receiptNo", method, "paidAt", "voidedAt", "voidReason" FROM Bill WHERE id = ?`, owed);
+    check("The clinic computer ends up with both: the payment taken online, and its own cancellation", localBill?.receiptNo === onlineReceipt && localBill.method === "upi" && localBill.voidedAt && localBill.voidReason === "Billed by mistake", JSON.stringify(localBill));
+    const rc = db.get(`SELECT action FROM Recall WHERE "consultId" = ?`, cF);
+    check("The desk's follow-up message online reaches the clinic computer", rc?.action === "messaged", JSON.stringify(rc));
+    db.close();
+  }
+  await cloud(async (db) => {
+    const b = await db.get(`SELECT "receiptNo", method, "paidAt", "voidedAt", "voidReason" FROM "Bill" WHERE id = ?`, owed);
+    check("…and online has exactly the same", b && JSON.stringify(b) === JSON.stringify(localBill), `${JSON.stringify(b)} vs ${JSON.stringify(localBill)}`);
+  });
+
   // ------------------------------------------------ 6. deletions travel
   r = await call(CLOUD, "DELETE", `/api/patients/${p3}`, { jar: O, body: { confirmName: "Online Syncpatient" } });
   check("A patient is deleted online", r.status === 200, JSON.stringify(r.json));

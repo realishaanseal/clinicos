@@ -58,7 +58,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     audioDeleted = true;
   }
 
-  await signConsult(auth.user.clinicId, id, JSON.stringify(final), audioDeleted, auth.user.id);
+  await signConsult(auth.user.clinicId, id, JSON.stringify(final), audioDeleted, auth.user.id, final.followUpOn || null);
   // Signing is what tells the front desk the patient has been seen.
   await markQueueDoneForConsult(auth.user.clinicId, id);
   const what = drafted

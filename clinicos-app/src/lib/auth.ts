@@ -166,11 +166,14 @@ export async function currentTokenHash(): Promise<string | null> {
  *   clinical  — transcripts, notes, signing, prescriptions, patient history
  *   frontdesk — registering and finding patients, recording consent
  *   admin     — people, clinic details, backups, deletion, the activity log
+ *   billing   — making bills, taking payment, printing receipts. Everyone:
+ *               in a small clinic whoever is free takes the money, and a bill
+ *               carries nothing clinical. Cancelling one is admin only.
  *
  * A non-clinical admin deliberately has no clinical access. A doctor who also
  * runs the clinic has both.
  */
-export type Capability = "clinical" | "frontdesk" | "admin";
+export type Capability = "clinical" | "frontdesk" | "admin" | "billing";
 
 export function can(user: SessionUser, cap: Capability): boolean {
   switch (cap) {
@@ -180,6 +183,8 @@ export function can(user: SessionUser, cap: Capability): boolean {
       return user.role === "doctor" || user.role === "staff";
     case "admin":
       return user.role === "admin" || user.isAdmin;
+    case "billing":
+      return user.role === "doctor" || user.role === "staff" || user.role === "admin";
   }
 }
 
@@ -195,10 +200,10 @@ export function homeFor(user: Pick<SessionUser, "role" | "clinicStatus">): strin
  * A clinic Varaxis has paused (its subscription lapsed) keeps its records and
  * its way out: anyone who manages the clinic can still sign in, open Clinic
  * admin and export everything — no lock-in, whatever the reason for the pause.
- * Consultations and the day's list wait until it is active again.
+ * Consultations, the day's list and billing wait until it is active again.
  */
 function pausedFor(user: SessionUser, cap?: Capability): boolean {
-  return user.clinicStatus === "suspended" && (cap === "clinical" || cap === "frontdesk");
+  return user.clinicStatus === "suspended" && (cap === "clinical" || cap === "frontdesk" || cap === "billing");
 }
 
 export const PAUSED_MESSAGE =

@@ -197,6 +197,8 @@ clinicos-app/
     llm.ts           note generation provider interface (ollama | openai)
                      SYSTEM_PROMPT lives here — the clinical safety text
     types.ts         ClinicalNote shape and parseNote()
+    money.ts         bills in whole paise: parsing rupees, ₹ with Indian grouping, bill lines
+    recall.ts        the follow-up reminder: its template and the wa.me link the desk taps
     clinic.ts        clinic identity: ClinicSetting first, .env as fallback (first clinic only)
     useRecorder.ts   streams 5-second audio chunks to disk while recording
     useAutosave.ts   debounced server save + localStorage mirror
@@ -207,6 +209,9 @@ clinicos-app/
     ConsultWorkflow.tsx   the 4-step consultation UI
     Prescription.tsx      printable A4 prescription
     FrontDeskToday.tsx    the front desk's Today: find, register, today's list
+    BillsDesk.tsx         bills: make one, take payment, cancel (typed CANCEL)
+    Receipt.tsx           the printed receipt: nothing clinical on it
+    FollowUps.tsx         patients asked back and not yet back; Message on WhatsApp
     WaitingPanel.tsx      the doctor's "Waiting now" and Start visit
     Favourites.tsx        the doctor's own saved prescriptions, in the note editor
     QuickSearch.tsx       Ctrl+K / ⌘K search from any screen (a native <dialog>)
@@ -256,7 +261,7 @@ happen on Postgres — see `addToQueue`, `startQueueEntry` and `createFirstAccou
 Tables: `Patient`, `Consult`, `Edit`, and since v0.5 `User`, `Session`, `AuditEvent`,
 `Setting` (no longer written), `QueueEntry`, `Favourite`. Since 19 Sep 2026 `Tenant` (the
 clinics — `Clinic` belongs to the old standalone portal's unused tables in the same
-database), `ClinicSetting`, `SyncTombstone`, `PortalShare`; SQLite only `SyncState`,
+database), `ClinicSetting`, `SyncTombstone`, `PortalShare`; since 20 Sep 2026 `Bill`, `Recall`; SQLite only `SyncState`,
 `SyncConfig`; Postgres only `AudioChunk`, `Operator`, `OperatorSession`, `SyncDevice`,
 `PortalAccount`, `PortalLogin`, `PortalAttempt`.
 
@@ -308,6 +313,23 @@ never a complaint, history or findings (`planOf()` in `types.ts`), and each doct
 only their own. ClinicOS ships none: a pre-written treatment would be clinical advice
 (invariant 1). Applying one never overwrites what is already written.
 
+**Bills hold money, never medicine.** A bill is what the desk typed ("Consultation",
+"Dressing") and amounts in whole paise (`money.ts`); whoever takes money reads it, so
+nothing clinical reaches a bill, a receipt or the bills desk. A receipt number is given at
+payment, never at billing: plain online (`0042`), and on a clinic computer behind its own
+three-letter tag (`KTR-0042`) kept in the `receipt_tag` setting, which never travels — so
+no two copies can print the same number. A bill is never edited or deleted, only
+cancelled: `admin`, a reason, and typed `CANCEL`. The reason stays on the bill, not in
+the activity log, because it is free text and could name the patient. In sync, a payment or
+a cancellation recorded on either copy stands (`mergeBill()` in `sync.ts`).
+
+**A follow-up date is the doctor's.** `followUpOn` on the note is never filled by the AI
+(`llm.ts`), is not a correction, and is not part of a favourite. Signing copies it to
+`Consult.followUpOn`. The desk's Follow-ups list shows name, phone, date and doctor —
+never why — and the reminder comes from a template whose only placeholders are `{name}`,
+`{clinic}`, `{doctor}` and `{date}`. ClinicOS sends nothing: the desk taps a `wa.me`
+link and presses send in WhatsApp themselves.
+
 **Accounts and permissions (v0.5).** The first run opens `/setup`, which creates the
 owner account and then refuses forever. Every page calls `requireUser()` and every
 route handler calls `requireApiUser()` with the capability it needs — hiding a link
@@ -318,6 +340,7 @@ is never the control:
 | `clinical` — transcripts, notes, signing, prescriptions, patient history | yes | no | no |
 | `frontdesk` — register and find patients, today's list, record consent | yes | yes | no |
 | `admin` — people, clinic details, backups, export, deletion, activity log | if `isAdmin` | no | yes |
+| `billing` — make bills, take payment, print receipts (cancelling needs `admin`) | yes | yes | yes |
 
 - A non-clinical admin never sees clinical notes. A doctor who owns the clinic is
   `role=doctor, isAdmin=1`.
@@ -447,9 +470,15 @@ Built and tested:
   at once if…" in the doctor's own words (#20, `returnIf` — never filled by the AI), and
   the medicine timing card in English, Bengali or Hindi (#9, `rx-card.ts` — re-reads what
   the doctor wrote, never guesses). Verified by `rx-test.cjs`.
+- **Billing and follow-up recall (20 Sep 2026, branch `saas`):** bills, payment by cash,
+  UPI, card or other, printed receipts, cancelling (#12); a date to come back on the note,
+  printed on the prescription, and the desk's Follow-ups list with a WhatsApp reminder
+  through `wa.me` (#10). Verified by `billing-test.cjs`, and in the permission, tenancy
+  and sync suites.
 
-Next, in the order Ishaan asked for ("all one by one"): billing and follow-up recall
-(#12, #10) — designed in CONTEXT.md §6, item 4, not yet built. The full plan is in CONTEXT.md §6. Backlog numbered 1–37 across tiers 0–7.
+Every item in the order Ishaan asked for ("all one by one") is now built on `saas`; what
+waits on Ishaan is in CONTEXT.md §7, starting with merging `saas` into `main`. The full
+plan is in CONTEXT.md §6. Backlog numbered 1–37 across tiers 0–7.
 
 **Online since 17 Sep 2026** (Ishaan's decision, reversing "not hosted"): the same
 app at vxclinicos.vercel.app/app, on Postgres, as a prototype for made-up patients.
