@@ -22,6 +22,7 @@ import { SYNC_CLIENT_ENABLED, getSyncStatus } from "@/lib/sync-client";
 import { listDevices } from "@/lib/sync-server";
 import DeletePatient from "@/components/DeletePatient";
 import ClinicSettingsForm from "@/components/ClinicSettingsForm";
+import PrescriptionSettings from "@/components/PrescriptionSettings";
 import { IcArrow, IcShield } from "@/components/Icons";
 import { ONLINE } from "@/lib/deployment";
 import { appPath } from "@/lib/base-path";
@@ -92,6 +93,7 @@ export default async function AdminPage() {
   const activePeople = (await listUsers(user.clinicId)).filter((u) => u.active).length;
   const week = await signedByDoctor(user.clinicId);
   const steps = await stepTimes(user.clinicId, localDayBounds(clinicDayAt(-6))[0]);
+  const clinic = await getClinic(user.clinicId);
   const tenant = MULTI_CLINIC ? await getTenant(user.clinicId) : undefined;
   const address = tenant ? `${await publicAppUrl()}${clinicPath(tenant.slug)}` : null;
   // Online, a clinic whose plan includes it can connect its own computers; on a
@@ -136,9 +138,11 @@ export default async function AdminPage() {
           <span className="muted">printed on every prescription</span>
         </div>
         <div className="card-body">
-          <ClinicSettingsForm initial={await getClinic(user.clinicId)} />
+          <ClinicSettingsForm initial={{ name: clinic.name, address: clinic.address, phone: clinic.phone }} />
         </div>
       </div>
+
+      <PrescriptionSettings logo={clinic.logo} cardLanguage={clinic.cardLanguage} />
 
       <div className="card flush">
         <div className="card-head">

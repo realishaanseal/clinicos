@@ -43,3 +43,6 @@
 *.zip
 .env*
 !.env.example
+
+# Playwright MCP screenshots (see .gitignore).
+/.playwright-mcp

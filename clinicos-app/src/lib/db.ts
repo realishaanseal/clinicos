@@ -1070,6 +1070,14 @@ export async function getSettings(clinicId: ClinicId): Promise<Record<string, st
   return Object.fromEntries(rows.map((r) => [r.key, r.value]));
 }
 
+/** One setting, without loading the rest (a clinic's logo is large). */
+export async function getSetting(clinicId: ClinicId, key: string): Promise<string | undefined> {
+  return (await q().get<{ value: string }>(
+    `SELECT value FROM "ClinicSetting" WHERE "clinicId" = ? AND key = ?`,
+    clinicId, key
+  ))?.value;
+}
+
 export async function setSettings(clinicId: ClinicId, values: Record<string, string>) {
   await tx(async () => {
     for (const [k, v] of Object.entries(values)) {

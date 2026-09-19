@@ -15,6 +15,13 @@ export type ClinicalNote = {
   investigations: string[];
   advice: string;
   followUp: string;
+  /**
+   * "Come back at once if…" (backlog #20): warning signs, in the doctor's own
+   * words, printed in a box on the prescription. Only ever written by the
+   * doctor — the AI draft never fills it (llm.ts), because choosing warning
+   * signs is clinical judgement (CLAUDE.md, invariant 1).
+   */
+  returnIf: string;
 };
 
 export const EMPTY_NOTE: ClinicalNote = {
@@ -26,6 +33,7 @@ export const EMPTY_NOTE: ClinicalNote = {
   investigations: [],
   advice: "",
   followUp: "",
+  returnIf: "",
 };
 
 export function parseNote(json: string | null | undefined): ClinicalNote {
@@ -68,22 +76,24 @@ export function normalizeNote(raw: unknown): ClinicalNote {
     investigations: (Array.isArray(r.investigations) ? r.investigations : []).map(text).filter((s) => s.trim()),
     advice: text(r.advice),
     followUp: text(r.followUp),
+    returnIf: text(r.returnIf),
   };
 }
 
 /** True if anything at all has been written. An empty note must never be signed. */
 export function noteHasContent(n: ClinicalNote): boolean {
   return (
-    [n.chiefComplaint, n.history, n.examination, n.diagnosis, n.advice, n.followUp].some((s) => s.trim()) ||
+    [n.chiefComplaint, n.history, n.examination, n.diagnosis, n.advice, n.followUp, n.returnIf].some((s) => s.trim()) ||
     n.medications.some((m) => m.name.trim()) ||
     n.investigations.some((s) => s.trim())
   );
 }
 
 /** The plan part of a note, which is all a favourite keeps: diagnosis,
- *  medicines, tests, advice and follow-up. A patient's complaint, history and
- *  examination are about that patient only and are never carried to another. */
-export type Plan = Pick<ClinicalNote, "diagnosis" | "medications" | "investigations" | "advice" | "followUp">;
+ *  medicines, tests, advice, follow-up and the doctor's own warning signs. A
+ *  patient's complaint, history and examination are about that patient only and
+ *  are never carried to another. */
+export type Plan = Pick<ClinicalNote, "diagnosis" | "medications" | "investigations" | "advice" | "followUp" | "returnIf">;
 
 export function planOf(raw: unknown): Plan {
   const n = normalizeNote(raw);
@@ -93,11 +103,12 @@ export function planOf(raw: unknown): Plan {
     investigations: n.investigations.map((s) => s.trim()),
     advice: n.advice.trim(),
     followUp: n.followUp.trim(),
+    returnIf: n.returnIf.trim(),
   };
 }
 
 export function planHasContent(p: Plan): boolean {
-  return !!(p.diagnosis || p.advice || p.followUp || p.medications.length || p.investigations.length);
+  return !!(p.diagnosis || p.advice || p.followUp || p.returnIf || p.medications.length || p.investigations.length);
 }
 
 /**
@@ -127,6 +138,7 @@ export function applyPlan(note: ClinicalNote, plan: Plan): { note: ClinicalNote;
       investigations: [...note.investigations, ...tests],
       advice: fill(note.advice, plan.advice, "advice"),
       followUp: fill(note.followUp, plan.followUp, "follow-up"),
+      returnIf: fill(note.returnIf, plan.returnIf ?? "", "warning signs"),
     },
     added,
   };
@@ -150,6 +162,9 @@ export function mergeMedicines(current: Medication[], extra: Medication[]): { me
   return { medications: [...kept, ...fresh.map((m) => ({ ...m }))], added: fresh.length };
 }
 
+/** The fields compared with the AI draft at signing, to count corrections.
+ *  Not returnIf: the AI never writes it, so the doctor writing it is not a
+ *  correction of anything. */
 export const NOTE_FIELDS: (keyof ClinicalNote)[] = [
   "chiefComplaint",
   "history",

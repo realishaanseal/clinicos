@@ -578,6 +578,18 @@ function NoteEditor({
           <input value={note.followUp} onChange={(e) => set("followUp")(e.target.value)} placeholder="Review in 3 days if fever persists" />
         </div>
 
+        <div className="field">
+          <label htmlFor="returnIf">Come back at once if… (optional)</label>
+          <textarea
+            id="returnIf"
+            value={note.returnIf}
+            onChange={(e) => set("returnIf")(e.target.value)}
+            rows={2}
+            placeholder="In your own words, in the patient's language"
+          />
+          <p className="hint">Printed in a box on the prescription. ClinicOS never fills this in for you.</p>
+        </div>
+
         <div className="note info" style={{ marginTop: 20 }}>
           <IcAlert size={17} />
           <span>

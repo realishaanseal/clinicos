@@ -62,3 +62,7 @@ _to_delete/
 
 # TypeScript incremental cache
 *.tsbuildinfo
+
+# Screenshots and snapshots from the Playwright MCP: made-up sandbox data, but
+# never part of the repo or of an upload.
+.playwright-mcp/

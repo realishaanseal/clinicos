@@ -24,6 +24,8 @@
  *   queue-test.cjs        the front desk's list, phone search, calling patients in
  *   workflow-test.cjs     the doctor's speed features: hand-written visits, repeat
  *                         medicines, favourites, search, step timings
+ *   rx-test.cjs           prescription extras: the clinic's logo, warning signs
+ *                         in the doctor's words, the medicine timing card
  *   admin-tools-test.cjs  reset-password script; restoring a pre-accounts backup
  *   tenancy-test.cjs      many clinics in one database, and Varaxis's platform
  *                         console (online only; after the others, because it
@@ -306,6 +308,7 @@ const suites = [
   ["perm-test.cjs", [files.db, files.fingerprint]],
   ["queue-test.cjs", [files.db]],
   ["workflow-test.cjs", [files.db]],
+  ["rx-test.cjs", [files.db]],
   ["admin-tools-test.cjs", [files.db, files.preV1]],
   ["tenancy-test.cjs", [files.db]],
   ["sync-test.cjs", [files.db, JSON.stringify(locals)]],

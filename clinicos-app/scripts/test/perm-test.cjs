@@ -87,6 +87,10 @@ const idOf = async (username) => {
     ["POST", "/api/admin/users"], ["PATCH", "/api/admin/users/x"], ["POST", "/api/admin/users/x/reset"],
     ["POST", "/api/auth/password"], ["GET", "/api/queue"], ["POST", "/api/queue"],
     ["POST", "/api/queue/x/start"], ["POST", "/api/queue/x/left"],
+    ["POST", "/api/consults/seedconsult2/share"], ["DELETE", "/api/consults/seedconsult2/share"],
+    ["POST", "/api/admin/prescription"], ["POST", "/api/admin/prescription/logo"], ["DELETE", "/api/admin/prescription/logo"],
+    ["GET", "/api/admin/sync"], ["POST", "/api/admin/sync"], ["DELETE", "/api/admin/sync"], ["POST", "/api/admin/sync/run"],
+    ["GET", "/api/admin/devices"], ["POST", "/api/admin/devices"], ["DELETE", "/api/admin/devices/x"],
   ];
   const not401 = [];
   for (const [m, p] of everyApi) {
@@ -185,6 +189,8 @@ const idOf = async (username) => {
   await expectStatus("Doctor", doc2.token, "GET", "/api/backup/export", 403);
   await expectStatus("Doctor", doc2.token, "POST", "/api/admin/users", 403, { name: "X", username: "xxx", role: "staff" });
   await expectStatus("Doctor", doc2.token, "GET", "/api/patients/seedpatient1/export", 403);
+  await expectStatus("Doctor", doc2.token, "POST", "/api/admin/prescription", 403, { cardLanguage: "bn" });
+  await expectStatus("Doctor", doc2.token, "GET", "/api/admin/sync", 403);
   await expectPage("Doctor", doc2.token, "/", 200);
   await expectPage("Doctor", doc2.token, "/consult/seedconsult1", 200);
   await expectPage("Doctor", doc2.token, "/admin", "/");
@@ -204,6 +210,10 @@ const idOf = async (username) => {
   await expectStatus("Staff", desk.token, "GET", "/api/backup/export", 403);
   await expectStatus("Staff", desk.token, "POST", "/api/admin/users", 403, { name: "X", username: "xxx", role: "staff" });
   await expectStatus("Staff", desk.token, "POST", "/api/admin/settings", 403, { name: "Hijack" });
+  await expectStatus("Staff", desk.token, "POST", "/api/admin/prescription", 403, { cardLanguage: "bn" });
+  await expectStatus("Staff", desk.token, "DELETE", "/api/admin/prescription/logo", 403);
+  await expectStatus("Staff", desk.token, "POST", "/api/consults/seedconsult1/share", 403, { consent: true });
+  await expectStatus("Staff", desk.token, "GET", "/api/admin/devices", 403);
   await expectPage("Staff", desk.token, "/patients", 200);
   const deskHome = await expectPage("Staff", desk.token, "/", 200);
   check("Staff Today shows no diagnoses", !deskHome.text.includes("Viral fever") && !deskHome.text.includes("Gastritis"));
@@ -226,6 +236,8 @@ const idOf = async (username) => {
   await expectStatus("Admin", mgr.token, "PATCH", "/api/consults/seedconsult2/draft", 403, { transcript: "x" });
   await expectStatus("Admin", mgr.token, "POST", "/api/consults/seedconsult2/sign", 403, { note: {} });
   await expectStatus("Admin", mgr.token, "POST", "/api/consults/seedconsult2/note", 403);
+  await expectStatus("Admin", mgr.token, "POST", "/api/consults/seedconsult1/share", 403, { consent: true });
+  await expectStatus("Admin", mgr.token, "POST", "/api/admin/prescription", 200, { cardLanguage: "off" });
   await expectStatus("Admin", mgr.token, "GET", "/api/backup/export", 200);
   await expectStatus("Admin", mgr.token, "GET", "/api/patients/seedpatient1/export", 200);
   await expectStatus("Admin", mgr.token, "POST", "/api/admin/settings", 200, { name: "Test Clinic Renamed", address: "1 Test Road", phone: "0000" });

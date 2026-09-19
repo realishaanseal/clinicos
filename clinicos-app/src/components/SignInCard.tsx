@@ -1,7 +1,7 @@
 import Link from "next/link";
 import LoginForm from "./LoginForm";
 import { Mark } from "./Icons";
-import { getClinic } from "@/lib/clinic";
+import { getClinicName } from "@/lib/clinic";
 import type { Tenant } from "@/lib/db";
 import { MULTI_CLINIC } from "@/lib/tenant";
 
@@ -10,7 +10,7 @@ import { MULTI_CLINIC } from "@/lib/tenant";
  * With a clinic it names that clinic; without one it asks which clinic.
  */
 export default async function SignInCard({ clinic, next }: { clinic: Tenant | null; next: string | null }) {
-  const name = clinic ? (await getClinic(clinic.id)).name : "Sign in to your clinic";
+  const name = clinic ? await getClinicName(clinic.id) : "Sign in to your clinic";
   return (
     <main className="auth">
       <div className="auth-card">

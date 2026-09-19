@@ -1,4 +1,5 @@
-import { FIRST_CLINIC_ID, getSettings, type ClinicId } from "./db";
+import { FIRST_CLINIC_ID, getSetting, getSettings, type ClinicId } from "./db";
+import { parseCardLanguage, type CardLanguage } from "./rx-card";
 
 /**
  * Clinic identity printed on every prescription.
@@ -9,7 +10,15 @@ import { FIRST_CLINIC_ID, getSettings, type ClinicId } from "./db";
  * printed before. Any other clinic's details are its own: one clinic's .env
  * address must never appear on another clinic's prescription.
  */
-export type ClinicIdentity = { name: string; address: string; phone: string };
+export type ClinicIdentity = {
+  name: string;
+  address: string;
+  phone: string;
+  /** The clinic's logo for the letterhead (#25), as a data: URL, or "". */
+  logo: string;
+  /** The medicine timing card's language (#9), or null when the clinic prints none. */
+  cardLanguage: CardLanguage | null;
+};
 
 export async function getClinic(clinicId: ClinicId): Promise<ClinicIdentity> {
   const s = await getSettings(clinicId);
@@ -18,7 +27,16 @@ export async function getClinic(clinicId: ClinicId): Promise<ClinicIdentity> {
     name: s.clinic_name || env.CLINIC_NAME || "Demo Clinic",
     address: s.clinic_address ?? env.CLINIC_ADDRESS ?? "",
     phone: s.clinic_phone ?? env.CLINIC_PHONE ?? "",
+    logo: s.clinic_logo ?? "",
+    cardLanguage: parseCardLanguage(s.rx_card_language),
   };
+}
+
+/** Just the name, for the navigation and sign-in on every page: the rest of
+ *  the identity carries the logo, which is too large to load everywhere. */
+export async function getClinicName(clinicId: ClinicId): Promise<string> {
+  const env: Record<string, string | undefined> = clinicId === FIRST_CLINIC_ID ? process.env : {};
+  return (await getSetting(clinicId, "clinic_name")) || env.CLINIC_NAME || "Demo Clinic";
 }
 
 export type PrescriptionIdentity = ClinicIdentity & {

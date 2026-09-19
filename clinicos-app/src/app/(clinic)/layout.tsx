@@ -1,6 +1,6 @@
 import SideNav from "@/components/SideNav";
 import { getCurrentUser } from "@/lib/auth";
-import { getClinic } from "@/lib/clinic";
+import { getClinicName } from "@/lib/clinic";
 import { maybeAutoBackup } from "@/lib/backup";
 import { maybeSync } from "@/lib/sync-client";
 import { PROTOTYPE } from "@/lib/deployment";
@@ -24,7 +24,7 @@ export default async function ClinicLayout({ children }: { children: React.React
     <div className="shell">
       <SideNav
         user={{ name: user.name, role: user.role, isAdmin: user.isAdmin }}
-        clinicName={(await getClinic(user.clinicId)).name}
+        clinicName={await getClinicName(user.clinicId)}
       />
       <div className="main">
         {PROTOTYPE && (
