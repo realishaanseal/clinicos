@@ -1015,3 +1015,24 @@ button.ghost.on { border-color: var(--teal-500); background: var(--teal-50); col
   font: inherit; font-size: 13.5px; line-height: 1.6;
   background: var(--canvas); border: 1px solid var(--line); border-radius: var(--r-md); color: var(--ink-800);
 }
+
+/* Getting started: what a new clinic still has to do (#34). */
+.steps-list { list-style: none; margin: 0; padding: 0; }
+.steps-list li {
+  display: flex; align-items: flex-start; gap: 11px; padding: 12px 20px;
+  border-bottom: 1px solid var(--line-soft); font-size: 14px;
+}
+.steps-list li:last-child { border-bottom: none; }
+.steps-list li > span:nth-child(2) { flex: 1; }
+.steps-list .tick {
+  width: 20px; height: 20px; flex: none; border-radius: 50%; margin-top: 1px;
+  border: 1.5px solid var(--line); display: grid; place-items: center; color: #fff;
+}
+.steps-list li.done .tick { background: var(--teal-600); border-color: var(--teal-600); }
+.steps-list li.done strong { color: var(--slate-500); font-weight: 560; text-decoration: line-through; }
+.steps-list .hint { display: block; margin-top: 1px; }
+
+/* The last visit at a glance, on a patient's record (#24). */
+.glance-meds { list-style: none; margin: 0; padding: 0; font-size: 14px; }
+.glance-meds li { padding: 4px 0; border-bottom: 1px solid var(--line-soft); }
+.glance-meds li:last-child { border-bottom: none; }

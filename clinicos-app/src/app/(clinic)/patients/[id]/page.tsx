@@ -7,6 +7,7 @@ import { IcDoc, IcArrow } from "@/components/Icons";
 import { can, requireUser } from "@/lib/auth";
 import DeletePatientButton from "@/components/DeletePatientButton";
 import { fmtDate } from "@/lib/time";
+import { dayLabel } from "@/lib/recall";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,12 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
   if (!patient) notFound();
   const consults = await consultsForPatient(user.clinicId, id);
   const signed = consults.filter((c) => c.signedAt);
+  // What the doctor needs before the patient sits down (backlog #24): what was
+  // written at the last signed visit. Said as that, not as "current
+  // medicines" — whether the patient is still taking them is not ours to claim.
+  const last = signed[0];
+  const lastNote = last ? parseNote(last.finalJson) : null;
+  const lastMeds = lastNote?.medications.filter((m) => m.name.trim()) ?? [];
 
   return (
     <div className="page page-narrow">
@@ -34,6 +41,42 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
       </div>
 
       <NewConsultButton patientId={patient.id} />
+
+      {last && lastNote && (
+        <div className="card flush">
+          <div className="card-head">
+            <span className="title">Last visit, at a glance</span>
+            <span className="muted">
+              {fmtDate(new Date(last.signedAt!), { day: "numeric", month: "long", year: "numeric" })}
+            </span>
+          </div>
+          <div className="card-body">
+            {lastNote.diagnosis && <p style={{ margin: "0 0 10px", fontWeight: 580 }}>{lastNote.diagnosis}</p>}
+            <span className="field-label">Medicines given then</span>
+            {lastMeds.length === 0 ? (
+              <p className="muted" style={{ margin: 0 }}>None were prescribed.</p>
+            ) : (
+              <ul className="glance-meds">
+                {lastMeds.map((m, i) => (
+                  <li key={i}>
+                    <strong>{m.name}</strong>{" "}
+                    <span className="dim">{[m.dose, m.frequency, m.duration, m.instructions].filter(Boolean).join(" · ")}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {last.followUpOn && (
+              <p className="muted" style={{ margin: "10px 0 0" }}>
+                Asked back on <strong>{dayLabel(last.followUpOn, { day: "numeric", month: "long", year: "numeric" })}</strong>
+                {lastNote.followUp ? ` — ${lastNote.followUp}` : ""}
+              </p>
+            )}
+            {lastNote.returnIf?.trim() && (
+              <p className="muted" style={{ margin: "6px 0 0" }}>Warning signs given: {lastNote.returnIf}</p>
+            )}
+          </div>
+        </div>
+      )}
 
       <h2>History</h2>
 

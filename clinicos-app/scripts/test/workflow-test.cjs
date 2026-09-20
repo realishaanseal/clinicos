@@ -239,6 +239,17 @@ const emptyNote = { chiefComplaint: "", history: "", examination: "", diagnosis:
   const card = r.text.slice(r.text.indexOf("How long each step takes"), r.text.indexOf(">Storage<"));
   check("…with nothing about any patient in it", card.length > 0 && !card.includes("Timed Patient") && !card.includes("Handwritten Patient"), card.length);
 
+  // ------------------------------------------------ the last visit at a glance (#24)
+  {
+    const r = await call("GET", `/patients/${hwPatient}`, { token: owner });
+    check(
+      "A patient's record opens with the last signed visit at a glance: what it was, and the medicines given then",
+      r.status === 200 && r.text.includes("Last visit, at a glance") && r.text.includes("Upper respiratory infection") && r.text.includes("Syrup Example"),
+      r.status
+    );
+    check("…said as what was given then, not as what the patient is taking now", r.text.includes("Medicines given then"), r.status);
+  }
+
   const failed = results.filter((x) => !x.ok);
   for (const x of results) console.log(`${x.ok ? "PASS" : "FAIL"}  ${x.name}${x.ok ? "" : `  [${x.info}]`}`);
   console.log(`\n${results.length - failed.length} passed, ${failed.length} failed`);

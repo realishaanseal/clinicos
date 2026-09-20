@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth";
 import {
   collectedSince,
   databaseStats,
+  patientsWhoCameBack,
   getTenant,
   listUsers,
   localDay,
@@ -28,6 +29,7 @@ import DeletePatient from "@/components/DeletePatient";
 import ClinicSettingsForm from "@/components/ClinicSettingsForm";
 import PrescriptionSettings from "@/components/PrescriptionSettings";
 import BillingSettings from "@/components/BillingSettings";
+import GettingStarted, { type Step } from "@/components/GettingStarted";
 import { IcArrow, IcShield } from "@/components/Icons";
 import { ONLINE } from "@/lib/deployment";
 import { appPath } from "@/lib/base-path";
@@ -110,12 +112,53 @@ export default async function AdminPage() {
   const billing = await getBillingSettings(user.clinicId);
   const terms = await getClinicTerms(user.clinicId);
   const collected = await collectedByDay(user.clinicId);
+  const cameBack = await patientsWhoCameBack(user.clinicId);
   const tenant = MULTI_CLINIC ? await getTenant(user.clinicId) : undefined;
   const address = tenant ? `${await publicAppUrl()}${clinicPath(tenant.slug)}` : null;
   // Online, a clinic whose plan includes it can connect its own computers; on a
   // clinic computer, this is where it connects to its clinic online.
   const devices = tenant && parseFeatures(tenant.features).localSync ? await listDevices(user.clinicId) : null;
   const syncStatus = SYNC_CLIENT_ENABLED ? await getSyncStatus() : null;
+
+  // What a new clinic still has to do (backlog #34). It goes away by itself.
+  const todo: Step[] = [
+    {
+      label: "Accept ClinicOS's terms",
+      done: termsInForce(terms),
+      hint: "Once, for the clinic. Until then nothing can be recorded.",
+    },
+    {
+      label: "Put the clinic on its prescriptions",
+      done: !!clinic.address.trim(),
+      hint: "Name, address and phone number, as patients should see them.",
+    },
+    {
+      label: "Set the consultation fee",
+      done: billing.feePaise !== null,
+      hint: "Every new bill starts with it, so the desk types less.",
+    },
+    {
+      label: "Add the people who work here",
+      done: activePeople > 1,
+      hint: "Each person signs in as themselves; the log then means something.",
+      href: "/admin/users",
+    },
+    {
+      label: "Register the first patient",
+      done: stats.patients > 0,
+      hint: "From Today: find or register, then start the visit.",
+      href: "/",
+    },
+    ...(ONLINE
+      ? []
+      : [
+          {
+            label: "Take the first backup",
+            done: backups.length > 0,
+            hint: "One tap below. ClinicOS then keeps a daily one by itself.",
+          },
+        ]),
+  ];
 
   return (
     <div className="page page-narrow">
@@ -124,6 +167,8 @@ export default async function AdminPage() {
         <h1>Clinic admin</h1>
         <p className="sub">Clinic details, people, backups and data removal.</p>
       </div>
+
+      <GettingStarted steps={todo} />
 
       {tenant && address && (
         <div className="card flush">
@@ -316,6 +361,28 @@ export default async function AdminPage() {
             </div>
           </>
         )}
+      </div>
+
+      <div className="card flush">
+        <div className="card-head">
+          <span className="title">Patients who came back</span>
+          <span className="muted">signed visits only</span>
+        </div>
+        <div className="card-body">
+          {cameBack.seen === 0 ? (
+            <p className="muted" style={{ margin: 0 }}>No visits have been signed yet.</p>
+          ) : (
+            <p style={{ margin: 0 }}>
+              <strong style={{ fontSize: 20 }}>
+                {cameBack.again} of {cameBack.seen}
+              </strong>{" "}
+              <span className="muted">
+                patients have more than one signed visit ({Math.round((cameBack.again / cameBack.seen) * 100)}%). A plain
+                count of what happened, over all time.
+              </span>
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="card flush">

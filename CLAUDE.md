@@ -222,6 +222,7 @@ clinicos-app/
     Receipt.tsx           the printed receipt: nothing clinical on it
     FollowUps.tsx         patients asked back and not yet back; Message on WhatsApp
     DaySummary.tsx        the day in one message, shown before it is sent
+    GettingStarted.tsx    what a new clinic still has to do; gone once it is done
     WaitingPanel.tsx      the doctor's "Waiting now" and Start visit
     Favourites.tsx        the doctor's own saved prescriptions, in the note editor
     QuickSearch.tsx       Ctrl+K / ⌘K search from any screen (a native <dialog>)
@@ -342,6 +343,11 @@ no two copies can print the same number. A bill is never edited or deleted, only
 cancelled: `admin`, a reason, and typed `CANCEL`. The reason stays on the bill, not in
 the activity log, because it is free text and could name the patient. In sync, a payment or
 a cancellation recorded on either copy stands (`mergeBill()` in `sync.ts`).
+
+**Nothing shows a stack trace.** `src/app/error.tsx` and `src/app/not-found.tsx` say what
+happened in plain words, say that nothing saved was lost, and offer the way back. A
+patient's record opens with the last signed visit "at a glance" — the medicines *given
+then*, never called what the patient is taking now.
 
 **What goes to the owner over WhatsApp** — the day's summary (#13) and the follow-up
 reminders (#10) — is counts, money and one patient's name at most, never a diagnosis, and

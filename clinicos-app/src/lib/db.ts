@@ -431,6 +431,21 @@ export function stepTimingsSince(clinicId: ClinicId, sinceIso: string): Promise<
   );
 }
 
+/**
+ * How many patients came back (backlog #14): of the patients with a signed
+ * visit, how many have more than one. A plain count of what happened — not a
+ * rate ClinicOS claims credit for.
+ */
+export async function patientsWhoCameBack(clinicId: ClinicId): Promise<{ seen: number; again: number }> {
+  const r = await q().get<{ seen: number; again: number }>(
+    `SELECT CAST(COUNT(*) AS INTEGER) AS seen, CAST(COALESCE(SUM(CASE WHEN n > 1 THEN 1 ELSE 0 END), 0) AS INTEGER) AS again
+     FROM (SELECT "patientId", COUNT(*) AS n FROM "Consult"
+           WHERE "clinicId" = ? AND "signedAt" IS NOT NULL GROUP BY "patientId") visits`,
+    clinicId
+  );
+  return { seen: r?.seen ?? 0, again: r?.again ?? 0 };
+}
+
 /** Minutes of documentation saved, at a conservative 4 minutes per signed,
  *  AI-drafted note. Deliberately conservative: this number goes in front of
  *  doctors, and one they can disbelieve costs you more than a smaller one they

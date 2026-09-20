@@ -244,8 +244,35 @@ The clinic app also runs on the clinic computer, exactly as before. Start it wit
     needed** takes them off the list. The front desk's Today says when some are due.
   - Bills, payments and follow-up actions travel between a clinic computer and its clinic
     online; a payment or cancellation made on either copy is never lost.
-  - `billing-test.cjs` (61 checks), plus bill and follow-up routes in the permission,
+  - `billing-test.cjs` (70 checks), plus bill and follow-up routes in the permission,
     tenancy and sync suites.
+- **For whoever owns the clinic** (20 Sep 2026):
+  - **The day in one message (#13)**, on Today for the desk and the doctor: seen,
+    collected by method, still owed, follow-ups due tomorrow. Shown before it is sent;
+    sending is a `wa.me` link someone presses. No patient is named. Clinic admin sets
+    which number it goes to, or leaves it empty and WhatsApp asks which chat.
+  - **What the follow-up list is worth (#11)**: the people on it times the clinic's own
+    fee, with the arithmetic printed under it. Only once a fee is set, and never called a
+    forecast.
+  - **Getting started (#34)** on Clinic admin: what a new clinic still has to do — terms,
+    its details on prescriptions, the fee, its people, the first patient, the first backup.
+    It disappears once everything is done.
+  - **Patients who came back (#14)** on Clinic admin: of the patients with a signed visit,
+    how many have more than one. A count of what happened, not a rate ClinicOS claims.
+  - **Last visit at a glance (#24)** on a patient's record, for the doctor: what it was,
+    the medicines given then, the date they were asked back, and the warning signs given.
+- **Hardening and weight** (20 Sep 2026):
+  - The app sends its own headers everywhere: a content security policy that allows
+    nothing off-origin, `X-Frame-Options: DENY`, `X-Robots-Tag: noindex`, and a
+    permissions policy that closes the camera and location but never the microphone.
+  - Lists are one query, not one per row; "export everything" reads the clinic in five
+    queries; three new indexes for a patient's visits, their place on a day's list and a
+    visit's corrections (`migrations/pg/009_indexes.sql`).
+  - Every label points at its field; the medicines table is a labelled group.
+  - A plain "this screen stopped" page and a "that page isn't here" page, instead of a
+    stack trace in front of a patient.
+  - Six animation libraries and the `motion-lab` smoke test that imported them are gone:
+    177 MB less in `node_modules` on every clinic computer and every build.
 
 ### Not built yet
 
@@ -320,6 +347,7 @@ The clinic app also runs on the clinic computer, exactly as before. Start it wit
 | 20 Sep 2026 | A cancel reason stays on the bill, never in the activity log. | It is typed freely and could name the patient; a deleted patient must not survive in the log. |
 | 20 Sep 2026 | **No consent screen per visit or per share.** The clinic accepts ClinicOS's terms once (signup tickbox, or Clinic admin), undertaking to tell every patient and record no one who says no; the server refuses to record until then. The patient accepts the portal's terms once, at first sign-in, after choosing English, Bengali or Hindi. | Ishaan: "the concent thing … is not needed not like the doctor is gonna show evertime … keep this in terms and conditions as a tickbox during login or signup one time … can have a language option at the start", then "Both" (recording and sharing). A tickbox in the portal alone could not cover recording, which happens before a patient sees the portal, so the clinic's own acceptance is the basis for that. Invariant 5 rewritten. |
 | 20 Sep 2026 | `main` is the SaaS web version. `saas` was fast-forwarded into it and went live the same night. | Ishaan: "ye put into main … rn we are focussing on complete saas product web version. so that will be the main". |
+| 20 Sep 2026 | The clinic app carries no animation libraries at all; the website keeps its own. | `motion-lab` was the only thing importing `motion`, `gsap`, `lenis`, `three` and the two React-three packages, and nothing clinical may use 3D. They cost 177 MB in `node_modules` on every clinic computer and every build. |
 | 20 Sep 2026 | Follow-ups stay on the list for 60 days, leave it when the patient is back (a later visit, or put on the day's list) or the desk acts, and the reminder's template has only `{name}`, `{clinic}`, `{doctor}`, `{date}`. | A phone's lock screen shows the message to anyone; there is deliberately no way to put a diagnosis in it. WhatsApp through `wa.me` costs nothing and needs no account or API. |
 | Prototype era | The invariants in CLAUDE.md. | No clinical judgement. Audio deleted at signing. No training on audio. Consent enforced server-side. `draftJson` immutable. Backups via the SQLite backup API. No lock-in. |
 
@@ -720,13 +748,9 @@ and `--scope varaxis` reaches the projects (`demo`, `vxclinicos-app`, `scholar`,
 
 ## 9. Known loose ends
 
-- **Note editor labels are not tied to their fields** (`<label>` without `htmlFor`), so a
-  screen reader announces the boxes without their names. Worth fixing in one pass.
 - **Hand-written visits and the edit log:** before 18 Sep 2026, a note signed without an
   AI draft logged its fields as "corrections" against an empty draft. Only test data was
   affected (the online copy has no real records); older numbers may include them.
-- **Missing favicon:** the clinic app has none, so there is a harmless 404 in the browser
-  console.
 - **Delete list limit:** Clinic admin's delete list shows only the 50 most recent
   patients, the `searchPatients` limit.
 - **Setup is open until the first account exists.** Anyone who reaches the app before
@@ -945,6 +969,18 @@ and `--scope varaxis` reaches the projects (`demo`, `vxclinicos-app`, `scholar`,
     the patient chooses English, Bengali or Hindi on the portal's first screen and agrees
     to its terms once. `saas` was merged into `main` and went live; billing answered on
     the deployed app within minutes. 517 checks pass on Postgres, 337 on SQLite.
+  - Then, unattended overnight at Ishaan's asking ("proceed with further development,
+    optimisation, bug fixes, tests … work automatically"), each piece tested on both
+    databases and merged into `main` only once both runs were green:
+    - **Hardening and weight** (§3): the app's own headers, an icon, one query per list
+      instead of one per row, three indexes, labels tied to their fields, and the
+      animation libraries and `motion-lab` removed.
+    - **For the owner** (§3): the day in one message (#13), what the follow-up list is
+      worth (#11), Getting started (#34) and patients who came back (#14) on Clinic admin.
+    - **For the doctor** (§3): a patient's record opens with the last signed visit at a
+      glance (#24).
+    - Plain "this screen stopped" and "that page isn't here" pages, instead of a stack
+      trace in front of a patient.
 
 ### Where to pick up
 

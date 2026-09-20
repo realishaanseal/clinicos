@@ -256,7 +256,18 @@ const idOf = async (username) => {
   await expectStatus("Admin", mgr.token, "GET", "/api/backup/export", 200);
   await expectStatus("Admin", mgr.token, "GET", "/api/patients/seedpatient1/export", 200);
   await expectStatus("Admin", mgr.token, "POST", "/api/admin/settings", 200, { name: "Test Clinic Renamed", address: "1 Test Road", phone: "0000" });
-  await expectPage("Admin", mgr.token, "/admin", 200);
+  const adminPage = await expectPage("Admin", mgr.token, "/admin", 200);
+  check(
+    "Clinic admin lists what a new clinic still has to do, and what it has done",
+    adminPage.text.includes("Getting started") && adminPage.text.includes("Set the consultation fee") && adminPage.text.includes("done"),
+    adminPage.status
+  );
+  const missing = await call("GET", "/patients/no-such-patient", { token: doc2.token });
+  check(
+    "An address that leads nowhere says so plainly, and offers the way back",
+    missing.status === 404 && missing.text.includes("The address may be old") && missing.text.includes("Back to Today"),
+    missing.status
+  );
   await expectPage("Admin", mgr.token, "/admin/users", 200);
   await expectPage("Admin", mgr.token, "/admin/audit", 200);
   await expectPage("Admin", mgr.token, "/", "/admin");
