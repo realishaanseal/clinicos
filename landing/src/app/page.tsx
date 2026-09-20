@@ -301,6 +301,7 @@ export default function Page() {
                 <li><a href={CONTACT_FORM_URL}>Send us a message</a></li>
                 <li><a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a></li>
                 <li><a href="/privacy">Privacy</a></li>
+                <li><a href="/terms">Terms</a></li>
               </ul>
             </nav>
           </div>

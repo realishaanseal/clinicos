@@ -32,6 +32,8 @@ export default async function PatientsPage({
         <p className="sub">
           {patients.length} record{patients.length === 1 ? "" : "s"}
           {ONLINE ? "." : " on this machine."}
+          {!q && patients.length === 50 && " Showing the 50 most recently registered — search to find anyone else."}
+          {q && patients.length === 50 && " Showing the first 50 matches — narrow the search to find someone else."}
         </p>
       </div>
 

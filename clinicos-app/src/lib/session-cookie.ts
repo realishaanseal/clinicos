@@ -24,7 +24,13 @@ export const OPERATOR_COOKIE = "clinicos_operator";
 /** Reachable without signing in. Everything else needs a session. The
  *  platform console, the sync endpoints and the patient portal (/p) check
  *  their own credentials. */
-export const PUBLIC_PATHS = ["/login", "/setup", "/c", "/api/auth/login", "/api/setup", "/p", "/api/portal"];
+export const PUBLIC_PATHS = [
+  "/login", "/setup", "/c", "/api/auth/login", "/api/setup", "/p", "/api/portal",
+  // Says only that ClinicOS is up and its database answers: no record, no
+  // count, nothing about any clinic. Something has to be able to ask that
+  // without a password.
+  "/api/health",
+];
 
 /** The platform console: its own cookie, checked by its own pages. */
 export function isPlatformPath(pathname: string): boolean {

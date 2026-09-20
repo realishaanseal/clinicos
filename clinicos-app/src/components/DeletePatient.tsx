@@ -1,20 +1,50 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { IcTrash, IcAlert, IcDownload, IcCheck } from "./Icons";
 import { appPath } from "@/lib/base-path";
 import DeletePatientDialog, { type DeletablePatient, type DeletionResult } from "./DeletePatientDialog";
 
 /**
- * Clinic admin's list of every patient, each with Export and Delete. The
- * confirmation itself lives in DeletePatientDialog, shared with the patient
+ * Clinic admin's patients, each with Export and Delete. The list starts with
+ * the most recent; searching asks the server, because a clinic with thousands
+ * of records cannot be served by a fixed list and an erasure request names
+ * someone who may have been registered years ago.
+ *
+ * The confirmation itself lives in DeletePatientDialog, shared with the patient
  * list and a patient's own page.
  */
 export default function DeletePatient({ patients }: { patients: DeletablePatient[] }) {
   const router = useRouter();
   const [target, setTarget] = useState<DeletablePatient | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const [term, setTerm] = useState("");
+  const [found, setFound] = useState<DeletablePatient[] | null>(null);
+  const [searchError, setSearchError] = useState("");
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (timer.current) clearTimeout(timer.current);
+    const q = term.trim();
+    if (q.length < 2) {
+      setFound(null);
+      return;
+    }
+    timer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(appPath(`/api/admin/patients?q=${encodeURIComponent(q)}`), { cache: "no-store" });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Search failed");
+        setFound(data.patients);
+        setSearchError("");
+      } catch (e) {
+        setSearchError(e instanceof Error ? e.message : String(e));
+      }
+    }, 250);
+  }, [term]);
+
+  const shown = found ?? patients;
 
   function deleted(data: DeletionResult) {
     setDone(
@@ -51,11 +81,35 @@ export default function DeletePatient({ patients }: { patients: DeletablePatient
           </div>
         )}
 
-        {patients.length === 0 ? (
-          <p className="muted">No patients yet.</p>
+        <div className="field">
+          <label htmlFor="del-search">Find a patient</label>
+          <input
+            id="del-search"
+            type="search"
+            value={term}
+            onChange={(e) => setTerm(e.target.value)}
+            placeholder="Name, or the last digits of their phone number"
+            autoComplete="off"
+          />
+          <p className="hint">
+            {found
+              ? `${found.length} match${found.length === 1 ? "" : "es"}.`
+              : `Without a search this shows the ${patients.length} most recently registered.`}
+          </p>
+        </div>
+
+        {searchError && (
+          <div className="note err" role="alert">
+            <IcAlert size={16} />
+            <span>{searchError}</span>
+          </div>
+        )}
+
+        {shown.length === 0 ? (
+          <p className="muted">{found ? "Nobody matches that search." : "No patients yet."}</p>
         ) : (
           <div className="dellist">
-            {patients.map((p) => (
+            {shown.map((p) => (
               <div className="delrow" key={p.id}>
                 <div>
                   <strong>{p.name}</strong>

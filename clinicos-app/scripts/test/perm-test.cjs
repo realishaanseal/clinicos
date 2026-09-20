@@ -70,14 +70,20 @@ const idOf = async (username) => {
   }
 
   // ------------------------------------------------ 1. before anyone exists
-  let r = await call("GET", "/login");
+  let r = await call("GET", "/api/health");
+  check(
+    "Anyone can ask whether ClinicOS is up, and is told only that",
+    r.status === 200 && r.json?.ok === true && r.json.db === "ok" && Object.keys(r.json).sort().join(",") === "backend,commit,db,ms,ok",
+    JSON.stringify(r.json)
+  );
+  r = await call("GET", "/login");
   check("No accounts: /login → /setup", goesTo(r, "/setup"), `${r.status} ${r.location}`);
   r = await call("GET", "/");
   check("No session: / → /login", goesTo(r, "/login"), `${r.status} ${r.location}`);
 
   const everyApi = [
     ["GET", "/api/patients"], ["POST", "/api/patients"], ["POST", "/api/consults"],
-    ["GET", "/api/admin/terms"], ["POST", "/api/admin/terms"], ["POST", "/api/consults/seedconsult2/audio"],
+    ["GET", "/api/admin/terms"], ["POST", "/api/admin/terms"], ["GET", "/api/admin/patients"], ["POST", "/api/consults/seedconsult2/audio"],
     ["POST", "/api/consults/seedconsult2/audio/chunk"], ["POST", "/api/consults/seedconsult2/audio/finalize"],
     ["PATCH", "/api/consults/seedconsult2/draft"], ["POST", "/api/consults/seedconsult2/draft"],
     ["POST", "/api/consults/seedconsult2/note"], ["POST", "/api/consults/seedconsult2/transcribe"],
@@ -200,6 +206,7 @@ const idOf = async (username) => {
   await expectStatus("Doctor", doc2.token, "POST", "/api/admin/prescription", 403, { cardLanguage: "bn" });
   await expectStatus("Doctor", doc2.token, "GET", "/api/admin/sync", 403);
   await expectStatus("Doctor", doc2.token, "GET", "/api/bills", 200);
+  await expectStatus("Doctor", doc2.token, "GET", "/api/admin/patients", 403);
   await expectStatus("Doctor", doc2.token, "GET", "/api/followups", 200);
   await expectStatus("Doctor", doc2.token, "POST", "/api/bills/x/cancel", 403, { reason: "x", confirm: "CANCEL" });
   await expectStatus("Doctor", doc2.token, "POST", "/api/admin/billing", 403, { fee: "1" });
@@ -228,6 +235,7 @@ const idOf = async (username) => {
   await expectStatus("Staff", desk.token, "POST", "/api/consults/seedconsult1/share", 403, { consent: true });
   await expectStatus("Staff", desk.token, "GET", "/api/admin/devices", 403);
   await expectStatus("Staff", desk.token, "GET", "/api/bills", 200);
+  await expectStatus("Staff", desk.token, "GET", "/api/admin/patients", 403);
   await expectStatus("Staff", desk.token, "GET", "/api/followups", 200);
   await expectStatus("Staff", desk.token, "POST", "/api/bills/x/cancel", 403, { reason: "x", confirm: "CANCEL" });
   await expectStatus("Staff", desk.token, "POST", "/api/admin/billing", 403, { fee: "1" });
@@ -275,6 +283,13 @@ const idOf = async (username) => {
   await expectPage("Admin", mgr.token, "/consult/seedconsult1", "/admin");
   await expectPage("Admin", mgr.token, "/settings", "/admin");
   await expectStatus("Admin", mgr.token, "GET", "/api/bills", 200);
+  const adminFind = await expectStatus("Admin", mgr.token, "GET", "/api/admin/patients?q=Seed", 200);
+  check(
+    "Clinic admin can find any patient to export or delete, and is told nothing clinical about them",
+    Array.isArray(adminFind.json?.patients) && adminFind.json.patients.length > 0 &&
+      Object.keys(adminFind.json.patients[0]).sort().join(",") === "consultCount,id,name",
+    JSON.stringify(adminFind.json?.patients?.[0])
+  );
   await expectStatus("Admin", mgr.token, "GET", "/api/followups", 403);
   await expectPage("Admin", mgr.token, "/bills", 200);
   await expectPage("Admin", mgr.token, "/followups", "/admin");

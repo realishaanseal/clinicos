@@ -81,7 +81,10 @@ export default function Privacy() {
         </p>
 
         <h2>Changes</h2>
-        <p>When this page changes, the date at the top changes with it.</p>
+        <p>
+          When this page changes, the date at the top changes with it. What a clinic uses ClinicOS
+          under is on the <a href="/terms">terms page</a>.
+        </p>
       </article>
     </main>
   );

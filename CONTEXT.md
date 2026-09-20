@@ -68,8 +68,10 @@ they are history and can be deleted. Start new work on a fresh feature branch of
     and share previews all name `vxclinicos.vercel.app`.
   - The first address, `demo-ten-tau-97.vercel.app`, still works.
   - Sections: hero, problem, how it works, where the data lives, what is built,
-    product tour, who it is for, current status, get in touch. Also `/privacy`, a 404
-    page, generated icons and a share image.
+    product tour, who it is for, current status, get in touch. Also `/privacy`, `/terms`
+    (20 Sep 2026: what ClinicOS does and does not do, what a clinic undertakes, where
+    records are kept, leaving, paying — the clinic's undertakings word for word as in the
+    app), a 404 page, generated icons and a share image.
   - **The backdrop is the ClinicOS film:** Ishaan's own footage of glass lenses in
     green light, scrubbed forward as the page scrolls. Wide screens get it rotated a
     quarter-turn (a crop threw away two thirds of the frame); phones get the original
@@ -261,6 +263,10 @@ The clinic app also runs on the clinic computer, exactly as before. Start it wit
     how many have more than one. A count of what happened, not a rate ClinicOS claims.
   - **Last visit at a glance (#24)** on a patient's record, for the doctor: what it was,
     the medicines given then, the date they were asked back, and the warning signs given.
+  - **Clinic admin can find any patient** to export or delete, not only the 50 most
+    recently registered — an erasure request names someone registered years ago.
+  - **`/api/health`**, open on purpose and deliberately empty: whether ClinicOS is up,
+    whether its database answers, and which commit is running. For an uptime check.
 - **Hardening and weight** (20 Sep 2026):
   - The app sends its own headers everywhere: a content security policy that allows
     nothing off-origin, `X-Frame-Options: DENY`, `X-Robots-Tag: noindex`, and a
@@ -751,8 +757,6 @@ and `--scope varaxis` reaches the projects (`demo`, `vxclinicos-app`, `scholar`,
 - **Hand-written visits and the edit log:** before 18 Sep 2026, a note signed without an
   AI draft logged its fields as "corrections" against an empty draft. Only test data was
   affected (the online copy has no real records); older numbers may include them.
-- **Delete list limit:** Clinic admin's delete list shows only the 50 most recent
-  patients, the `searchPatients` limit.
 - **Setup is open until the first account exists.** Anyone who reaches the app before
   then could claim it, so run setup as soon as a clinic install starts.
 - **Promises on the website's privacy page:** no cookies, no analytics, no third-party
@@ -981,6 +985,9 @@ and `--scope varaxis` reaches the projects (`demo`, `vxclinicos-app`, `scholar`,
       glance (#24).
     - Plain "this screen stopped" and "that page isn't here" pages, instead of a stack
       trace in front of a patient.
+    - `/api/health` for an uptime check, Clinic admin able to find any patient to export
+      or delete, and a public **Terms** page on the website, in the same words the clinic
+      accepts inside the app.
 
 ### Where to pick up
 

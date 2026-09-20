@@ -238,7 +238,8 @@ clinicos-app/
   src/app/platform/       Varaxis's console: clinics, plans, pausing. Counts only, never records
   src/app/p/              the patient portal (online only): a patient's shared prescriptions
   src/app/api/            route handlers — every one starts with requireApiUser(), except
-                          /api/platform (requireApiOperator) and /api/sync (requireDevice)
+                          /api/platform (requireApiOperator), /api/sync (requireDevice) and
+                          /api/health, which is open and says only that ClinicOS is up
   scripts/reset-password.mjs   npm run reset-password -- <username> [clinic-id], at the laptop
   scripts/operator.mjs         npm run operator -- add|reset|deactivate: operator accounts, online
   scripts/dev-sandbox.mjs      npm run dev:sandbox — the app on :3002 against .sandbox/;
