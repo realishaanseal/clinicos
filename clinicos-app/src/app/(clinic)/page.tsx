@@ -1,12 +1,8 @@
 import {
   unfinishedConsults,
   recentConsults,
-  countEdits,
-  countSignedConsults,
-  countDraftedSignedConsults,
-  countPatients,
-  countConsultsToday,
-  minutesSaved,
+  clinicNumbers,
+  minutesSavedFrom,
   todaysQueue,
   takingsOn,
   type ClinicId,
@@ -86,12 +82,10 @@ export default async function Home() {
   const summary = await dayInOneMessage(user, queue);
   const consults = await recentConsults(user.clinicId, 20);
   const unfinished = await unfinishedConsults(user.clinicId);
-  const signed = await countSignedConsults(user.clinicId);
-  const drafted = await countDraftedSignedConsults(user.clinicId);
-  const edits = await countEdits(user.clinicId);
+  const numbers = await clinicNumbers(user.clinicId);
   // Per AI-drafted note: a note written by hand had no draft to correct.
-  const editsPerNote = drafted ? (edits / drafted).toFixed(1) : "—";
-  const saved = await minutesSaved(user.clinicId);
+  const editsPerNote = numbers.drafted ? (numbers.edits / numbers.drafted).toFixed(1) : "—";
+  const saved = minutesSavedFrom(numbers);
 
   return (
     <div className="page">
@@ -104,12 +98,12 @@ export default async function Home() {
       <div className="stats">
         <div className="stat hero">
           <div className="k">Consultations today</div>
-          <div className="v">{await countConsultsToday(user.clinicId)}</div>
-          <div className="n">{signed} signed all time</div>
+          <div className="v">{numbers.consultsToday}</div>
+          <div className="n">{numbers.signed} signed all time</div>
         </div>
         <div className="stat">
           <div className="k">Patients</div>
-          <div className="v">{await countPatients(user.clinicId)}</div>
+          <div className="v">{numbers.patients}</div>
           <div className="n">{ONLINE ? "in the online copy" : "on this machine"}</div>
         </div>
         <div className="stat">

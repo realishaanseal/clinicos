@@ -368,6 +368,47 @@ export function countEdits(clinicId: ClinicId, consultId?: string): Promise<numb
     : count(`SELECT CAST(COUNT(*) AS INTEGER) AS n FROM "Edit" WHERE "clinicId" = ?`, clinicId);
 }
 
+/**
+ * Every number Today and Clinic admin show, in three passes instead of six
+ * separate counts. On a clinic with five thousand patients that was the
+ * slowest thing on the screen a doctor opens most.
+ */
+export type ClinicNumbers = {
+  patients: number;
+  consults: number;
+  consultsToday: number;
+  signed: number;
+  /** Signed visits that began as an AI draft: what "time saved" counts. */
+  drafted: number;
+  edits: number;
+};
+
+export async function clinicNumbers(clinicId: ClinicId): Promise<ClinicNumbers> {
+  // The clinic's local day, not the server's: in India a UTC date files
+  // everything before 05:30 under yesterday.
+  const [start, end] = localDayBounds();
+  const c = await q().get<{ consults: number; consultsToday: number; signed: number; drafted: number }>(
+    `SELECT CAST(COUNT(*) AS INTEGER) AS consults,
+            CAST(COALESCE(SUM(CASE WHEN "createdAt" >= ? AND "createdAt" < ? THEN 1 ELSE 0 END), 0) AS INTEGER) AS "consultsToday",
+            CAST(COALESCE(SUM(CASE WHEN "signedAt" IS NOT NULL THEN 1 ELSE 0 END), 0) AS INTEGER) AS signed,
+            CAST(COALESCE(SUM(CASE WHEN "signedAt" IS NOT NULL AND "draftJson" IS NOT NULL THEN 1 ELSE 0 END), 0) AS INTEGER) AS drafted
+     FROM "Consult" WHERE "clinicId" = ?`,
+    start, end, clinicId
+  );
+  return {
+    patients: await countPatients(clinicId),
+    consults: c?.consults ?? 0,
+    consultsToday: c?.consultsToday ?? 0,
+    signed: c?.signed ?? 0,
+    drafted: c?.drafted ?? 0,
+    edits: await countEdits(clinicId),
+  };
+}
+
+/** Minutes of documentation saved, at a conservative 4 minutes per signed,
+ *  AI-drafted note (see minutesSaved). */
+export const minutesSavedFrom = (n: ClinicNumbers) => n.drafted * 4;
+
 export function countSignedConsults(clinicId: ClinicId): Promise<number> {
   return count(`SELECT CAST(COUNT(*) AS INTEGER) AS n FROM "Consult" WHERE "clinicId" = ? AND "signedAt" IS NOT NULL`, clinicId);
 }
@@ -522,12 +563,13 @@ export async function exportPatient(clinicId: ClinicId, id: string) {
   };
 }
 
-export async function databaseStats(clinicId: ClinicId) {
+export async function databaseStats(clinicId: ClinicId, numbers?: ClinicNumbers) {
+  const n = numbers ?? (await clinicNumbers(clinicId));
   return {
-    patients: await countPatients(clinicId),
-    consults: await count(`SELECT CAST(COUNT(*) AS INTEGER) AS n FROM "Consult" WHERE "clinicId" = ?`, clinicId),
-    signed: await countSignedConsults(clinicId),
-    edits: await countEdits(clinicId),
+    patients: n.patients,
+    consults: n.consults,
+    signed: n.signed,
+    edits: n.edits,
     path: BACKEND === "postgres" ? "Online database (Postgres, Mumbai)" : DB_PATH,
   };
 }
@@ -996,7 +1038,9 @@ export const RECALL_DAYS = 60;
 
 /** Due between fromDay and today, both the clinic's days, oldest first. "Back
  *  since" means a later visit was opened, or they were put on the day's list. */
-export function followUpsDue(clinicId: ClinicId, today: string, fromDay: string): Promise<FollowUpDue[]> {
+export const FOLLOW_UPS_SHOWN = 200;
+
+export function followUpsDue(clinicId: ClinicId, today: string, fromDay: string, limit = FOLLOW_UPS_SHOWN): Promise<FollowUpDue[]> {
   return q().all<FollowUpDue>(
     `SELECT c.id AS "consultId", c."patientId", p.name AS "patientName", p.phone AS "patientPhone",
             c."followUpOn", c."signedAt", d.name AS "doctorName"
@@ -1011,8 +1055,8 @@ export function followUpsDue(clinicId: ClinicId, today: string, fromDay: string)
        AND NOT EXISTS (SELECT 1 FROM "QueueEntry" qe
                        WHERE qe."clinicId" = c."clinicId" AND qe."patientId" = c."patientId"
                          AND qe."addedAt" > c."signedAt" AND qe.status <> 'left')
-     ORDER BY c."followUpOn", p.name`,
-    clinicId, today, fromDay
+     ORDER BY c."followUpOn", p.name LIMIT ?`,
+    clinicId, today, fromDay, limit
   );
 }
 

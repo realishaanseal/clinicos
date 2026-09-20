@@ -303,6 +303,10 @@ The clinic app also runs on the clinic computer, exactly as before. Start it wit
   - All passed on 20 September 2026: 517 checks on Postgres (PGlite), 337 on SQLite,
     on the Windows laptop.
   - Don't run it while `npm run dev` is running in that folder.
+- **Speed, as a clinic grows:** `cd clinicos-app && npm run bench` (5,000 patients,
+  ~10,000 visits, in `.bench/`; nothing of it touches `data/`). On the Windows laptop on
+  20 Sep 2026: Today 154 ms, Patients 50 ms, a patient's record 32 ms, Bills 33 ms,
+  Follow-ups 79 ms, Clinic admin 225 ms, the whole-clinic export 800 ms for 35 MB.
 - **Website:** `cd landing && npm run build`
   - Rebuilding the film needs the two AI tools, which are not in the repo; the
     download names and the command are in `landing/README.md` ("Rebuilding it").

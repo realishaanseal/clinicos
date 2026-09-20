@@ -528,6 +528,13 @@ drafting.
 
 ## Tooling
 
+**Speed.** `npm run bench` builds a throwaway clinic in `.bench/` — 5,000 patients and
+about 10,000 visits by default — starts the app against it and times the screens over
+HTTP. Run it after touching a query: nothing is fast because it is fast with twelve
+patients. Measured on the Windows laptop, 20 Sep 2026: Today 154 ms, Patients 50 ms, a
+patient's record 32 ms, Bills 33 ms, Follow-ups 79 ms, Clinic admin 225 ms, and the
+whole-clinic export 800 ms for 35 MB.
+
 **Tests.** `cd clinicos-app && npm run test:e2e` seeds a prototype-era database in
 `clinicos-app/.test-data/`, builds the app against it, starts it on port 3100 and runs
 the suites in `scripts/test/` over real HTTP: upgrade safety and the permission

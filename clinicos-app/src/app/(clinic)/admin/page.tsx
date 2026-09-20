@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import {
+  clinicNumbers,
   collectedSince,
   databaseStats,
   patientsWhoCameBack,
@@ -102,7 +103,8 @@ async function stepTimes(clinicId: ClinicId, sinceIso: string) {
 export default async function AdminPage() {
   const user = await requireUser("admin");
 
-  const stats = await databaseStats(user.clinicId);
+  const numbers = await clinicNumbers(user.clinicId);
+  const stats = await databaseStats(user.clinicId, numbers);
   const backups = await listBackups();
   const patients = await searchPatients(user.clinicId, "");
   const activePeople = (await listUsers(user.clinicId)).filter((u) => u.active).length;

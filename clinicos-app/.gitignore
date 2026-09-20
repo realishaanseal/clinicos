@@ -8,3 +8,6 @@ asr/.venv/
 asr/models/
 *.log
 .DS_Store
+
+# Throwaway database for npm run bench.
+.bench/
