@@ -21,7 +21,8 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
   try {
     const { buf, filename } = await readAudio(consult.audioPath);
-    const result = await getAsr().transcribe(buf, filename);
+    const asr = await getAsr(auth.user.clinicId);
+    const result = await asr.transcribe(buf, filename);
     await setTranscript(auth.user.clinicId, id, result.text, result.model, result.seconds);
     return NextResponse.json({ transcript: result.text, model: result.model, seconds: result.seconds });
   } catch (e) {

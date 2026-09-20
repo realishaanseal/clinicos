@@ -15,6 +15,7 @@ const WHAT: Record<string, string> = {
   user_update: "Changed a person's details or access",
   user_password_reset: "Reset a password",
   settings_update: "Changed clinic details",
+  ai_settings_update: "Changed the transcription or note-drafting service",
   consult_sign: "Signed a consultation",
   patient_delete: "Deleted a patient record",
   patient_export: "Exported a patient record",

@@ -290,6 +290,23 @@ The clinic app also runs on the clinic computer, exactly as before. Start it wit
     of them, which meant carrying the clinic's logo — up to 100 KB of data URL — on every
     render to read a number.
 
+- **The AI service, settable in the app** (20 Sep 2026, Ishaan asked for it), on Clinic
+  admin under **Transcription and note drafting**: whether each happens on this computer
+  or at a hosted service, and for a hosted one its address, model and API key, plus the
+  language spoken. **Test** sends a quarter-second of silence and a one-word question and
+  says in plain words what came back — so a wrong key is found before a doctor records two
+  minutes of a patient's time, not after.
+  - A key is write-only: it is never sent back to the browser, the screen shows only that
+    one is saved and its last four characters, and the activity log records that it
+    changed, never its value.
+  - Settings are `ai_`, not `clinic_`, so they never travel to a clinic computer: a clinic
+    computer transcribes and drafts on itself and must not be handed a hosted key.
+  - **Deliberately temporary.** The key is Varaxis's, one account serves every clinic, and
+    Vercel's encrypted environment keeps it out of the database that holds patient
+    records. §7 item 1 says what to delete once the environment variables are set for good.
+  - Verified on both databases, plus the new routes in the permission, tenancy and sync
+    suites; and end to end against a real OpenAI-compatible endpoint.
+
 ### Not built yet
 
 - Everything in Ishaan's order of work is built. What is left is his (§7) and the
@@ -627,12 +644,26 @@ the times are measured (§3). Cutting them further needs real consultations to m
    `first`: rename it and give it a proper ID from its page.
 1. **Transcription and note drafting online need a hosted AI service.** Create an
    account with an OpenAI-compatible provider that offers both speech-to-text and chat
-   (Groq is one with a free tier), create an API key, and add four variables to the
-   `vxclinicos-app` project (Settings → Environment Variables, Production and Preview):
-   `ASR_HTTP_URL`, `ASR_HTTP_KEY`, `LLM_OPENAI_URL`, `LLM_OPENAI_KEY`, plus
-   `ASR_HTTP_MODEL` and `LLM_OPENAI_MODEL` for the models it offers. Then redeploy.
-   Consultation audio and transcripts would go to that provider, possibly outside India:
-   check its terms say it does not keep or train on them (invariant 4).
+   (Groq is one with a free tier) and create an API key. Consultation audio and
+   transcripts would go to that provider, possibly outside India: check its terms say it
+   does not keep or train on them (invariant 4).
+
+   **Since 20 Sep 2026 there are two ways to put the key in**, and either works:
+
+   - **Clinic admin → Transcription and note drafting** (Ishaan asked for this on
+     20 Sep 2026, as a temporary window). Switch each to "by a hosted service", paste the
+     address, model and key, Save, then **Test** — it sends a quarter-second of silence
+     and a one-word question and says what came back. No redeploy. The key is written to
+     that clinic's `ai_` settings, never read back out, and never travels to a clinic
+     computer.
+   - **The `vxclinicos-app` project's environment** (Settings → Environment Variables,
+     Production and Preview): `ASR_HTTP_URL`, `ASR_HTTP_KEY`, `ASR_HTTP_MODEL`,
+     `LLM_OPENAI_URL`, `LLM_OPENAI_KEY`, `LLM_OPENAI_MODEL`, then redeploy. This is
+     where the key belongs for good: it is Varaxis's own key, one account serves every
+     clinic, and Vercel keeps it out of the database that holds patient records. Once it
+     is set here, **remove the temporary window** — `src/lib/ai-settings.ts`,
+     `src/app/api/admin/ai/`, `src/components/AiSettings.tsx` and the `<AiSettings />`
+     line in Clinic admin — and `getAsr`/`getLlm` go back to reading the environment alone.
 2. **Set up the online clinic** at https://vxclinicos.vercel.app/app with the setup code.
    The code is in `~/Desktop/Varaxis/ClinicOS-worktrees/SETUP_CODE-vxclinicos-app.txt` on
    the Mac (not in git). It only works until the first account exists.

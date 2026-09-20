@@ -3,7 +3,12 @@
  *
  * Default is Ollama on this machine — free, and the transcript never leaves.
  * "openai" points at any OpenAI-compatible /chat/completions endpoint.
+ *
+ * An admin can also set the hosted service from Clinic admin, which takes
+ * precedence over .env — see ai-settings.ts, which is temporary.
  */
+import { getAiConfig, type AiConfig } from "./ai-settings";
+import type { ClinicId } from "./db";
 import { ClinicalNote, EMPTY_NOTE } from "./types";
 
 export type NoteResult = {
@@ -67,9 +72,11 @@ export interface LlmProvider {
 }
 
 class Ollama implements LlmProvider {
+  constructor(private cfg: AiConfig["llm"]) {}
+
   async generateNote(transcript: string, context?: string): Promise<NoteResult> {
-    const url = process.env.LLM_OLLAMA_URL || "http://127.0.0.1:11434";
-    const model = process.env.LLM_OLLAMA_MODEL || "qwen2.5:7b-instruct";
+    const url = this.cfg.ollamaUrl;
+    const model = this.cfg.ollamaModel;
     const started = Date.now();
 
     let res: Response;
@@ -99,11 +106,11 @@ class Ollama implements LlmProvider {
 }
 
 class OpenAiCompatible implements LlmProvider {
+  constructor(private cfg: AiConfig["llm"]) {}
+
   async generateNote(transcript: string, context?: string): Promise<NoteResult> {
-    const url = process.env.LLM_OPENAI_URL;
-    const key = process.env.LLM_OPENAI_KEY;
-    const model = process.env.LLM_OPENAI_MODEL;
-    if (!url || !model) throw new Error("Note drafting isn't switched on here yet: no note-writing service is set up (LLM_OPENAI_URL, LLM_OPENAI_MODEL).");
+    const { url, key, model } = this.cfg;
+    if (!url || !model) throw new Error("Note drafting isn't switched on here yet: no note-writing service is set up. An admin can add it in Clinic admin.");
 
     const started = Date.now();
     const res = await fetch(url, {
@@ -125,8 +132,8 @@ class OpenAiCompatible implements LlmProvider {
     if (res.status === 401 || res.status === 403) {
       throw new Error(
         key
-          ? "The note-writing service turned down this copy of ClinicOS's key. Whoever set it up needs to check LLM_OPENAI_KEY."
-          : "Note drafting isn't switched on here yet: the note-writing service needs an API key (LLM_OPENAI_KEY)."
+          ? "The note-writing service turned down this copy of ClinicOS's key. Whoever set it up needs to check it in Clinic admin."
+          : "Note drafting isn't switched on here yet: the note-writing service needs an API key. An admin can add it in Clinic admin."
       );
     }
     if (!res.ok) throw new Error(`LLM error (${res.status}): ${await res.text()}`);
@@ -149,14 +156,17 @@ function buildUserPrompt(transcript: string, context?: string) {
     .join("\n");
 }
 
-export function getLlm(): LlmProvider {
-  const provider = (process.env.LLM_PROVIDER || "ollama").toLowerCase();
-  switch (provider) {
+export function llmFor(cfg: AiConfig["llm"]): LlmProvider {
+  switch (cfg.provider) {
     case "ollama":
-      return new Ollama();
+      return new Ollama(cfg);
     case "openai":
-      return new OpenAiCompatible();
+      return new OpenAiCompatible(cfg);
     default:
-      throw new Error(`Unknown LLM_PROVIDER "${provider}". Use "ollama" or "openai".`);
+      throw new Error(`Unknown note-writing service "${cfg.provider}". Use "ollama" or "openai".`);
   }
+}
+
+export async function getLlm(clinicId: ClinicId): Promise<LlmProvider> {
+  return llmFor((await getAiConfig(clinicId)).llm);
 }
