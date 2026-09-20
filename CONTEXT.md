@@ -38,6 +38,7 @@ It is framed differently for different audiences:
 | `landing/` | The public website (static Next.js), deployed to Vercel. See `landing/README.md`. Passes `/app` through to the clinic app. |
 | `docs/` | Launch plan, 37-item backlog, problem statement, discovery script, consent script, pilot agreement, website brief. |
 | `artifacts/` | Decks, the 61-section startup blueprint (.docx), trackers, briefs, prototype documentation PDF. |
+| `brand/` | Varaxis's official logo, light and dark. The source of truth — see `brand/README.md`. Nothing reads it yet. |
 | `CLAUDE.md` | Invariants, architecture, gotchas, house style — for every assistant. |
 | `CONTEXT.md` | This file. |
 | `AGENTS.md` | A pointer here, for assistants that look for that filename. |
