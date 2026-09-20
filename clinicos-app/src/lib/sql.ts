@@ -491,6 +491,13 @@ function openSqlite(): BetterSqlite3.Database {
     );
     CREATE INDEX IF NOT EXISTS idx_recall_consult ON Recall(clinicId, consultId);
     CREATE INDEX IF NOT EXISTS idx_consult_followup ON Consult(clinicId, followUpOn);
+
+    -- What the everyday screens ask for: a patient's visits in order (their
+    -- history, and "has this patient been back since?"), a patient's place on
+    -- any day's list, and a visit's corrections. Twin: migrations/pg/009_indexes.sql.
+    CREATE INDEX IF NOT EXISTS idx_consult_clinic_patient ON Consult(clinicId, patientId, createdAt);
+    CREATE INDEX IF NOT EXISTS idx_queue_clinic_patient ON QueueEntry(clinicId, patientId, addedAt);
+    CREATE INDEX IF NOT EXISTS idx_edit_clinic_consult ON Edit(clinicId, consultId);
   `);
 
   migrateSyncTracking(db, addColumn);

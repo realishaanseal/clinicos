@@ -93,10 +93,11 @@ export default function DeletePatientDialog({
             </div>
           )}
 
-          <label style={{ marginTop: 18 }}>
+          <label htmlFor="delete-typed" style={{ marginTop: 18 }}>
             Type <span className="typename">{patient.name}</span> to confirm
           </label>
           <input
+            id="delete-typed"
             value={typed}
             onChange={(e) => setTyped(e.target.value)}
             placeholder={patient.name}

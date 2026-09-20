@@ -48,17 +48,45 @@ export async function exportEverything(clinicId: ClinicId) {
     `SELECT * FROM "Patient" WHERE "clinicId" = ? ORDER BY "createdAt"`,
     clinicId
   );
+  // Five queries for the whole clinic, grouped here: a clinic with years of
+  // records must be able to take everything with it (invariant 8), and one
+  // query per visit would take minutes.
+  const consults = await q().all<Consult>(`SELECT * FROM "Consult" WHERE "clinicId" = ? ORDER BY "createdAt"`, clinicId);
+  const edits = await q().all<{ consultId: string; field: string; before: string; after: string; createdAt: string }>(
+    `SELECT "consultId", field, before, after, "createdAt" FROM "Edit" WHERE "clinicId" = ? ORDER BY "createdAt"`,
+    clinicId
+  );
+  const bills = await q().all<Bill>(`SELECT * FROM "Bill" WHERE "clinicId" = ? ORDER BY "createdAt"`, clinicId);
+  const recalls = await q().all<{ patientId: string; consultId: string; action: string; at: string }>(
+    `SELECT "patientId", "consultId", action, at FROM "Recall" WHERE "clinicId" = ? ORDER BY at`,
+    clinicId
+  );
+  const by = <T, K extends keyof T>(rows: T[], key: K) => {
+    const m = new Map<string, T[]>();
+    for (const r of rows) {
+      const k = String(r[key]);
+      (m.get(k) ?? m.set(k, []).get(k)!).push(r);
+    }
+    return m;
+  };
+  const editsOf = by(edits, "consultId");
+  const consultsOf = by(consults, "patientId");
+  const billsOf = by(bills, "patientId");
+  const recallsOf = by(recalls, "patientId");
+
   const out = [];
   for (const p of patients) {
-    const consults = await q().all<Consult>(
-      `SELECT * FROM "Consult" WHERE "clinicId" = ? AND "patientId" = ? ORDER BY "createdAt"`,
-      clinicId, p.id
-    );
-    const withEdits = [];
-    for (const c of consults) {
-      withEdits.push({ ...c, audioPath: undefined, edits: await editsFor(clinicId, c.id) });
-    }
-    out.push({ ...p, consults: withEdits, bills: exportBills(await billsForPatient(clinicId, p.id)), recalls: await recallsForPatient(clinicId, p.id) });
+    const withEdits = (consultsOf.get(p.id) ?? []).map((c) => ({
+      ...c,
+      audioPath: undefined,
+      edits: (editsOf.get(c.id) ?? []).map(({ consultId, ...e }) => (void consultId, e)),
+    }));
+    out.push({
+      ...p,
+      consults: withEdits,
+      bills: exportBills(billsOf.get(p.id) ?? []),
+      recalls: (recallsOf.get(p.id) ?? []).map(({ patientId, ...r }) => (void patientId, r)),
+    });
   }
   // Favourites are the doctors' own work, so they leave with the clinic too.
   const favourites = await q().all<{ doctor: string | null; name: string; noteJson: string }>(
@@ -226,27 +254,38 @@ export async function getConsultWithPatient(clinicId: ClinicId, id: string): Pro
   return { ...c, patient: p };
 }
 
-export async function recentConsults(clinicId: ClinicId, limit = 25): Promise<ConsultWithPatient[]> {
-  const rows = await q().all<Consult>(
-    `SELECT * FROM "Consult" WHERE "clinicId" = ? ORDER BY "createdAt" DESC LIMIT ?`,
-    clinicId, limit
-  );
-  const out: ConsultWithPatient[] = [];
-  for (const c of rows) {
-    const patient = await getPatient(clinicId, c.patientId);
-    if (patient) out.push({ ...c, patient });
+/** The patient's columns, joined to a consultation and renamed, so a list of
+ *  visits is one query rather than one query per row. */
+const PATIENT_JOIN = `p.id AS "p_id", p."clinicId" AS "p_clinicId", p.name AS "p_name", p.age AS "p_age", p.sex AS "p_sex",
+                      p.phone AS "p_phone", p."guardianName" AS "p_guardianName", p."createdAt" AS "p_createdAt"`;
+
+type JoinedRow = Consult & Record<string, unknown>;
+
+function withPatient(row: JoinedRow): ConsultWithPatient {
+  const consult: Record<string, unknown> = {};
+  const patient: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(row)) {
+    if (k.startsWith("p_")) patient[k.slice(2)] = v;
+    else consult[k] = v;
   }
-  return out;
+  return { ...(consult as Consult), patient: patient as unknown as Patient };
 }
 
-export async function consultsForPatient(clinicId: ClinicId, patientId: string): Promise<(Consult & { editCount: number })[]> {
-  const rows = await q().all<Consult>(
-    `SELECT * FROM "Consult" WHERE "clinicId" = ? AND "patientId" = ? ORDER BY "createdAt" DESC`,
+export async function recentConsults(clinicId: ClinicId, limit = 25): Promise<ConsultWithPatient[]> {
+  const rows = await q().all<JoinedRow>(
+    `SELECT c.*, ${PATIENT_JOIN} FROM "Consult" c JOIN "Patient" p ON p.id = c."patientId"
+     WHERE c."clinicId" = ? ORDER BY c."createdAt" DESC LIMIT ?`,
+    clinicId, limit
+  );
+  return rows.map(withPatient);
+}
+
+export function consultsForPatient(clinicId: ClinicId, patientId: string): Promise<(Consult & { editCount: number })[]> {
+  return q().all<Consult & { editCount: number }>(
+    `SELECT c.*, CAST((SELECT COUNT(*) FROM "Edit" e WHERE e."clinicId" = c."clinicId" AND e."consultId" = c.id) AS INTEGER) AS "editCount"
+     FROM "Consult" c WHERE c."clinicId" = ? AND c."patientId" = ? ORDER BY c."createdAt" DESC`,
     clinicId, patientId
   );
-  const out = [];
-  for (const c of rows) out.push({ ...c, editCount: await countEdits(clinicId, c.id) });
-  return out;
 }
 
 export function previousSignedConsults(clinicId: ClinicId, patientId: string, excludeId: string, limit = 3): Promise<Consult[]> {
@@ -522,26 +561,25 @@ export type UnfinishedConsult = ConsultWithPatient & { reason: string };
 /** Consultations that were started and never signed. Surfaced on Today so an
  *  interrupted visit cannot silently disappear. */
 export async function unfinishedConsults(clinicId: ClinicId): Promise<UnfinishedConsult[]> {
-  const rows = await q().all<Consult>(
-    `SELECT * FROM "Consult"
-     WHERE "clinicId" = ? AND "signedAt" IS NULL
-       AND ("audioPath" IS NOT NULL OR transcript IS NOT NULL
-            OR "workingJson" IS NOT NULL OR "draftJson" IS NOT NULL)
-     ORDER BY "createdAt" DESC LIMIT 20`,
+  const rows = await q().all<JoinedRow>(
+    `SELECT c.*, ${PATIENT_JOIN} FROM "Consult" c JOIN "Patient" p ON p.id = c."patientId"
+     WHERE c."clinicId" = ? AND c."signedAt" IS NULL
+       AND (c."audioPath" IS NOT NULL OR c.transcript IS NOT NULL
+            OR c."workingJson" IS NOT NULL OR c."draftJson" IS NOT NULL)
+     ORDER BY c."createdAt" DESC LIMIT 20`,
     clinicId
   );
 
   const out: UnfinishedConsult[] = [];
-  for (const c of rows) {
-    const patient = await getPatient(clinicId, c.patientId);
-    if (!patient) continue;
+  for (const row of rows) {
+    const c = withPatient(row);
     let reason = "Started but not signed";
     if (c.recordingStartedAt && !c.recordingEndedAt) reason = "Recording was interrupted";
     else if (c.workingJson) reason = "Unsigned note with your edits";
     else if (c.draftJson) reason = "Note drafted, not signed";
     else if (c.transcript) reason = "Transcribed, no note yet";
     else if (c.audioPath) reason = "Audio captured, not transcribed";
-    out.push({ ...c, patient, reason });
+    out.push({ ...c, reason });
   }
   return out;
 }

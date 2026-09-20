@@ -204,8 +204,9 @@ export default function BackupPanel({
           ) : (
             <>
               <div className="field">
-                <label>Backup file (.db)</label>
+                <label htmlFor="restore-file">Backup file (.db)</label>
                 <input
+                  id="restore-file"
                   ref={fileRef}
                   type="file"
                   accept=".db,application/x-sqlite3,application/octet-stream"
@@ -219,10 +220,11 @@ export default function BackupPanel({
               </div>
 
               <div className="field">
-                <label>
+                <label htmlFor="restore-typed">
                   Type <span className="typename">RESTORE</span> to confirm
                 </label>
                 <input
+                  id="restore-typed"
                   value={typed}
                   onChange={(e) => setTyped(e.target.value)}
                   autoComplete="off"

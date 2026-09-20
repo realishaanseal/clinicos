@@ -362,6 +362,7 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic, l
           </div>
           <div className="card-body">
             <textarea
+              aria-label="Transcript"
               value={transcript}
               onChange={(e) => setTranscript(e.target.value)}
               style={{ minHeight: 150 }}
@@ -546,15 +547,15 @@ function NoteEditor({
 
         {fields.map(([k, label]) => (
           <div className="field" key={k}>
-            <label>{label}</label>
-            <textarea value={String(note[k] ?? "")} onChange={(e) => set(k)(e.target.value)} />
+            <label htmlFor={`note-${k}`}>{label}</label>
+            <textarea id={`note-${k}`} value={String(note[k] ?? "")} onChange={(e) => set(k)(e.target.value)} />
           </div>
         ))}
 
         {lastVisit && <LastVisitStrip visit={lastVisit} onRepeat={repeatLast} />}
 
-        <label style={{ marginTop: 20 }}>Medications</label>
-        <div className="meds">
+        <span className="field-label" style={{ marginTop: 20 }} id="meds-label">Medications</span>
+        <div className="meds" role="group" aria-labelledby="meds-label">
           <div className="med-row hd">
             <span>Drug</span><span>Dose</span><span>Frequency</span><span>Duration</span><span>Instructions</span><span />
           </div>
@@ -565,11 +566,11 @@ function NoteEditor({
           )}
           {note.medications.map((m, i) => (
             <div className="med-row" key={i}>
-              <input value={m.name} onChange={(e) => setMed(i, "name", e.target.value)} placeholder="Drug name" />
-              <input value={m.dose} onChange={(e) => setMed(i, "dose", e.target.value)} placeholder="650mg" />
-              <input value={m.frequency} onChange={(e) => setMed(i, "frequency", e.target.value)} placeholder="TDS" />
-              <input value={m.duration} onChange={(e) => setMed(i, "duration", e.target.value)} placeholder="3 days" />
-              <input value={m.instructions} onChange={(e) => setMed(i, "instructions", e.target.value)} placeholder="After food" />
+              <input aria-label={`Medicine ${i + 1}: drug`} value={m.name} onChange={(e) => setMed(i, "name", e.target.value)} placeholder="Drug name" />
+              <input aria-label={`Medicine ${i + 1}: dose`} value={m.dose} onChange={(e) => setMed(i, "dose", e.target.value)} placeholder="650mg" />
+              <input aria-label={`Medicine ${i + 1}: frequency`} value={m.frequency} onChange={(e) => setMed(i, "frequency", e.target.value)} placeholder="TDS" />
+              <input aria-label={`Medicine ${i + 1}: duration`} value={m.duration} onChange={(e) => setMed(i, "duration", e.target.value)} placeholder="3 days" />
+              <input aria-label={`Medicine ${i + 1}: instructions`} value={m.instructions} onChange={(e) => setMed(i, "instructions", e.target.value)} placeholder="After food" />
               <button className="iconbtn" onClick={() => removeMed(i)} title="Remove" type="button">
                 <IcTrash size={15} />
               </button>
@@ -583,8 +584,9 @@ function NoteEditor({
 
         <div className="grid" style={{ marginTop: 22 }}>
           <div className="field">
-            <label>Investigations — one per line</label>
+            <label htmlFor="note-investigations">Investigations — one per line</label>
             <textarea
+              id="note-investigations"
               value={invText}
               onChange={(e) => {
                 setInvText(e.target.value);
@@ -593,8 +595,8 @@ function NoteEditor({
             />
           </div>
           <div className="field">
-            <label>Advice</label>
-            <textarea value={note.advice} onChange={(e) => set("advice")(e.target.value)} />
+            <label htmlFor="note-advice">Advice</label>
+            <textarea id="note-advice" value={note.advice} onChange={(e) => set("advice")(e.target.value)} />
           </div>
         </div>
 

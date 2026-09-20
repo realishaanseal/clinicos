@@ -20,18 +20,12 @@
     "check:paths": "node scripts/check-app-paths.mjs"
   },
   "dependencies": {
-    "@react-three/drei": "^10.7.8",
-    "@react-three/fiber": "^9.7.0",
     "better-sqlite3": "^13.0.3",
-    "gsap": "^3.15.0",
-    "lenis": "^1.3.26",
-    "motion": "^13.2.0",
     "next": "^15.1.0",
     "postgres": "^3.4.9",
     "qrcode-generator": "^2.0.4",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "three": "^0.186.0"
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
@@ -40,7 +34,6 @@
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "@types/three": "^0.185.4",
     "typescript": "^5.7.0"
   },
   "allowScripts": {

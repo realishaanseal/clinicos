@@ -36,7 +36,6 @@ It is framed differently for different audiences:
 |---|---|
 | `clinicos-app/` | The clinical app (Next.js 15). SQLite on a clinic computer; Postgres online at vxclinicos.vercel.app/app. `migrations/pg/` is its Postgres schema. |
 | `landing/` | The public website (static Next.js), deployed to Vercel. See `landing/README.md`. Passes `/app` through to the clinic app. |
-| `portal/` | Part C, the patient portal: so far only its database layer (Supabase migrations). |
 | `docs/` | Launch plan, 37-item backlog, problem statement, discovery script, consent script, pilot agreement, website brief. |
 | `artifacts/` | Decks, the 61-section startup blueprint (.docx), trackers, briefs, prototype documentation PDF. |
 | `CLAUDE.md` | Invariants, architecture, gotchas, house style — for every assistant. |
@@ -252,8 +251,8 @@ The clinic app also runs on the clinic computer, exactly as before. Start it wit
 
 - Everything in Ishaan's order of work is built. What is left is his (§7) and the
   interviews (CLAUDE.md, the gate).
-- `portal/` and its four Supabase tables are superseded by the portal inside the app;
-  nothing reads or writes them. Safe to delete later.
+- The old `portal/` folder was deleted on 20 Sep 2026: the portal lives inside the app.
+  Its four unused tables are still in the online database, read and written by nothing.
 
 ### How to verify
 
@@ -721,8 +720,6 @@ and `--scope varaxis` reaches the projects (`demo`, `vxclinicos-app`, `scholar`,
 
 ## 9. Known loose ends
 
-- **A stray tracked file:** `clinicos-app/.test-data 2/fingerprint.json`, a macOS
-  "duplicate folder" copy, is committed. Harmless; delete it in a tidy-up.
 - **Note editor labels are not tied to their fields** (`<label>` without `htmlFor`), so a
   screen reader announces the boxes without their names. Worth fixing in one pass.
 - **Hand-written visits and the edit log:** before 18 Sep 2026, a note signed without an
@@ -752,8 +749,6 @@ and `--scope varaxis` reaches the projects (`demo`, `vxclinicos-app`, `scholar`,
 - **`clinicos-varaxis.vercel.app` is dead** and returns `DEPLOYMENT_NOT_FOUND`. The site is
   `vxclinicos.vercel.app`. The very first address, `demo-ten-tau-97.vercel.app`, still
   serves. Anything printed, sent or linked before 17 Sep 2026 points at the dead one.
-- **`/app/motion-lab` is reachable online** by any signed-in account. It is a development
-  smoke test, safe to delete (CLAUDE.md, Animation dependencies).
 - **A local clicking-around database** lives at `clinicos-app/.local-test/clinicos.db`, a
   copy of `data/` taken through the SQLite backup API and migrated to the v0.5 schema. Start
   the app against it with

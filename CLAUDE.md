@@ -249,6 +249,13 @@ docs/                     launch plan, backlog, consent script, agreements
 artifacts/                decks, trackers, briefs
 ```
 
+**Headers.** The app sends its own on every page and route (`next.config.ts`): a
+content security policy that allows nothing off-origin, `X-Frame-Options: DENY`,
+`X-Robots-Tag: noindex` (a clinic's app is nobody's search result), and a permissions
+policy that closes the camera and location but leaves the microphone alone — closing it
+would stop consultations being recorded. The website leaves `/app` alone, so these are
+what a clinic gets.
+
 **Provider abstraction:** ASR and LLM both sit behind small interfaces so a hosted
 endpoint can replace the local one through env vars alone. Keep it that way — do
 not call Ollama or Whisper directly from a component or route.
@@ -549,10 +556,13 @@ belong only on marketing surfaces, behind `next/dynamic` with `ssr: false`.
 
 ### Animation dependencies
 
-`motion` (successor to Framer Motion), `gsap`, `lenis`, `three`,
-`@react-three/fiber`, `@react-three/drei`. `src/app/motion-lab/` is a development
-smoke test proving they are wired correctly — it is not a product surface and is
-safe to delete.
+**The clinic app has none, deliberately** (20 Sep 2026). `motion`, `gsap`, `lenis`,
+`three`, `@react-three/fiber` and `@react-three/drei` were removed with the
+`motion-lab` smoke test that was the only thing importing them: nothing clinical may
+use 3D, and they were 177 MB of `node_modules` on every clinic computer and every
+build. The website (`landing/`) keeps `motion`, `gsap` and `lenis` for its own
+surfaces. Add an animation library to `clinicos-app` only with a reason, and read
+`.claude/skills/clinicos-motion/` first.
 
 `globals.css` now carries motion tokens (`--dur-1/2/3`, `--ease-out`, `--ease-in`)
 and a global `prefers-reduced-motion` guard. The guard is a requirement, not a
