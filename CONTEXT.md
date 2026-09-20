@@ -172,14 +172,17 @@ The clinic app also runs on the clinic computer, exactly as before. Start it wit
     `npm run operator`) create a clinic with its plan and whether clinic computer sync is
     included, get its setup code, change its plan, give it its own web address, pause it.
     Counts only — it cannot open a record. A paused clinic's admins can still export.
+    The list says which clinics are stuck — no account yet, no visit yet, or not yet able
+    to record because nobody has accepted the terms — and reads every clinic in one query,
+    so it stays one screen at a hundred clinics as it was at two.
   - **Clinic computer sync**, the paid add-on: a clinic whose plan includes it connects
     its own computer (Clinic admin → ClinicOS online, with a key made online), and the
     two keep in step every minute while ClinicOS is open. A new computer can connect at
     setup instead. Recordings never travel; signing on either copy deletes the recording
     wherever it is. Deletions travel. Works offline and catches up.
-  - **Tests:** 352 checks pass on Postgres and 230 on SQLite, including the new tenancy
-    suite (67) and sync suite (59, with two clinic computers running beside the online
-    copy).
+  - **Tests:** the tenancy suite tries every route with another clinic's ids, and the
+    sync suite runs two clinic computers beside the online copy. Their current counts,
+    with everything else, are under "How to verify" below.
   - **Tooling:** `npm run dev:sandbox:pg` runs the online service locally on PGlite, with
     a sandbox operator.
 - **v0.5 Part C, the patient portal** (19 Sep 2026, branch `saas`), inside the online app
@@ -283,6 +286,9 @@ The clinic app also runs on the clinic computer, exactly as before. Start it wit
     stack trace in front of a patient.
   - Six animation libraries and the `motion-lab` smoke test that imported them are gone:
     177 MB less in `node_modules` on every clinic computer and every build.
+  - Screens ask for the settings they need by name. Today and Follow-ups were loading all
+    of them, which meant carrying the clinic's logo — up to 100 KB of data URL — on every
+    render to read a number.
 
 ### Not built yet
 
@@ -298,13 +304,13 @@ The clinic app also runs on the clinic computer, exactly as before. Start it wit
 - **Clinic app:** `cd clinicos-app && npm run test:e2e`
   - Builds the app and runs it on port 3100 against a throwaway seeded database in
     `clinicos-app/.test-data/` (git-ignored). It never uses `data/`.
-  - Suites, in order: upgrade safety and the permission matrix (137 checks), the day's
-    list and phone search (50), the doctor's speed features (51), prescription extras
-    (18), billing and follow-ups (61), reset script and restoring a pre-accounts backup
-    (14), many clinics (71, Postgres only), clinic computer sync (71, Postgres only),
+  - Suites, in order: upgrade safety and the permission matrix (144 checks), the day's
+    list and phone search (50), the doctor's speed features (55), prescription extras
+    (18), billing and follow-ups (70), reset script and restoring a pre-accounts backup
+    (14), many clinics (73, Postgres only), clinic computer sync (71, Postgres only),
     the patient portal (44, Postgres only). On SQLite the last three only check that
     their online parts are absent.
-  - All passed on 20 September 2026: 517 checks on Postgres (PGlite), 337 on SQLite,
+  - All passed on 20 September 2026: 539 checks on Postgres (PGlite), 357 on SQLite,
     on the Windows laptop.
   - Don't run it while `npm run dev` is running in that folder.
 - **Speed, as a clinic grows:** `cd clinicos-app && npm run bench` (5,000 patients,
@@ -996,6 +1002,19 @@ and `--scope varaxis` reaches the projects (`demo`, `vxclinicos-app`, `scholar`,
     - `/api/health` for an uptime check, Clinic admin able to find any patient to export
       or delete, and a public **Terms** page on the website, in the same words the clinic
       accepts inside the app.
+    - **`npm run bench`** (§3): a throwaway clinic of 5,000 patients and about 10,000
+      visits, timed over HTTP, because nothing is fast because it is fast with twelve
+      patients. It found Today counting the same day six times (219 ms → 154 ms) and
+      Today and Follow-ups loading the clinic's logo to read a fee.
+    - **Varaxis's own screen**: the console reads every clinic in one query instead of
+      five per clinic, and says which are stuck — no account yet, no visit yet, or not
+      yet able to record because nobody has accepted the terms.
+    - **Households by phone (#21, §3)** on a patient's record, the doctor's Today saying
+      when patients they asked back have not come, and the website saying what ClinicOS
+      does now — bills, receipts, follow-ups and the patient's copy.
+  - Where the night ended: 539 checks pass on Postgres and 357 on SQLite, the website
+    builds, and production is live on the commit that is in `main` (`/app/api/health`
+    answers with it).
 
 ### Where to pick up
 
