@@ -29,10 +29,13 @@
 /clinicos-app/.next
 /clinicos-app/node_modules
 
-# Internal, never part of either site
+# Internal, never part of either site. /brand is the company's asset store: a
+# site that needs the logo takes its own copy into landing/public/, because the
+# website's build only sees the landing directory.
 /portal
 /docs
 /artifacts
+/brand
 /_to_delete
 /Claude outputs
 /.claude
