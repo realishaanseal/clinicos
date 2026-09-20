@@ -1,4 +1,4 @@
-import { getPatient, consultsForPatient } from "@/lib/db";
+import { getPatient, consultsForPatient, samePhonePatients } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { parseNote } from "@/lib/types";
 import Link from "next/link";
@@ -22,6 +22,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
   // What the doctor needs before the patient sits down (backlog #24): what was
   // written at the last signed visit. Said as that, not as "current
   // medicines" — whether the patient is still taking them is not ours to claim.
+  const household = await samePhonePatients(user.clinicId, patient.id, patient.phone);
   const last = signed[0];
   const lastNote = last ? parseNote(last.finalJson) : null;
   const lastMeds = lastNote?.medications.filter((m) => m.name.trim()) ?? [];
@@ -74,6 +75,28 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
             {lastNote.returnIf?.trim() && (
               <p className="muted" style={{ margin: "6px 0 0" }}>Warning signs given: {lastNote.returnIf}</p>
             )}
+          </div>
+        </div>
+      )}
+
+      {household.length > 0 && (
+        <div className="card flush">
+          <div className="card-head">
+            <span className="title">Others on this phone number</span>
+            <span className="muted">a household usually shares one</span>
+          </div>
+          <div>
+            {household.map((h) => (
+              <Link key={h.id} href={`/patients/${h.id}`} className="delrow" style={{ color: "inherit" }}>
+                <div>
+                  <strong>{h.name}</strong>
+                  <span className="dim" style={{ marginLeft: 8, fontSize: 13 }}>
+                    {[h.age !== null ? `${h.age}` : null, h.sex].filter(Boolean).join(" · ")}
+                  </span>
+                </div>
+                <IcArrow size={14} />
+              </Link>
+            ))}
           </div>
         </div>
       )}

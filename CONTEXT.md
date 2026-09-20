@@ -263,6 +263,10 @@ The clinic app also runs on the clinic computer, exactly as before. Start it wit
     how many have more than one. A count of what happened, not a rate ClinicOS claims.
   - **Last visit at a glance (#24)** on a patient's record, for the doctor: what it was,
     the medicines given then, the date they were asked back, and the warning signs given.
+  - **Others on this phone number (#21, the cheap half)**: a household shares one number,
+    so a patient's record links to the others on it. No household table, nothing to keep
+    in step, and nothing claimed about who is related to whom.
+  - The doctor's Today says when patients they asked back have not come.
   - **Clinic admin can find any patient** to export or delete, not only the 50 most
     recently registered — an erasure request names someone registered years ago.
   - **`/api/health`**, open on purpose and deliberately empty: whether ClinicOS is up,

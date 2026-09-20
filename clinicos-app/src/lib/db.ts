@@ -232,6 +232,26 @@ export async function searchPatients(clinicId: ClinicId, qText: string): Promise
   );
 }
 
+/**
+ * Other patients on the same phone number (backlog #21, the cheap half).
+ *
+ * In Indian practice a household shares one number: the mother books, the
+ * children and the grandfather are on it too. This is the fact ClinicOS
+ * already has, said out loud — no household table, nothing to keep in step,
+ * and nothing claimed about who is related to whom.
+ */
+export function samePhonePatients(clinicId: ClinicId, patientId: string, phone: string | null): Promise<Patient[]> {
+  const digits = (phone ?? "").replace(/\D/g, "").slice(-10);
+  if (digits.length < 10) return Promise.resolve([]);
+  return q().all<Patient>(
+    `SELECT * FROM "Patient"
+     WHERE "clinicId" = ? AND id <> ?
+       AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(phone, ''), ' ', ''), '-', ''), '+', ''), '(', ''), ')', '') LIKE ?
+     ORDER BY LOWER(name) LIMIT 10`,
+    clinicId, patientId, `%${digits}`
+  );
+}
+
 // ---------------------------------------------------------------- consults
 export async function createConsult(clinicId: ClinicId, patientId: string, createdBy: string | null = null): Promise<Consult> {
   const id = newId();

@@ -239,6 +239,22 @@ const emptyNote = { chiefComplaint: "", history: "", examination: "", diagnosis:
   const card = r.text.slice(r.text.indexOf("How long each step takes"), r.text.indexOf(">Storage<"));
   check("…with nothing about any patient in it", card.length > 0 && !card.includes("Timed Patient") && !card.includes("Handwritten Patient"), card.length);
 
+  // ------------------------------------------------ a household on one phone (#21)
+  {
+    // The handwritten patient was registered with 9000011111; give a second
+    // patient the same number, typed the way a different person would type it.
+    let r = await call("POST", "/api/patients", { token: desk, body: { name: "Household Child", age: "6", phone: "+91 90000-11111" } });
+    const child = r.json?.patient?.id;
+    r = await call("GET", `/patients/${hwPatient}`, { token: owner });
+    check(
+      "A patient's record shows the others on the same phone number, however it was typed",
+      r.status === 200 && r.text.includes("Others on this phone number") && r.text.includes("Household Child"),
+      r.status
+    );
+    r = await call("GET", `/patients/${child}`, { token: owner });
+    check("…from either side", r.status === 200 && r.text.includes("Handwritten Patient"), r.status);
+  }
+
   // ------------------------------------------------ the last visit at a glance (#24)
   {
     const r = await call("GET", `/patients/${hwPatient}`, { token: owner });

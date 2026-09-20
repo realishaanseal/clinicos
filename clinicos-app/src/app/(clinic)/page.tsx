@@ -17,7 +17,7 @@ import FrontDeskToday from "@/components/FrontDeskToday";
 import WaitingPanel from "@/components/WaitingPanel";
 import Link from "next/link";
 import { parseNote } from "@/lib/types";
-import { IcDoc, IcArrow, IcAlert } from "@/components/Icons";
+import { IcDoc, IcArrow, IcAlert, IcCalendar } from "@/components/Icons";
 import { requireUser } from "@/lib/auth";
 import { clinicDayAt, fmt, fmtDate, fmtTime } from "@/lib/time";
 import { getBillingSettings, getClinicName } from "@/lib/clinic";
@@ -83,6 +83,7 @@ export default async function Home() {
   const consults = await recentConsults(user.clinicId, 20);
   const unfinished = await unfinishedConsults(user.clinicId);
   const numbers = await clinicNumbers(user.clinicId);
+  const dueNow = (await followUpsDue(user.clinicId, localDay(), localDay(clinicDayAt(-RECALL_DAYS)))).length;
   // Per AI-drafted note: a note written by hand had no draft to correct.
   const editsPerNote = numbers.drafted ? (numbers.edits / numbers.drafted).toFixed(1) : "—";
   const saved = minutesSavedFrom(numbers);
@@ -122,6 +123,16 @@ export default async function Home() {
       </div>
 
       <WaitingPanel initial={queue} doctorId={user.id} />
+
+      {dueNow > 0 && (
+        <div className="note info" role="note">
+          <IcCalendar size={17} />
+          <span>
+            {dueNow} patient{dueNow === 1 ? " you asked" : "s you asked"} back {dueNow === 1 ? "has" : "have"} not been
+            in. <Link href="/followups">Open Follow-ups →</Link>
+          </span>
+        </div>
+      )}
 
       {unfinished.length > 0 && (
         <div className="card flush resume">
