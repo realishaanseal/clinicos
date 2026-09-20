@@ -1512,6 +1512,17 @@ export async function getSettings(clinicId: ClinicId): Promise<Record<string, st
   return Object.fromEntries(rows.map((r) => [r.key, r.value]));
 }
 
+/** A few settings by name, without loading the rest: the clinic's logo is a
+ *  data URL of up to 100 KB, and Today has no use for it. */
+export async function getSomeSettings(clinicId: ClinicId, keys: string[]): Promise<Record<string, string>> {
+  if (!keys.length) return {};
+  const rows = await q().all<{ key: string; value: string }>(
+    `SELECT key, value FROM "ClinicSetting" WHERE "clinicId" = ? AND key IN (${keys.map(() => "?").join(", ")})`,
+    clinicId, ...keys
+  );
+  return Object.fromEntries(rows.map((r) => [r.key, r.value]));
+}
+
 /** One setting, without loading the rest (a clinic's logo is large). */
 export async function getSetting(clinicId: ClinicId, key: string): Promise<string | undefined> {
   return (await q().get<{ value: string }>(

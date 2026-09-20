@@ -1,4 +1,4 @@
-import { FIRST_CLINIC_ID, getSetting, getSettings, recordAudit, setConsent, setSettings, type ClinicId } from "./db";
+import { FIRST_CLINIC_ID, getSetting, getSettings, getSomeSettings, recordAudit, setConsent, setSettings, type ClinicId } from "./db";
 import { parseCardLanguage, type CardLanguage } from "./rx-card";
 import { CLINIC_TERMS_VERSION, parseClinicTerms, termsInForce, type ClinicTerms } from "./terms";
 
@@ -46,7 +46,9 @@ export async function getClinicName(clinicId: ClinicId): Promise<string> {
 export async function getBillingSettings(
   clinicId: ClinicId
 ): Promise<{ feePaise: number | null; recallMessage: string; ownerPhone: string }> {
-  const s = await getSettings(clinicId);
+  // Named keys only: getSettings would carry the clinic's logo, up to 100 KB
+  // of data URL, into every Today and Follow-ups render.
+  const s = await getSomeSettings(clinicId, ["clinic_fee", "clinic_recall_message", "clinic_owner_phone"]);
   const fee = Number(s.clinic_fee || "");
   return {
     feePaise: Number.isInteger(fee) && fee > 0 ? fee : null,

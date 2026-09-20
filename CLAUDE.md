@@ -453,6 +453,10 @@ is never the control:
 - **`next build` collects pages in parallel workers, each running the SQLite migrations.**
   Every statement in `openSqlite()` must be safe to run twice at once: `IF NOT EXISTS`,
   `ON CONFLICT DO NOTHING`, and updates that match nothing the second time.
+- **React splits adjacent JSX text in the rendered HTML.** `{n} × {formatPaise(fee)}` is
+  three text nodes, and the HTML between them carries `<!-- -->`, so a test looking for
+  "1 × ₹300" finds nothing. Build the sentence in one expression — `` {`${n} × ${fee}`} ``
+  — when a test, or anything else, has to read it back.
 - **Tombstone ids include the clinic** (`<clinicId>:<table>:<rowId>`). Without it, one
   clinic's computer could record a deletion under another clinic's row id and stand in
   the way of that clinic's real deletion reaching its computers.
