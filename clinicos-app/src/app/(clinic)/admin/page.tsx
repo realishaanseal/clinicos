@@ -30,6 +30,8 @@ import DeletePatient from "@/components/DeletePatient";
 import ClinicSettingsForm from "@/components/ClinicSettingsForm";
 import PrescriptionSettings from "@/components/PrescriptionSettings";
 import BillingSettings from "@/components/BillingSettings";
+import AiSettings from "@/components/AiSettings";
+import { getAiConfigView } from "@/lib/ai-settings";
 import GettingStarted, { type Step } from "@/components/GettingStarted";
 import { IcArrow, IcShield } from "@/components/Icons";
 import { ONLINE } from "@/lib/deployment";
@@ -113,6 +115,8 @@ export default async function AdminPage() {
   const clinic = await getClinic(user.clinicId);
   const billing = await getBillingSettings(user.clinicId);
   const terms = await getClinicTerms(user.clinicId);
+  // Temporary: the AI service is normally set by Varaxis outside the app.
+  const ai = await getAiConfigView(user.clinicId);
   const collected = await collectedByDay(user.clinicId);
   const cameBack = await patientsWhoCameBack(user.clinicId);
   const tenant = MULTI_CLINIC ? await getTenant(user.clinicId) : undefined;
@@ -211,6 +215,8 @@ export default async function AdminPage() {
       <PrescriptionSettings logo={clinic.logo} cardLanguage={clinic.cardLanguage} />
 
       <BillingSettings feePaise={billing.feePaise} recallMessage={billing.recallMessage} ownerPhone={billing.ownerPhone} />
+
+      <AiSettings initial={ai} />
 
       <div className="card flush">
         <div className="card-head">

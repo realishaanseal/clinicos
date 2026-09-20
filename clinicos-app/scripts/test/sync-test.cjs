@@ -186,6 +186,12 @@ const note = (over = {}) => ({
   const p3 = r.json?.patient?.id;
   check("…and the online desk, a moment later, gives token 2 too", r.status === 200 && r.json.queue?.token === 2, JSON.stringify(r.json));
   await call(CLOUD, "POST", "/api/admin/settings", { jar: O, body: { name: "Mitra Clinic", address: "12 Station Road, Krishnapur", phone: "03472 000000" } });
+  // The hosted AI service is set online. It must stay there: a clinic computer
+  // transcribes on itself and must never be handed a hosted service's key.
+  await call(CLOUD, "POST", "/api/admin/ai", {
+    jar: O,
+    body: { asrProvider: "http", asrUrl: "https://example.invalid/v1/audio/transcriptions", asrModel: "whisper-synccheck", asrKey: "sk-synccheck-secret" },
+  });
 
   r = await call(pc1.base, "POST", "/api/admin/sync/run", { jar: L });
   check("The clinic computer syncs", r.status === 200, JSON.stringify(r.json));
@@ -201,6 +207,8 @@ const note = (over = {}) => ({
     localQueue = queue;
     const addr = db.get(`SELECT value FROM ClinicSetting WHERE key = 'clinic_address'`);
     check("Clinic details changed online arrive", addr?.value === "12 Station Road, Krishnapur", addr?.value);
+    const ai = db.all(`SELECT key, value FROM ClinicSetting WHERE key LIKE 'ai@_%' ESCAPE '@'`);
+    check("The hosted AI service set online never reaches the clinic computer", ai.length === 0, JSON.stringify(ai));
     const others = db.get(`SELECT CAST(COUNT(*) AS INTEGER) AS n FROM Patient WHERE name LIKE '%Tenantcheck%'`).n;
     check("Nothing from any other clinic reaches the clinic computer", others === 0, others);
     db.close();

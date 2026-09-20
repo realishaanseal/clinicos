@@ -99,6 +99,7 @@ const idOf = async (username) => {
     ["GET", "/api/admin/devices"], ["POST", "/api/admin/devices"], ["DELETE", "/api/admin/devices/x"],
     ["GET", "/api/bills"], ["POST", "/api/bills"], ["GET", "/api/bills/x"], ["POST", "/api/bills/x/pay"],
     ["POST", "/api/bills/x/cancel"], ["GET", "/api/bills/patients"], ["POST", "/api/admin/billing"],
+    ["POST", "/api/admin/ai"], ["POST", "/api/admin/ai/test"],
     ["GET", "/api/followups"], ["POST", "/api/followups/x"],
   ];
   const not401 = [];
@@ -210,6 +211,8 @@ const idOf = async (username) => {
   await expectStatus("Doctor", doc2.token, "GET", "/api/followups", 200);
   await expectStatus("Doctor", doc2.token, "POST", "/api/bills/x/cancel", 403, { reason: "x", confirm: "CANCEL" });
   await expectStatus("Doctor", doc2.token, "POST", "/api/admin/billing", 403, { fee: "1" });
+  await expectStatus("Doctor", doc2.token, "POST", "/api/admin/ai", 403, { asrProvider: "http" });
+  await expectStatus("Doctor", doc2.token, "POST", "/api/admin/ai/test", 403);
   await expectPage("Doctor", doc2.token, "/bills", 200);
   await expectPage("Doctor", doc2.token, "/", 200);
   await expectPage("Doctor", doc2.token, "/consult/seedconsult1", 200);
@@ -234,6 +237,8 @@ const idOf = async (username) => {
   await expectStatus("Staff", desk.token, "DELETE", "/api/admin/prescription/logo", 403);
   await expectStatus("Staff", desk.token, "POST", "/api/consults/seedconsult1/share", 403, { consent: true });
   await expectStatus("Staff", desk.token, "GET", "/api/admin/devices", 403);
+  await expectStatus("Staff", desk.token, "POST", "/api/admin/ai", 403, { llmKey: "sk-hijack" });
+  await expectStatus("Staff", desk.token, "POST", "/api/admin/ai/test", 403);
   await expectStatus("Staff", desk.token, "GET", "/api/bills", 200);
   await expectStatus("Staff", desk.token, "GET", "/api/admin/patients", 403);
   await expectStatus("Staff", desk.token, "GET", "/api/followups", 200);

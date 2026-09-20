@@ -6,7 +6,11 @@
  * that lets you honestly read the patient consent script as written.
  *
  * Swap providers by changing ASR_PROVIDER in .env. Nothing else changes.
+ * An admin can also set the hosted service from Clinic admin, which takes
+ * precedence over .env — see ai-settings.ts, which is temporary.
  */
+import { getAiConfig, type AiConfig } from "./ai-settings";
+import type { ClinicId } from "./db";
 
 export type TranscriptionResult = {
   text: string;
@@ -20,12 +24,13 @@ export interface AsrProvider {
 }
 
 class LocalWhisper implements AsrProvider {
+  constructor(private cfg: AiConfig["asr"]) {}
+
   async transcribe(audio: Buffer, filename: string): Promise<TranscriptionResult> {
-    const url = process.env.ASR_LOCAL_URL || "http://127.0.0.1:8756";
+    const url = this.cfg.localUrl;
     const form = new FormData();
     form.append("file", new Blob([new Uint8Array(audio)]), filename);
-    const lang = process.env.ASR_LANGUAGE?.trim();
-    if (lang) form.append("language", lang);
+    if (this.cfg.language) form.append("language", this.cfg.language);
 
     const started = Date.now();
     let res: Response;
@@ -48,18 +53,17 @@ class LocalWhisper implements AsrProvider {
 }
 
 class HttpWhisper implements AsrProvider {
+  constructor(private cfg: AiConfig["asr"]) {}
+
   async transcribe(audio: Buffer, filename: string): Promise<TranscriptionResult> {
-    const url = process.env.ASR_HTTP_URL;
-    const key = process.env.ASR_HTTP_KEY;
-    const model = process.env.ASR_HTTP_MODEL || "whisper-1";
+    const { url, key, model, language } = this.cfg;
     // Read by a doctor: say what is missing, not which variable.
-    if (!url) throw new Error("Transcription isn't switched on here yet: no transcription service is set up (ASR_HTTP_URL).");
+    if (!url) throw new Error("Transcription isn't switched on here yet: no transcription service is set up. An admin can add it in Clinic admin.");
 
     const form = new FormData();
     form.append("file", new Blob([new Uint8Array(audio)]), filename);
     form.append("model", model);
-    const lang = process.env.ASR_LANGUAGE?.trim();
-    if (lang) form.append("language", lang);
+    if (language) form.append("language", language);
 
     const started = Date.now();
     const res = await fetch(url, {
@@ -71,8 +75,8 @@ class HttpWhisper implements AsrProvider {
       // Seen by a doctor, so it says what is wrong rather than quoting the service.
       throw new Error(
         key
-          ? "The transcription service turned down this copy of ClinicOS's key. Whoever set it up needs to check ASR_HTTP_KEY."
-          : "Transcription isn't switched on here yet: the transcription service needs an API key (ASR_HTTP_KEY)."
+          ? "The transcription service turned down this copy of ClinicOS's key. Whoever set it up needs to check it in Clinic admin."
+          : "Transcription isn't switched on here yet: the transcription service needs an API key. An admin can add it in Clinic admin."
       );
     }
     if (!res.ok) throw new Error(`Transcription failed (${res.status}): ${await res.text()}`);
@@ -85,14 +89,17 @@ class HttpWhisper implements AsrProvider {
   }
 }
 
-export function getAsr(): AsrProvider {
-  const provider = (process.env.ASR_PROVIDER || "local").toLowerCase();
-  switch (provider) {
+export function asrFor(cfg: AiConfig["asr"]): AsrProvider {
+  switch (cfg.provider) {
     case "local":
-      return new LocalWhisper();
+      return new LocalWhisper(cfg);
     case "http":
-      return new HttpWhisper();
+      return new HttpWhisper(cfg);
     default:
-      throw new Error(`Unknown ASR_PROVIDER "${provider}". Use "local" or "http".`);
+      throw new Error(`Unknown transcription service "${cfg.provider}". Use "local" or "http".`);
   }
+}
+
+export async function getAsr(clinicId: ClinicId): Promise<AsrProvider> {
+  return asrFor((await getAiConfig(clinicId)).asr);
 }

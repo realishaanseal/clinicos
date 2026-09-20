@@ -151,7 +151,7 @@ variables on that project, never a code branch:
 | `NEXT_PUBLIC_CLINIC_TIMEZONE` | `Asia/Kolkata` | "today" and every time on screen (Vercel runs on UTC) |
 | `NEXT_PUBLIC_CLINICOS_ONLINE` | `1` | wording only: no "running locally" |
 | `NEXT_PUBLIC_CLINICOS_PROTOTYPE` | unset (banner on) | `0` removes the made-up-patients banner — Ishaan's decision, once Part D is done (invariant 2) |
-| `ASR_PROVIDER` / `LLM_PROVIDER` | `http` / `openai` | hosted AI; needs URLs, models and keys |
+| `ASR_PROVIDER` / `LLM_PROVIDER` | `http` / `openai` | hosted AI; needs URLs, models and keys. A clinic admin can also set these in Clinic admin, which wins over the environment — temporary, see `ai-settings.ts` |
 | `PORTAL_ENCRYPTION_KEY` / `PORTAL_HMAC_KEY` | from `npm run portal:keys` | the patient portal; set once — changing them loses what was shared |
 
 Schema changes for the online copy are numbered files in
@@ -202,6 +202,8 @@ clinicos-app/
     asr.ts           speech-to-text provider interface (local | http)
     llm.ts           note generation provider interface (ollama | openai)
                      SYSTEM_PROMPT lives here — the clinical safety text
+    ai-settings.ts   TEMPORARY: the AI service set from Clinic admin, over .env.
+                     ai_ keys, so they never travel to a clinic computer
     types.ts         ClinicalNote shape and parseNote()
     terms.ts         the clinic's terms (what lets it record) and the patient portal's, in 3 languages
     portal-words.ts  every word of the patient portal in English, Bengali and Hindi

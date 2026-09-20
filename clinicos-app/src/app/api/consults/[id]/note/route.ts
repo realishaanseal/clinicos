@@ -33,7 +33,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .join("\n");
 
   try {
-    const result = await getLlm().generateNote(transcript, context || undefined);
+    const llm = await getLlm(auth.user.clinicId);
+    const result = await llm.generateNote(transcript, context || undefined);
     await setDraft(auth.user.clinicId, id, transcript, JSON.stringify(result.note), result.model, result.seconds);
     return NextResponse.json({ note: result.note, model: result.model, seconds: result.seconds });
   } catch (e) {

@@ -254,6 +254,18 @@ const done = () => {
   r = await call("GET", "/admin", { jar: a });
   check("Changing B's clinic details leaves A's alone", r.status === 200 && r.text.includes("Sharma Clinic") && !r.text.includes("Roy Clinic Renamed"), r.status);
   check("A's Clinic admin shows the clinic's own address", r.text.includes("/c/sharma"), r.status);
+  // The AI service is set per clinic (a temporary window in Clinic admin), and
+  // its key must never come back out of the app on any clinic's screen.
+  await call("POST", "/api/admin/ai", {
+    jar: b,
+    body: { asrProvider: "http", asrUrl: "https://example.invalid/v1/audio/transcriptions", asrModel: "whisper-tenantcheck", asrKey: "sk-tenantcheck-secret" },
+  });
+  r = await call("GET", "/admin", { jar: a });
+  check("B's AI service does not reach A's Clinic admin", r.status === 200 && !r.text.includes("whisper-tenantcheck"), r.status);
+  r = await call("GET", "/admin", { jar: b });
+  check("…and B's own screen never shows the key it saved", r.status === 200 && r.text.includes("whisper-tenantcheck") && !r.text.includes("sk-tenantcheck-secret"), r.status);
+  r = await call("GET", "/admin/audit", { jar: b });
+  check("…and the activity log records the change without the key", r.text.includes("transcription key set") && !r.text.includes("sk-tenantcheck-secret"), r.status);
   check("…and not the first clinic's fallback address from the server's settings", !r.text.includes("Testville"), r.status);
   r = await call("POST", `/api/queue/${aEntry}/start`, { jar: a });
   check("A's own doctor can still call A's patient in", r.status === 200 && r.json?.consultId, JSON.stringify(r.json));
