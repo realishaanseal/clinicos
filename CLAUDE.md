@@ -207,6 +207,7 @@ clinicos-app/
     portal-words.ts  every word of the patient portal in English, Bengali and Hindi
     money.ts         bills in whole paise: parsing rupees, ₹ with Indian grouping, bill lines
     recall.ts        the follow-up reminder: its template and the wa.me link the desk taps
+    day-summary.ts   the day in one message for the owner: counts and money, never a patient
     clinic.ts        clinic identity: ClinicSetting first, .env as fallback (first clinic only)
     useRecorder.ts   streams 5-second audio chunks to disk while recording
     useAutosave.ts   debounced server save + localStorage mirror
@@ -220,6 +221,7 @@ clinicos-app/
     BillsDesk.tsx         bills: make one, take payment, cancel (typed CANCEL)
     Receipt.tsx           the printed receipt: nothing clinical on it
     FollowUps.tsx         patients asked back and not yet back; Message on WhatsApp
+    DaySummary.tsx        the day in one message, shown before it is sent
     WaitingPanel.tsx      the doctor's "Waiting now" and Start visit
     Favourites.tsx        the doctor's own saved prescriptions, in the note editor
     QuickSearch.tsx       Ctrl+K / ⌘K search from any screen (a native <dialog>)
@@ -340,6 +342,12 @@ no two copies can print the same number. A bill is never edited or deleted, only
 cancelled: `admin`, a reason, and typed `CANCEL`. The reason stays on the bill, not in
 the activity log, because it is free text and could name the patient. In sync, a payment or
 a cancellation recorded on either copy stands (`mergeBill()` in `sync.ts`).
+
+**What goes to the owner over WhatsApp** — the day's summary (#13) and the follow-up
+reminders (#10) — is counts, money and one patient's name at most, never a diagnosis, and
+ClinicOS never sends it: a `wa.me` link opens WhatsApp with the words in it, and a person
+presses send. What the follow-up list is worth (#11) is the clinic's own fee times the
+people on it, labelled as that arithmetic and never as a forecast.
 
 **A follow-up date is the doctor's.** `followUpOn` on the note is never filled by the AI
 (`llm.ts`), is not a correction, and is not part of a favourite. Signing copies it to

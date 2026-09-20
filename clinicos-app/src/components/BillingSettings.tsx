@@ -11,9 +11,18 @@ import { IcAlert, IcCheck } from "./Icons";
  * Clinic admin: the consultation fee that starts every new bill (#12), and the
  * words of the follow-up reminder sent on WhatsApp (#10).
  */
-export default function BillingSettings({ feePaise, recallMessage }: { feePaise: number | null; recallMessage: string }) {
+export default function BillingSettings({
+  feePaise,
+  recallMessage,
+  ownerPhone,
+}: {
+  feePaise: number | null;
+  recallMessage: string;
+  ownerPhone: string;
+}) {
   const router = useRouter();
   const [fee, setFee] = useState(feePaise ? paiseToInput(feePaise) : "");
+  const [phone, setPhone] = useState(ownerPhone);
   const [message, setMessage] = useState(recallMessage || DEFAULT_RECALL_MESSAGE);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -29,7 +38,7 @@ export default function BillingSettings({ feePaise, recallMessage }: { feePaise:
         headers: { "Content-Type": "application/json" },
         // The default is stored as nothing, so a better default in a later
         // version of ClinicOS reaches clinics that never changed it.
-        body: JSON.stringify({ fee, recallMessage: message.trim() === DEFAULT_RECALL_MESSAGE ? "" : message }),
+        body: JSON.stringify({ fee, ownerPhone: phone, recallMessage: message.trim() === DEFAULT_RECALL_MESSAGE ? "" : message }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "That didn't work. Try again.");
@@ -72,6 +81,22 @@ export default function BillingSettings({ feePaise, recallMessage }: { feePaise:
           />
           <p className="hint">Every new bill starts with a “Consultation” line at this amount. The desk can change it.</p>
         </div>
+        <div className="field">
+          <label htmlFor="owner-phone">Day-end summary goes to (WhatsApp)</label>
+          <input
+            id="owner-phone"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            inputMode="tel"
+            placeholder="e.g. 98300 12345"
+            style={{ maxWidth: 260 }}
+          />
+          <p className="hint">
+            Today has a one-message summary of the day — seen, collected, owed, follow-ups due tomorrow. Leave this
+            empty and WhatsApp asks which chat to send it to.
+          </p>
+        </div>
+
         <div className="field">
           <label htmlFor="recall-message">Follow-up reminder on WhatsApp</label>
           <textarea

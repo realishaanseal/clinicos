@@ -59,3 +59,10 @@ export function waLink(phone: string | null | undefined, text: string): string |
   const n = waNumber(phone);
   return n ? `https://wa.me/${n}?text=${encodeURIComponent(text)}` : null;
 }
+
+/** The same, but for a message with no particular number on file: WhatsApp
+ *  opens and asks which chat. Used for the day's summary, which the owner may
+ *  want in a family group rather than at a number ClinicOS keeps. */
+export function waMessageLink(phone: string | null | undefined, text: string): string {
+  return waLink(phone, text) ?? `https://wa.me/?text=${encodeURIComponent(text)}`;
+}

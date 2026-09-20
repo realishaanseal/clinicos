@@ -4,6 +4,7 @@ import { useState } from "react";
 import { appPath } from "@/lib/base-path";
 import { dayLabel, recallText, waLink } from "@/lib/recall";
 import { IcAlert, IcCalendar, IcCheck } from "./Icons";
+import { formatPaise } from "@/lib/money";
 
 export type DueRow = {
   consultId: string;
@@ -24,11 +25,14 @@ export default function FollowUps({
   today,
   clinicName,
   template,
+  feePaise,
 }: {
   initial: DueRow[];
   today: string;
   clinicName: string;
   template: string;
+  /** The clinic's consultation fee, for what the list is worth (#11). */
+  feePaise: number | null;
 }) {
   const [rows, setRows] = useState(initial);
   const [notice, setNotice] = useState("");
@@ -67,6 +71,16 @@ export default function FollowUps({
           <div className="v">{overdue.length}</div>
           <div className="n">not back yet</div>
         </div>
+        {feePaise !== null && (
+          // Backlog #11, said honestly: the clinic's own fee times the people
+          // on this list. Not a forecast — some will not come, and some will
+          // pay more than the fee.
+          <div className="stat">
+            <div className="k">Fees if they come</div>
+            <div className="v">{formatPaise(rows.length * feePaise)}</div>
+            <div className="n">{`${rows.length} × ${formatPaise(feePaise)} consultation`}</div>
+          </div>
+        )}
       </div>
 
       {notice && (

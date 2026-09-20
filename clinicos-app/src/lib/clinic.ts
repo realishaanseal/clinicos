@@ -43,11 +43,16 @@ export async function getClinicName(clinicId: ClinicId): Promise<string> {
 /** The consultation fee that starts every new bill (in paise, or null when the
  *  clinic has not set one), and the follow-up reminder's words, or "" for the
  *  default. Both are clinic_ settings, so they travel to a clinic computer. */
-export async function getBillingSettings(clinicId: ClinicId): Promise<{ feePaise: number | null; recallMessage: string }> {
-  const fee = Number((await getSetting(clinicId, "clinic_fee")) || "");
+export async function getBillingSettings(
+  clinicId: ClinicId
+): Promise<{ feePaise: number | null; recallMessage: string; ownerPhone: string }> {
+  const s = await getSettings(clinicId);
+  const fee = Number(s.clinic_fee || "");
   return {
     feePaise: Number.isInteger(fee) && fee > 0 ? fee : null,
-    recallMessage: (await getSetting(clinicId, "clinic_recall_message")) ?? "",
+    recallMessage: s.clinic_recall_message ?? "",
+    // Where the day's summary goes. Empty means WhatsApp asks which chat.
+    ownerPhone: s.clinic_owner_phone ?? "",
   };
 }
 

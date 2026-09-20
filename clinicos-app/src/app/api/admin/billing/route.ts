@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { recordAudit, setSettings } from "@/lib/db";
 import { requireApiUser } from "@/lib/auth";
 import { formatPaise, rupeesToPaise } from "@/lib/money";
-import { MAX_RECALL_MESSAGE } from "@/lib/recall";
+import { MAX_RECALL_MESSAGE, waNumber } from "@/lib/recall";
 
 /**
- * The clinic's consultation fee, which starts every new bill, and the words of
- * the follow-up reminder. Both are clinic_ settings, so they reach a connected
- * clinic computer too.
+ * The clinic's consultation fee, which starts every new bill, the words of the
+ * follow-up reminder, and where the day's summary goes. All clinic_ settings,
+ * so they reach a connected clinic computer too.
  */
 export async function POST(req: NextRequest) {
   const auth = await requireApiUser("admin");
@@ -22,6 +22,14 @@ export async function POST(req: NextRequest) {
     if (fee === null) return NextResponse.json({ error: "Enter the fee in rupees, such as 300." }, { status: 400 });
     values.clinic_fee = fee ? String(fee) : "";
     said.push(fee ? `consultation fee ${formatPaise(fee)}` : "no consultation fee");
+  }
+  if (body.ownerPhone !== undefined) {
+    const phone = String(body.ownerPhone ?? "").trim().slice(0, 40);
+    if (phone && !waNumber(phone)) {
+      return NextResponse.json({ error: "That doesn't look like a phone number WhatsApp can open." }, { status: 400 });
+    }
+    values.clinic_owner_phone = phone;
+    said.push(phone ? "day-end summary to a number" : "day-end summary with no number");
   }
   if (body.recallMessage !== undefined) {
     const text = String(body.recallMessage ?? "").trim();

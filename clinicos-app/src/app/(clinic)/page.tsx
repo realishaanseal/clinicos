@@ -9,11 +9,14 @@ import {
   minutesSaved,
   todaysQueue,
   takingsOn,
+  type ClinicId,
+  type QueueRow,
   followUpsDue,
   localDay,
   RECALL_DAYS,
 } from "@/lib/db";
 import NewPatient from "@/components/NewPatient";
+import DaySummary from "@/components/DaySummary";
 import FrontDeskToday from "@/components/FrontDeskToday";
 import WaitingPanel from "@/components/WaitingPanel";
 import Link from "next/link";
@@ -21,9 +24,32 @@ import { parseNote } from "@/lib/types";
 import { IcDoc, IcArrow, IcAlert } from "@/components/Icons";
 import { requireUser } from "@/lib/auth";
 import { clinicDayAt, fmt, fmtDate, fmtTime } from "@/lib/time";
+import { getBillingSettings, getClinicName } from "@/lib/clinic";
+import { daySummaryText } from "@/lib/day-summary";
+import { waMessageLink } from "@/lib/recall";
+import { owedTotal } from "@/lib/db";
 import { ONLINE } from "@/lib/deployment";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * The day in one message for whoever runs the clinic (backlog #13), and what
+ * the follow-up list is worth (#11). Counts and money; never a patient.
+ */
+async function dayInOneMessage(user: { clinicId: ClinicId }, queue: QueueRow[]) {
+  const today = localDay();
+  const { ownerPhone } = await getBillingSettings(user.clinicId);
+  const text = daySummaryText({
+    clinicName: await getClinicName(user.clinicId),
+    day: today,
+    seen: queue.filter((r) => r.status === "done").length,
+    waiting: queue.filter((r) => r.status === "waiting" || r.status === "with-doctor").length,
+    collected: await takingsOn(user.clinicId, today),
+    owed: await owedTotal(user.clinicId),
+    followUpsTomorrow: (await followUpsDue(user.clinicId, localDay(clinicDayAt(1)), localDay(clinicDayAt(1)))).length,
+  });
+  return { text, link: waMessageLink(ownerPhone, text) };
+}
 
 export default async function Home() {
   const user = await requireUser("frontdesk");
@@ -37,6 +63,8 @@ export default async function Home() {
   // The front desk's Today. It returns before a single clinical query runs,
   // so nothing clinical can leak into this render by accident.
   if (user.role !== "doctor") {
+    const queue = await todaysQueue(user.clinicId);
+    const summary = await dayInOneMessage(user, queue);
     return (
       <div className="page">
         <div className="page-head">
@@ -45,14 +73,17 @@ export default async function Home() {
           <p className="sub">Find or register patients, and keep the day&apos;s list moving.</p>
         </div>
         <FrontDeskToday
-          initial={await todaysQueue(user.clinicId)}
+          initial={queue}
           collectedPaise={(await takingsOn(user.clinicId, localDay())).total}
           followUpsDue={(await followUpsDue(user.clinicId, localDay(), localDay(clinicDayAt(-RECALL_DAYS)))).length}
         />
+        <DaySummary text={summary.text} link={summary.link} />
       </div>
     );
   }
 
+  const queue = await todaysQueue(user.clinicId);
+  const summary = await dayInOneMessage(user, queue);
   const consults = await recentConsults(user.clinicId, 20);
   const unfinished = await unfinishedConsults(user.clinicId);
   const signed = await countSignedConsults(user.clinicId);
@@ -96,7 +127,7 @@ export default async function Home() {
         </div>
       </div>
 
-      <WaitingPanel initial={await todaysQueue(user.clinicId)} doctorId={user.id} />
+      <WaitingPanel initial={queue} doctorId={user.id} />
 
       {unfinished.length > 0 && (
         <div className="card flush resume">
@@ -126,6 +157,8 @@ export default async function Home() {
       )}
 
       <NewPatient />
+
+      <DaySummary text={summary.text} link={summary.link} />
 
       <div className="card flush">
         <div className="card-head">

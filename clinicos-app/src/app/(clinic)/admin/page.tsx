@@ -163,7 +163,7 @@ export default async function AdminPage() {
 
       <PrescriptionSettings logo={clinic.logo} cardLanguage={clinic.cardLanguage} />
 
-      <BillingSettings feePaise={billing.feePaise} recallMessage={billing.recallMessage} />
+      <BillingSettings feePaise={billing.feePaise} recallMessage={billing.recallMessage} ownerPhone={billing.ownerPhone} />
 
       <div className="card flush">
         <div className="card-head">

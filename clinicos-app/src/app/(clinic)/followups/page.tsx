@@ -11,6 +11,7 @@ export default async function FollowUpsPage() {
   const user = await requireUser("frontdesk");
   const today = localDay();
   const due = await followUpsDue(user.clinicId, today, localDay(clinicDayAt(-RECALL_DAYS)));
+  const billing = await getBillingSettings(user.clinicId);
 
   return (
     <div className="page">
@@ -25,7 +26,8 @@ export default async function FollowUpsPage() {
         initial={due.map(({ signedAt, ...r }) => (void signedAt, r))}
         today={today}
         clinicName={await getClinicName(user.clinicId)}
-        template={(await getBillingSettings(user.clinicId)).recallMessage}
+        template={billing.recallMessage}
+        feePaise={billing.feePaise}
       />
     </div>
   );

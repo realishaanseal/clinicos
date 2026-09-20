@@ -1,4 +1,5 @@
-// Billing (#12) and follow-up recall (#10). Run by run.mjs after rx-test.cjs,
+// Billing (#12), follow-up recall (#10), what the follow-up list is worth (#11)
+// and the day in one message (#13). Run by run.mjs after rx-test.cjs,
 // whose accounts it signs in with:
 //   node scripts/test/billing-test.cjs <test.db>
 const { peek, ONLINE } = require("./peek.cjs");
@@ -281,6 +282,40 @@ const hrefs = (html) => [...html.matchAll(/href="(https:\/\/wa\.me\/[^"]+)"/g)].
   }
   r = await call("GET", "/followups", { token: mgr });
   check("The Follow-ups page sends a non-clinical admin home", goesTo(r, "/admin"), `${r.status} ${r.location}`);
+
+  // ------------------------------------------------ 9. what the list is worth (#11)
+  r = await call("GET", "/followups", { token: desk });
+  const left2 = (await call("GET", "/api/followups", { token: desk })).json.due.length;
+  check(
+    "The follow-up list says what it is worth at the clinic's own fee, and how that is worked out",
+    r.status === 200 && r.text.includes("Fees if they come") && r.text.includes(`${left2} × ₹300`),
+    r.status
+  );
+
+  // ------------------------------------------------ 10. the day in one message (#13)
+  r = await call("POST", "/api/admin/billing", { token: mgr, body: { ownerPhone: "12" } });
+  check("A day-end number WhatsApp could not open is refused", r.status === 400, JSON.stringify(r.json));
+  r = await call("POST", "/api/admin/billing", { token: desk, body: { ownerPhone: "98300 77777" } });
+  check("The front desk cannot change where the summary goes", r.status === 403, r.status);
+  r = await call("POST", "/api/admin/billing", { token: mgr, body: { ownerPhone: "98300 77777" } });
+  check("Clinic admin sets where the day's summary goes", r.status === 200, JSON.stringify(r.json));
+
+  r = await call("GET", "/", { token: desk });
+  const summary = /class="day-summary">([\s\S]*?)<\/pre>/.exec(r.text)?.[1] || "";
+  const decoded = summary.replace(/&#x27;/g, "'").replace(/&amp;/g, "&").replace(/&quot;/g, '"');
+  check(
+    "The front desk's Today carries the day in one message: seen, collected, owed, tomorrow's follow-ups",
+    r.status === 200 && /Patients seen: \d/.test(decoded) && /Collected: ₹/.test(decoded) && /Still owed: ₹/.test(decoded) && /Follow-ups due tomorrow: \d/.test(decoded),
+    decoded.slice(0, 200)
+  );
+  check("…naming no patient and nothing clinical", !!decoded && !decoded.includes("Bill Patient") && !decoded.includes("Recall") && !decoded.includes(SECRET), decoded.slice(0, 200));
+  check("…and a WhatsApp link to the number the clinic set", hrefs(r.text).some((h) => h.startsWith("https://wa.me/919830077777?")), hrefs(r.text).join(" "));
+  const doctorToday = await call("GET", "/", { token: owner });
+  check("The doctor's Today has the same summary", doctorToday.status === 200 && doctorToday.text.includes("The day in one message"), doctorToday.status);
+
+  r = await call("POST", "/api/admin/billing", { token: mgr, body: { ownerPhone: "" } });
+  const noNumber = await call("GET", "/", { token: desk });
+  check("With no number set, WhatsApp is asked which chat instead", r.status === 200 && hrefs(noNumber.text).some((h) => h.startsWith("https://wa.me/?text=")), r.status);
 
   const failed = results.filter((x) => !x.ok);
   for (const x of results) console.log(`${x.ok ? "PASS" : "FAIL"}  ${x.name}${x.ok ? "" : `  [${x.info}]`}`);

@@ -1008,3 +1008,10 @@ button.ghost.on { border-color: var(--teal-500); background: var(--teal-50); col
 /* A heading that labels a group of fields (the medicines table), styled like a
    label but not one: a <label> must point at a single field. */
 .field-label { display: block; font-size: 12.5px; font-weight: 620; color: var(--slate-600); margin-bottom: 5px; }
+
+/* The day's summary, shown as it will be sent. */
+.day-summary {
+  margin: 0 0 12px; padding: 12px 14px; white-space: pre-wrap; overflow-wrap: anywhere;
+  font: inherit; font-size: 13.5px; line-height: 1.6;
+  background: var(--canvas); border: 1px solid var(--line); border-radius: var(--r-md); color: var(--ink-800);
+}
