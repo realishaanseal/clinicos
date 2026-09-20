@@ -78,6 +78,11 @@ const FEATURES = [
     icon: "M4 5h11M9 3v2c0 5-2.5 8-5 9m3-4c0 2.5 3 4.5 6 4.5M13 20l4-9 4 9m-6.5-2h5",
   },
   {
+    t: "The front desk's half of the day",
+    d: "The day’s list with tokens, bills and printed receipts, and the patients a doctor asked back — with a WhatsApp reminder the desk sends in one tap. The half of a clinic that is not the consultation.",
+    icon: "M4 7h16M4 12h16M4 17h10M18 15v4m2-2h-4",
+  },
+  {
     t: "Every edit is kept",
     d: "The original draft is never overwritten. Your corrections are stored separately, and the gap between the two tells us how good the drafting actually is.",
     icon: "M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z",
@@ -234,9 +239,10 @@ export default function Page() {
                 <div className="eyebrow">Where this is</div>
                 <AnimatedText text="Early, and we will [[say]] [[so.]]" />
                 <p className="lede" style={{ marginTop: "1.4rem" }}>
-                  The full flow works today. Consent, recording, transcription, drafting, review,
-                  signing, printing, backup, restore. It runs on a clinic computer, and online as a
-                  prototype you can sign in to. What we have not done is
+                  The full flow works today: recording, transcription, drafting, review, signing,
+                  printing, the day’s list, bills and receipts, follow-up reminders, the patient’s
+                  own copy on their phone, backup and restore. It runs on a clinic computer, and
+                  online as a prototype you can sign in to. What we have not done is
                   sit with twenty clinicians and find out whether documentation is really one of
                   their top three problems. Until we have, everything on this page is a
                   hypothesis, and we would rather tell you that now than later.

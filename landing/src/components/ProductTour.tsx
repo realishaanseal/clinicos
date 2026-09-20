@@ -37,7 +37,7 @@ const SCREENS = [
   {
     key: "consult",
     label: "Consultation",
-    caption: "Take consent, hit record, get on with the consultation. Audio is written to disk as you go.",
+    caption: "Hit record and get on with the consultation. Audio is written to disk as you go.",
   },
   {
     key: "note",
