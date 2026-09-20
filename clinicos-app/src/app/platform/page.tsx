@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireOperator } from "@/lib/platform";
-import { listTenants, tenantUsage } from "@/lib/db";
+import { listTenants, tenantOverviews } from "@/lib/db";
+import { parseClinicTerms, termsInForce } from "@/lib/terms";
 import { PLANS, clinicPath, parseFeatures } from "@/lib/tenant";
 import { publicAppUrl } from "@/lib/public-url";
 import { fmtDate } from "@/lib/time";
@@ -14,8 +15,18 @@ export const dynamic = "force-dynamic";
 export default async function PlatformHome() {
   await requireOperator();
   const base = await publicAppUrl();
-  const clinics = [];
-  for (const t of await listTenants()) clinics.push({ t, usage: await tenantUsage(t.id), features: parseFeatures(t.features) });
+  const counts = await tenantOverviews();
+  const clinics = (await listTenants()).map((t) => {
+    const usage = counts.get(t.id);
+    return {
+      t,
+      usage: { people: usage?.people ?? 0, patients: usage?.patients ?? 0, signed: usage?.signed ?? 0, lastActivityAt: usage?.lastActivityAt ?? null },
+      // A clinic that has not accepted the terms cannot record; from here that
+      // looks like a clinic that bought ClinicOS and never used it.
+      canRecord: termsInForce(parseClinicTerms(usage?.terms)),
+      features: parseFeatures(t.features),
+    };
+  });
 
   return (
     <div className="page">
@@ -49,7 +60,7 @@ export default async function PlatformHome() {
               </tr>
             </thead>
             <tbody>
-              {clinics.map(({ t, usage, features }) => (
+              {clinics.map(({ t, usage, features, canRecord }) => (
                 <tr key={t.id}>
                   <td>
                     <strong>{t.name}</strong>
@@ -64,8 +75,12 @@ export default async function PlatformHome() {
                       <span className="pill draft">Waiting for setup</span>
                     ) : t.status === "suspended" ? (
                       <span className="pill draft">Paused</span>
-                    ) : (
+                    ) : canRecord ? (
                       <span className="pill signed">Active</span>
+                    ) : (
+                      <span className="pill draft" title="Recording is off until the clinic accepts ClinicOS's terms">
+                        Terms not accepted
+                      </span>
                     )}
                   </td>
                   <td className="num">{usage.people}</td>

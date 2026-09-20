@@ -126,7 +126,7 @@ const done = () => {
   check("An unknown clinic address says so", r.status === 200 && r.text.includes("No clinic at this address"), r.status);
 
   const owner = (code, clinic, username = "doctor", password = "doctor-pass-1") => ({
-    clinic, setupCode: code, acceptTerms: true, clinicName: clinic === "sharma" ? "Sharma Clinic" : "Roy Clinic",
+    clinic, setupCode: code, acceptTerms: clinic === "sharma", clinicName: clinic === "sharma" ? "Sharma Clinic" : "Roy Clinic",
     name: clinic === "sharma" ? "Dr Sharma" : "Dr Roy", username, password, isDoctor: true,
   });
   r = await call("POST", "/api/setup", { body: owner(undefined, "sharma") });
@@ -280,6 +280,13 @@ const done = () => {
   // ------------------------------------------------ 8. the console shows counts, never records
   r = await call("GET", "/platform", { jar: ops });
   check("The console lists the clinics", r.status === 200 && r.text.includes("Sharma Clinic") && r.text.includes("Roy Clinic"), r.status);
+  check("…and says which ones cannot record because nobody accepted the terms", r.text.includes("Terms not accepted"), r.status);
+  {
+    const bPatient = (await call("GET", "/api/patients?q=Bina", { jar: b })).json.patients[0].id;
+    const visit = await call("POST", "/api/consults", { jar: b, body: { patientId: bPatient } });
+    const rec = await call("POST", `/api/consults/${visit.json.consult.id}/audio/chunk?first=1`, { jar: b });
+    check("A clinic that never accepted the terms cannot record, whatever its screens show", rec.status === 403 && rec.json?.code === "terms", JSON.stringify(rec.json));
+  }
   check("…and no patient's name", !r.text.includes("Asha") && !r.text.includes("Bina"), r.status);
   r = await call("GET", `/platform/clinics/${A.id}`, { jar: ops });
   check("A clinic's page in the console shows no patient either", r.status === 200 && !r.text.includes("Asha"), r.status);

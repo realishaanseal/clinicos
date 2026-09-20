@@ -1603,6 +1603,36 @@ export async function setTenantSetupCode(id: string, setupCodeHash: string | nul
   await q().run(`UPDATE "Tenant" SET "setupCodeHash" = ?, "updatedAt" = ? WHERE id = ?`, setupCodeHash, now(), id);
 }
 
+/**
+ * Every clinic's counts in one query, for the platform console: with a hundred
+ * clinics, asking five questions each is five hundred round trips.
+ *
+ * Counts and the clinic's own settings row — never a record. The terms are
+ * here because a clinic that has not accepted them cannot record, and from the
+ * console that looks like a clinic doing nothing.
+ */
+export type TenantOverview = {
+  clinicId: string;
+  people: number;
+  patients: number;
+  signed: number;
+  lastActivityAt: string | null;
+  terms: string | null;
+};
+
+export async function tenantOverviews(): Promise<Map<string, TenantOverview>> {
+  const rows = await q().all<TenantOverview>(
+    `SELECT t.id AS "clinicId",
+            CAST((SELECT COUNT(*) FROM "User" u WHERE u."clinicId" = t.id) AS INTEGER) AS people,
+            CAST((SELECT COUNT(*) FROM "Patient" p WHERE p."clinicId" = t.id) AS INTEGER) AS patients,
+            CAST((SELECT COUNT(*) FROM "Consult" c WHERE c."clinicId" = t.id AND c."signedAt" IS NOT NULL) AS INTEGER) AS signed,
+            (SELECT MAX(a.at) FROM "AuditEvent" a WHERE a."clinicId" = t.id) AS "lastActivityAt",
+            (SELECT s.value FROM "ClinicSetting" s WHERE s."clinicId" = t.id AND s.key = 'clinic_terms') AS terms
+     FROM "Tenant" t`
+  );
+  return new Map(rows.map((r) => [r.clinicId, r]));
+}
+
 /** How much a clinic uses ClinicOS, as counts only: nothing about any patient. */
 export async function tenantUsage(clinicId: ClinicId) {
   return {
