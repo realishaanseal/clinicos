@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireOperator } from "@/lib/platform";
 import { getTenant, tenantUsage } from "@/lib/db";
+import { getClinicTerms } from "@/lib/clinic";
+import { termsInForce } from "@/lib/terms";
 import { PLANS, clinicPath, parseFeatures } from "@/lib/tenant";
 import { publicAppUrl } from "@/lib/public-url";
 import { fmt } from "@/lib/time";
@@ -18,6 +20,9 @@ export default async function PlatformClinicPage({ params }: { params: Promise<{
   const t = await getTenant(id);
   if (!t) notFound();
   const usage = await tenantUsage(t.id);
+  // Whether the clinic can record at all: its own acceptance of the terms,
+  // which only it can give. Counts and a date — still never a record.
+  const terms = await getClinicTerms(t.id);
   const features = parseFeatures(t.features);
   const base = await publicAppUrl();
 
@@ -43,6 +48,14 @@ export default async function PlatformClinicPage({ params }: { params: Promise<{
           <div><dt>Plan</dt><dd>{PLANS[t.plan] ?? t.plan}</dd></div>
           <div><dt>Clinic computer sync</dt><dd>{features.localSync ? "Included" : "Not included"}</dd></div>
           <div><dt>Status</dt><dd>{usage.people === 0 ? "Waiting for setup" : t.status === "suspended" ? "Paused" : "Active"}</dd></div>
+          <div>
+            <dt>Recording</dt>
+            <dd>
+              {termsInForce(terms) && terms
+                ? `On — terms accepted by ${terms.byName || "the clinic"} on ${fmt(terms.at, { day: "numeric", month: "short", year: "numeric" })}`
+                : "Off until the clinic accepts ClinicOS's terms, in its own Clinic admin"}
+            </dd>
+          </div>
           <div><dt>Paid until</dt><dd>{t.paidUntil ?? "—"}</dd></div>
           <div><dt>People</dt><dd>{usage.people}</dd></div>
           <div><dt>Patients</dt><dd>{usage.patients}</dd></div>

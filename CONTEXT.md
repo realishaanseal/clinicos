@@ -1001,9 +1001,26 @@ and `--scope varaxis` reaches the projects (`demo`, `vxclinicos-app`, `scholar`,
 
 **For the next session:** `main` is the SaaS web version and is live; work continues on
 branch **`saas`** and is fast-forwarded into `main` once both test runs pass (`git fetch`,
-then `git checkout saas`). Every item in Ishaan's order of work is built.
+then `git checkout saas`). Every item in Ishaan's order of work is built, and so is
+everything of the backlog that can be built without a hosted AI key or a storage bill:
+#10–#14, #20, #21 (the phone-number half), #24, #25, #34.
 
-0. Ishaan: make an operator account and add the portal keys (§7.0).
+**What the night of 20 September left, in order of what it cost:** billing and follow-up
+recall; consent replaced by one-time terms (the clinic's, and the patient's in three
+languages); a hardening and weight pass; the owner's day in one message, the list's worth,
+Getting started and patients who came back; the doctor's last-visit glance and households
+by phone; `/api/health`, `npm run bench`, and a public Terms page on the website. Every
+piece went into `main` only after both suites passed, and production was checked after
+each deploy with `/app/api/health`.
+
+**Still unbuilt, and why:** #7 paper digitisation and #22 lab reports need a hosted vision
+model (§7.1); #23 attachments needs storage nobody is paying for yet; #26–#30 are the
+clinical-judgement tier (CLAUDE.md, invariant 1) and #31–#33 need several clinics in one
+district. #36, an editable consent script, is superseded by the terms.
+
+0. Ishaan: make an operator account and add the portal keys (§7.0). Until the keys are
+   set, `vxclinicos.vercel.app/app/p` says "not available yet" — that is the only thing
+   standing between the patient portal and a patient using it.
 1. Ishaan: set up the online clinic with the setup code (§7.2), and add a hosted AI
    service so transcription and drafting work online (§7.1).
 2. Ishaan: reset the Supabase password, then update `DATABASE_URL` on `vxclinicos-app`
