@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 import { parseNote, noteHasContent } from "@/lib/types";
 import ConsultWorkflow from "@/components/ConsultWorkflow";
 import { prescriptionIdentity } from "@/lib/clinic";
-import { requireUser } from "@/lib/auth";
+import { can, requireUser } from "@/lib/auth";
+import { getClinicTerms } from "@/lib/clinic";
+import { termsInForce } from "@/lib/terms";
 import Link from "next/link";
 import { getShare } from "@/lib/share";
 import { BACKEND } from "@/lib/sql";
@@ -36,6 +38,8 @@ export default async function ConsultPage({ params }: { params: Promise<{ id: st
         medications: lastNote.medications.filter((m) => m.name.trim()),
       }
     : null;
+
+  const terms = c.signedAt ? null : await getClinicTerms(user.clinicId);
 
   // Sharing with the patient happens online, where the portal is: directly
   // there, or through the clinic online from a connected clinic computer.
@@ -81,7 +85,6 @@ export default async function ConsultPage({ params }: { params: Promise<{ id: st
           guardianName: c.patient.guardianName,
         }}
         initial={{
-          consentGiven: !!c.consentGiven,
           hasAudio: !!c.audioPath,
           transcript: c.transcript || "",
           // workingJson first: the doctor's autosaved edits beat the AI draft.
@@ -90,7 +93,7 @@ export default async function ConsultPage({ params }: { params: Promise<{ id: st
           workingSavedAt: c.workingSavedAt,
           recordingInterrupted: !!c.recordingStartedAt && !c.recordingEndedAt && !c.signedAt,
           // Typing began with no AI draft behind it: this visit is being written
-          // by hand, so reopen it in that mode rather than at the consent step.
+          // by hand, so reopen it in that mode rather than at the recorder.
           manual: !c.signedAt && !c.draftJson && noteHasContent(parseNote(c.workingJson)),
           signedAt: c.signedAt,
           audioDeleted: !!c.audioDeletedAt,
@@ -103,6 +106,12 @@ export default async function ConsultPage({ params }: { params: Promise<{ id: st
         lastVisit={lastVisit}
         favourites={c.signedAt ? [] : (await listFavourites(user.id)).map(favouriteView)}
         sharing={sharing}
+        recording={{
+          // A visit already recorded, or consented the old way, carries on.
+          mayRecord: !!c.consentGiven || termsInForce(terms),
+          terms,
+          canAccept: can(user, "admin"),
+        }}
       />
     </div>
   );

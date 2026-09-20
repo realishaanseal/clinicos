@@ -969,3 +969,38 @@ button.ghost.on { border-color: var(--teal-500); background: var(--teal-50); col
 @media (max-width: 560px) {
   .bill-line { grid-template-columns: 1fr 96px 32px; }
 }
+
+/* ==========================================================================
+   Terms (20 Sep 2026): the clinic's once, the patient's once, in their language
+   ========================================================================== */
+
+.terms-box {
+  border: 1px solid var(--line); border-radius: var(--r-md); background: var(--canvas);
+  padding: 14px 16px; margin: 6px 0 16px;
+}
+.terms-box .card-head { padding: 0 0 8px; border: none; background: none; }
+.terms-box .card-body { padding: 0; }
+.terms-hd { font-size: 13px; font-weight: 680; color: var(--ink-900); margin-bottom: 6px; }
+.terms-list { margin: 0 0 12px; padding-left: 18px; font-size: 13px; line-height: 1.55; color: var(--slate-600); }
+.terms-list li + li { margin-top: 4px; }
+.terms-box .check { align-items: flex-start; margin-bottom: 0; line-height: 1.45; }
+.terms-box .check input { margin-top: 2px; flex: none; }
+
+.what-to-say { margin-top: 10px; font-size: 13px; color: var(--slate-600); }
+.what-to-say summary { cursor: pointer; color: var(--teal-700); font-weight: 600; width: max-content; }
+.what-to-say p { margin: 8px 0 0; line-height: 1.6; }
+
+.lang-pick { display: grid; gap: 10px; margin-top: 8px; }
+.lang-pick button { justify-content: center; font-size: 17px; padding: 14px 18px; }
+.lang-switch { display: flex; gap: 4px; flex-wrap: wrap; margin: 4px 0 14px; }
+.lang-switch button {
+  background: none; box-shadow: none; color: var(--slate-500); border: 1px solid transparent;
+  padding: 4px 10px; font-size: 13px; font-weight: 560;
+}
+.lang-switch button:hover:not(:disabled) { transform: none; filter: none; color: var(--ink-800); }
+.lang-switch button.on { border-color: var(--teal-300); background: var(--teal-50); color: var(--teal-800); }
+
+/* Bengali and Hindi run longer than English: a button's text wraps in the
+   portal rather than pushing the page sideways on a phone. */
+.portal button, .portal .btn { white-space: normal; }
+.portal .auth-card { overflow-wrap: anywhere; }

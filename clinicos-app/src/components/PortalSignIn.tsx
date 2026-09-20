@@ -3,19 +3,27 @@
 import { useEffect, useState } from "react";
 import { IcAlert } from "./Icons";
 import { appPath } from "@/lib/base-path";
+import { PATIENT_TERMS, type Lang } from "@/lib/terms";
+import { errorText, wordsFor } from "@/lib/portal-words";
 
 /**
- * Patient sign-in. With a PIN, or — the first time, or when the PIN is
- * forgotten — with the code printed on a prescription, choosing a new PIN.
+ * Patient sign-in, in the language they chose. With a PIN, or — the first
+ * time, or when the PIN is forgotten — with the code printed on a
+ * prescription, choosing a new PIN and agreeing to the portal's terms once.
  * The QR code on a prescription carries the code after "#", which a browser
  * never sends to a server, and it is filled in here.
  */
-export default function PortalSignIn() {
+export default function PortalSignIn({ lang }: { lang: Lang }) {
+  const w = wordsFor(lang);
+  const terms = PATIENT_TERMS[lang];
   const [withCode, setWithCode] = useState(false);
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [pin, setPin] = useState("");
   const [pin2, setPin2] = useState("");
+  const [agreed, setAgreed] = useState(false);
+  // An account from before the portal had terms is asked once, at its next sign-in.
+  const [needTerms, setNeedTerms] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -29,11 +37,17 @@ export default function PortalSignIn() {
     }
   }, []);
 
+  const showTerms = withCode || needTerms;
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     if (withCode && pin !== pin2) {
-      setError("The two PINs don't match.");
+      setError(w.errors["pins-differ"]);
+      return;
+    }
+    if (showTerms && !agreed) {
+      setError(w.errors.terms);
       return;
     }
     setBusy(true);
@@ -41,10 +55,13 @@ export default function PortalSignIn() {
       const res = await fetch(withCode ? appPath("/api/portal/start") : appPath("/api/portal/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(withCode ? { phone, code, pin } : { phone, pin }),
+        body: JSON.stringify({ phone, pin, lang, ...(withCode ? { code } : {}), ...(showTerms ? { acceptTerms: agreed } : {}) }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "That didn't work. Try again.");
+      if (!res.ok) {
+        if (data.needTerms) setNeedTerms(true);
+        throw new Error(errorText(w, data));
+      }
       window.location.assign(appPath(data.redirect || "/p"));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -53,9 +70,9 @@ export default function PortalSignIn() {
   }
 
   return (
-    <form onSubmit={submit}>
+    <form onSubmit={submit} lang={lang}>
       <div className="field">
-        <label htmlFor="pp-phone">Phone number · ফোন নম্বর</label>
+        <label htmlFor="pp-phone">{w.phone}</label>
         <input
           id="pp-phone"
           type="tel"
@@ -69,7 +86,7 @@ export default function PortalSignIn() {
       </div>
       {withCode && (
         <div className="field">
-          <label htmlFor="pp-code">Code on your prescription · প্রেসক্রিপশনের কোড</label>
+          <label htmlFor="pp-code">{w.code}</label>
           <input
             id="pp-code"
             value={code}
@@ -84,7 +101,7 @@ export default function PortalSignIn() {
       )}
       <div className={withCode ? "grid" : ""}>
         <div className="field">
-          <label htmlFor="pp-pin">{withCode ? "Choose a 6-digit PIN · নতুন পিন" : "PIN · পিন"}</label>
+          <label htmlFor="pp-pin">{withCode ? w.choosePin : w.pin}</label>
           <input
             id="pp-pin"
             type="password"
@@ -99,7 +116,7 @@ export default function PortalSignIn() {
         </div>
         {withCode && (
           <div className="field">
-            <label htmlFor="pp-pin2">The same PIN again</label>
+            <label htmlFor="pp-pin2">{w.pinAgain}</label>
             <input
               id="pp-pin2"
               type="password"
@@ -115,6 +132,20 @@ export default function PortalSignIn() {
         )}
       </div>
 
+      {showTerms && (
+        <div className="terms-box">
+          <div className="terms-hd">{terms.title}</div>
+          <ul className="terms-list">
+            {terms.points.map((p) => (
+              <li key={p}>{p}</li>
+            ))}
+          </ul>
+          <label className="check">
+            <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} /> {terms.agree}
+          </label>
+        </div>
+      )}
+
       {error && (
         <div className="note err" role="alert">
           <IcAlert size={16} />
@@ -122,12 +153,19 @@ export default function PortalSignIn() {
         </div>
       )}
 
-      <button type="submit" className="wide" disabled={busy}>
-        {busy ? "Opening…" : withCode ? "Set PIN and open" : "Open my prescriptions"}
+      <button type="submit" className="wide" disabled={busy || (showTerms && !agreed)}>
+        {busy ? w.opening : withCode ? w.setPin : w.open}
       </button>
       <p className="muted" style={{ marginBottom: 0, textAlign: "center" }}>
-        <button type="button" className="quiet small" onClick={() => { setWithCode(!withCode); setError(""); }}>
-          {withCode ? "I have a PIN already" : "First time here, or forgot your PIN? Use the code on your prescription"}
+        <button
+          type="button"
+          className="quiet small"
+          onClick={() => {
+            setWithCode(!withCode);
+            setError("");
+          }}
+        >
+          {withCode ? w.havePin : w.useCode}
         </button>
       </p>
     </form>

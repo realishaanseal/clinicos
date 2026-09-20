@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getConsult, setAudioPath, markRecordingStarted } from "@/lib/db";
 import { requireApiUser } from "@/lib/auth";
+import { RECORDING_OFF, allowRecording } from "@/lib/clinic";
 import { appendChunk } from "@/lib/audio-store";
 
 export const maxDuration = 60;
@@ -23,11 +24,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const consult = await getConsult(auth.user.clinicId, id);
   if (!consult) return NextResponse.json({ error: "Consult not found" }, { status: 404 });
-  if (!consult.consentGiven) {
-    return NextResponse.json({ error: "Consent has not been recorded." }, { status: 403 });
-  }
   if (consult.signedAt) {
     return NextResponse.json({ error: "This consultation is already signed." }, { status: 409 });
+  }
+  // Hard gate, on the server: nothing is stored unless the clinic has accepted
+  // ClinicOS's terms, in which it tells every patient and records no one who
+  // says no (CLAUDE.md, invariant 5).
+  if (!(await allowRecording(auth.user.clinicId, consult))) {
+    return NextResponse.json({ error: RECORDING_OFF, code: "terms" }, { status: 403 });
   }
 
   const buf = Buffer.from(await req.arrayBuffer());

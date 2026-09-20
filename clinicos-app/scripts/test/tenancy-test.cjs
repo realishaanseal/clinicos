@@ -126,7 +126,7 @@ const done = () => {
   check("An unknown clinic address says so", r.status === 200 && r.text.includes("No clinic at this address"), r.status);
 
   const owner = (code, clinic, username = "doctor", password = "doctor-pass-1") => ({
-    clinic, setupCode: code, clinicName: clinic === "sharma" ? "Sharma Clinic" : "Roy Clinic",
+    clinic, setupCode: code, acceptTerms: true, clinicName: clinic === "sharma" ? "Sharma Clinic" : "Roy Clinic",
     name: clinic === "sharma" ? "Dr Sharma" : "Dr Roy", username, password, isDoctor: true,
   });
   r = await call("POST", "/api/setup", { body: owner(undefined, "sharma") });
@@ -170,7 +170,6 @@ const done = () => {
   const aPatient = r.json?.patient?.id;
   const aConsult = r.json?.consultId;
   check("Clinic A registers a patient and opens a visit", r.status === 200 && aPatient && aConsult, JSON.stringify(r.json));
-  await call("POST", `/api/consults/${aConsult}/consent`, { jar: a });
   r = await call("POST", "/api/queue", { jar: a, body: { patientId: aPatient } });
   const aEntry = r.json?.entry?.id;
   check("Clinic A's first token of the day is 1", r.status === 200 && r.json?.entry?.token === 1, JSON.stringify(r.json));
@@ -201,7 +200,6 @@ const done = () => {
     ["GET", `/patients/${aPatient}`, 404],
     ["GET", `/consult/${aConsult}`, 404],
     ["POST", "/api/consults", 404, { patientId: aPatient }],
-    ["POST", `/api/consults/${aConsult}/consent`, 404],
     ["POST", `/api/consults/${aConsult}/audio/chunk?first=1`, 404],
     ["POST", `/api/consults/${aConsult}/audio/finalize`, 404, {}],
     ["PATCH", `/api/consults/${aConsult}/draft`, 404, { note: { diagnosis: "overwritten by B" } }],

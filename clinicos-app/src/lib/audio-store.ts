@@ -6,7 +6,7 @@
  * rows in the AudioChunk table instead. Either way:
  *   - slices are appended as they arrive, so an interrupted recording keeps
  *     everything up to the interruption
- *   - signing deletes the recording, the promise made in the consent script
+ *   - signing deletes the recording, the promise told to every patient (lib/terms.ts)
  *   - deleting a patient deletes it (the rows cascade with the consultation)
  *
  * Consult.audioPath says where it is: a file path, or "db:<consultId>".

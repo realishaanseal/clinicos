@@ -14,7 +14,7 @@ function asText(v: unknown): string {
  * Signing does four things, in this order:
  *   1. diffs the doctor's version against the AI draft and logs every change
  *   2. stores the signed note, with the signing doctor's account
- *   3. deletes the raw audio — the promise made in the consent script
+ *   3. deletes the raw audio — the promise in the clinic's terms, told to every patient
  *   4. records the signature in the activity log
  *
  * A note written by hand (a quick visit, or a patient who declined recording)

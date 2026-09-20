@@ -3,9 +3,12 @@
 import { useState } from "react";
 import { IcPrint } from "./Icons";
 import { appPath } from "@/lib/base-path";
+import type { Lang } from "@/lib/terms";
+import { wordsFor } from "@/lib/portal-words";
 
 /** Print, or take a prescription out of the patient's own list. */
-export default function PortalVisitActions({ id }: { id: string }) {
+export default function PortalVisitActions({ id, lang }: { id: string; lang: Lang }) {
+  const w = wordsFor(lang);
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -16,23 +19,23 @@ export default function PortalVisitActions({ id }: { id: string }) {
   }
 
   return (
-    <div className="btnrow noprint" style={{ marginBottom: 18 }}>
+    <div className="btnrow noprint" style={{ marginBottom: 18 }} lang={lang}>
       <button type="button" onClick={() => window.print()}>
-        <IcPrint size={16} /> Print
+        <IcPrint size={16} /> {w.print}
       </button>
       {confirm ? (
         <>
-          <span className="muted">Take this out of your list? Its code brings it back.</span>
+          <span className="muted">{w.removeConfirm}</span>
           <button type="button" className="ghost danger-btn" onClick={hide} disabled={busy}>
-            Remove
+            {w.remove}
           </button>
           <button type="button" className="quiet" onClick={() => setConfirm(false)} disabled={busy}>
-            Cancel
+            {w.cancel}
           </button>
         </>
       ) : (
         <button type="button" className="ghost" onClick={() => setConfirm(true)}>
-          Remove from my list
+          {w.removeAsk}
         </button>
       )}
     </div>

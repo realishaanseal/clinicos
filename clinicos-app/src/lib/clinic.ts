@@ -1,5 +1,6 @@
-import { FIRST_CLINIC_ID, getSetting, getSettings, type ClinicId } from "./db";
+import { FIRST_CLINIC_ID, getSetting, getSettings, recordAudit, setConsent, setSettings, type ClinicId } from "./db";
 import { parseCardLanguage, type CardLanguage } from "./rx-card";
+import { CLINIC_TERMS_VERSION, parseClinicTerms, termsInForce, type ClinicTerms } from "./terms";
 
 /**
  * Clinic identity printed on every prescription.
@@ -82,4 +83,43 @@ export async function prescriptionIdentity(
     doctorQualification: env.DOCTOR_QUALIFICATION || "",
     doctorRegNo: env.DOCTOR_REGNO || "",
   };
+}
+
+// ------------------------------------------------------------------ terms
+/**
+ * The clinic's acceptance of ClinicOS's terms (lib/terms.ts), which is what
+ * lets it record: the recording routes refuse until the version in force has
+ * been accepted. A clinic_ setting, so it reaches a connected clinic computer
+ * too, and one acceptance covers every copy of the clinic.
+ */
+export async function getClinicTerms(clinicId: ClinicId): Promise<ClinicTerms | null> {
+  return parseClinicTerms(await getSetting(clinicId, "clinic_terms"));
+}
+
+export async function clinicMayRecord(clinicId: ClinicId): Promise<boolean> {
+  return termsInForce(await getClinicTerms(clinicId));
+}
+
+export async function acceptClinicTerms(clinicId: ClinicId, by: { id: string; name: string }): Promise<ClinicTerms> {
+  const terms: ClinicTerms = { version: CLINIC_TERMS_VERSION, at: new Date().toISOString(), byName: by.name };
+  await setSettings(clinicId, { clinic_terms: JSON.stringify(terms) });
+  await recordAudit(clinicId, by, "terms_accept", "clinic", null, `ClinicOS terms of ${CLINIC_TERMS_VERSION}`);
+  return terms;
+}
+
+export const RECORDING_OFF =
+  "Recording is off until whoever manages the clinic accepts ClinicOS's terms, once, in Clinic admin. You can still write the note by hand.";
+
+/**
+ * May this visit be recorded? One consented the old way, visit by visit, still
+ * may. Otherwise the clinic must have accepted the terms in force, and the
+ * visit is marked as recorded under them — so every recorded visit still says,
+ * in its own row, on what basis it was recorded.
+ */
+export async function allowRecording(clinicId: ClinicId, consult: { id: string; consentGiven: number }): Promise<boolean> {
+  if (consult.consentGiven) return true;
+  const t = await getClinicTerms(clinicId);
+  if (!t || !termsInForce(t)) return false;
+  await setConsent(clinicId, consult.id, `Under the clinic's terms, accepted by ${t.byName} on ${t.at.slice(0, 10)}`);
+  return true;
 }

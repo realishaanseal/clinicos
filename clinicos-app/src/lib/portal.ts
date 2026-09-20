@@ -17,6 +17,7 @@ import { randomBytes } from "node:crypto";
 import { BACKEND, q } from "./sql";
 import { newId } from "./db";
 import { hashToken } from "./auth";
+import { LANG_COOKIE, PATIENT_TERMS_VERSION, parseLang, type Lang } from "./terms";
 
 export const PORTAL_ENABLED = BACKEND === "postgres";
 export const PATIENT_COOKIE = "clinicos_patient";
@@ -27,7 +28,7 @@ const WINDOW_MS = 15 * 60 * 1000;
 const MAX_TRIES_PER_PHONE = 10;
 const MAX_WRONG_PINS = 5;
 
-export type PortalAccount = { id: string; phoneHmac: string };
+export type PortalAccount = { id: string; phoneHmac: string; language: Lang | null };
 
 const iso = (ms = Date.now()) => new Date(ms).toISOString();
 
@@ -50,8 +51,8 @@ export const getCurrentPatient = cache(async (): Promise<PortalAccount | null> =
   if (!PORTAL_ENABLED) return null;
   const token = (await cookies()).get(PATIENT_COOKIE)?.value;
   if (!token) return null;
-  const row = await q().get<{ tokenHash: string; lastSeenAt: string; id: string; phoneHmac: string }>(
-    `SELECT l."tokenHash", l."lastSeenAt", a.id, a."phoneHmac"
+  const row = await q().get<{ tokenHash: string; lastSeenAt: string; id: string; phoneHmac: string; language: string | null }>(
+    `SELECT l."tokenHash", l."lastSeenAt", a.id, a."phoneHmac", a.language
      FROM "PortalLogin" l JOIN "PortalAccount" a ON a.id = l."accountId"
      WHERE l."tokenHash" = ? AND l."expiresAt" > ?`,
     hashToken(token), iso()
@@ -63,8 +64,20 @@ export const getCurrentPatient = cache(async (): Promise<PortalAccount | null> =
       iso(), iso(Date.now() + PATIENT_SESSION_SECONDS * 1000), row.tokenHash
     );
   }
-  return { id: row.id, phoneHmac: row.phoneHmac };
+  return { id: row.id, phoneHmac: row.phoneHmac, language: parseLang(row.language) };
 });
+
+/** The portal's language for this request: the patient's own choice on this
+ *  phone (a cookie), else their account's, else English. */
+export async function portalLang(account: PortalAccount | null = null): Promise<Lang> {
+  return parseLang((await cookies()).get(LANG_COOKIE)?.value) ?? account?.language ?? "en";
+}
+
+/** Whether the patient chose a language on this phone yet: the portal asks
+ *  first, before anything else. */
+export async function langChosen(): Promise<Lang | null> {
+  return parseLang((await cookies()).get(LANG_COOKIE)?.value);
+}
 
 export async function endPatientSession(): Promise<void> {
   const token = (await cookies()).get(PATIENT_COOKIE)?.value;
@@ -85,7 +98,27 @@ export async function noteWrongTry(phoneHmac: string) {
   await q().run(`INSERT INTO "PortalAttempt" ("phoneHmac", at) VALUES (?, ?)`, phoneHmac, iso());
 }
 
-export type AccountRow = { id: string; phoneHmac: string; pinHash: string; failedAttempts: number; lockedUntil: string | null };
+export type AccountRow = {
+  id: string;
+  phoneHmac: string;
+  pinHash: string;
+  failedAttempts: number;
+  lockedUntil: string | null;
+  termsAcceptedAt: string | null;
+  termsVersion: string | null;
+  language: string | null;
+};
+
+/** Accepted the portal's terms, in the version in force. */
+export const acceptedTerms = (a: AccountRow | undefined) => !!a && a.termsVersion === PATIENT_TERMS_VERSION;
+
+/** The patient ticked the terms: once, and again only if they change. */
+export async function acceptPortalTerms(accountId: string, lang: Lang | null) {
+  await q().run(
+    `UPDATE "PortalAccount" SET "termsAcceptedAt" = ?, "termsVersion" = ?, language = COALESCE(?, language) WHERE id = ?`,
+    iso(), PATIENT_TERMS_VERSION, lang, accountId
+  );
+}
 
 export function getAccountByPhone(phoneHmac: string): Promise<AccountRow | undefined> {
   return q().get<AccountRow>(`SELECT * FROM "PortalAccount" WHERE "phoneHmac" = ?`, phoneHmac);

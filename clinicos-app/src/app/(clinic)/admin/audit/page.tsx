@@ -35,6 +35,7 @@ const WHAT: Record<string, string> = {
   bill_void: "Cancelled a bill",
   followup_messaged: "Messaged a patient about their follow-up",
   followup_dismissed: "Marked a follow-up not needed",
+  terms_accept: "Accepted the ClinicOS terms for the clinic",
 };
 
 export default async function AuditPage() {

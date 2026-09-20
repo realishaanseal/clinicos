@@ -89,7 +89,7 @@ const note = (over = {}) => ({
   const L = {};
   let r = await call(pc1.base, "POST", "/api/setup", {
     jar: L,
-    body: { setupCode: process.env.SETUP_CODE, clinicName: "Mitra Clinic", name: "Dr Mitra", username: "mitra", password: "mitra-pass-1", isDoctor: true },
+    body: { setupCode: process.env.SETUP_CODE, acceptTerms: true, clinicName: "Mitra Clinic", name: "Dr Mitra", username: "mitra", password: "mitra-pass-1", isDoctor: true },
   });
   check("The clinic computer is set up on its own first", r.status === 200 && L.clinicos_session, JSON.stringify(r.json));
   await call(pc1.base, "POST", "/api/admin/settings", { jar: L, body: { name: "Mitra Clinic", address: "12 Station Road", phone: "03472 000000" } });
@@ -104,7 +104,6 @@ const note = (over = {}) => ({
   r = await call(pc1.base, "POST", "/api/patients", { jar: L, body: { name: "Recorded Syncpatient", age: "30" } });
   const p2 = r.json.patient.id;
   const c2 = r.json.consultId;
-  await call(pc1.base, "POST", `/api/consults/${c2}/consent`, { jar: L });
   const res = await fetch(`${pc1.base}/api/consults/${c2}/audio/chunk?first=1`, {
     method: "POST",
     headers: { cookie: `clinicos_session=${L.clinicos_session}` },
@@ -242,7 +241,7 @@ const note = (over = {}) => ({
   r = await call(pc1.base, "POST", `/api/consults/${c1}/share`, { jar: L, body: { consent: true } });
   const shareCode = r.json?.code;
   check("A connected clinic computer shares a signed visit through its clinic online", r.status === 200 && shareCode && r.json.portalUrl === `${CLOUD}/p`, JSON.stringify(r.json));
-  r = await call(CLOUD, "POST", "/api/portal/start", { body: { phone: "9800000001", code: shareCode, pin: "246810" } });
+  r = await call(CLOUD, "POST", "/api/portal/start", { body: { phone: "9800000001", code: shareCode, pin: "246810", acceptTerms: true } });
   check("…and the patient opens it online with the printed code", r.status === 200, JSON.stringify(r.json));
   await call(pc1.base, "POST", "/api/admin/sync/run", { jar: L });
   {

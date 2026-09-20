@@ -418,8 +418,7 @@ function olderOnline(e: unknown): null {
 export async function shareThroughOnline(
   consultId: string,
   action: "share" | "revoke",
-  by: string,
-  consentBy: string
+  by: string
 ): Promise<{ code?: string; portalUrl: string; ok?: boolean }> {
   const cfg = await getConfig();
   if (!cfg.sync_url || !cfg.sync_key) {
@@ -430,7 +429,6 @@ export async function shareThroughOnline(
     consultId,
     action,
     by,
-    consentBy,
   });
   void syncNow().catch(() => {});
   return { ...res, portalUrl: `${cfg.sync_url}/p` };

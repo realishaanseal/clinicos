@@ -164,7 +164,7 @@ export async function currentTokenHash(): Promise<string | null> {
 // ---------------------------------------------------------- permissions
 /**
  *   clinical  — transcripts, notes, signing, prescriptions, patient history
- *   frontdesk — registering and finding patients, recording consent
+ *   frontdesk — registering and finding patients, the day's list, follow-ups
  *   admin     — people, clinic details, backups, deletion, the activity log
  *   billing   — making bills, taking payment, printing receipts. Everyone:
  *               in a small clinic whoever is free takes the money, and a bill

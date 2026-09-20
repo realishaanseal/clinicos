@@ -1,5 +1,6 @@
-// The patient portal (v0.5 Part C): a doctor shares a signed visit, with the
-// patient's consent, and the patient reads it on their phone. Run by run.mjs:
+// The patient portal (v0.5 Part C): a doctor shares a signed visit in one tap,
+// and the patient reads it on their phone, in their own language, agreeing to
+// the portal's terms themselves the first time. Run by run.mjs:
 //   node scripts/test/portal-test.cjs <online db>
 //
 // On a clinic computer (SQLite) there is no portal, and a visit cannot be
@@ -57,7 +58,7 @@ const db = async (fn) => {
     let r = await call("POST", "/api/patients", { jar: owner, body: { name: "Unshared Patient", phone: "9811100000" } });
     const cid = r.json?.consultId;
     await call("POST", `/api/consults/${cid}/sign`, { jar: owner, body: { note: note({ chiefComplaint: "Cold" }) } });
-    r = await call("POST", `/api/consults/${cid}/share`, { jar: owner, body: { consent: true } });
+    r = await call("POST", `/api/consults/${cid}/share`, { jar: owner, body: {} });
     check("Clinic computer, not connected: sharing says it needs ClinicOS online", r.status === 409 && /connected/.test(r.json?.error || ""), JSON.stringify(r.json));
     r = await call("GET", "/p");
     check("Clinic computer: there is no patient portal", r.status === 404, r.status);
@@ -79,24 +80,21 @@ const db = async (fn) => {
   r = await call("POST", "/api/patients", { jar: D, body: { name: "Mina Portalcheck", age: "34", sex: "F", phone: "+91 98300 12345" } });
   const patientId = r.json.patient.id;
   const v1 = r.json.consultId;
-  r = await call("POST", `/api/consults/${v1}/share`, { jar: D, body: { consent: true } });
+  r = await call("POST", `/api/consults/${v1}/share`, { jar: D, body: {} });
   check("An unsigned visit cannot be shared", r.status === 409, r.status);
   await call("POST", `/api/consults/${v1}/sign`, {
     jar: D,
     body: { note: note({ chiefComplaint: "Fever and body ache", diagnosis: "Viral fever", medications: [{ name: "Paracetamol", dose: "650mg", frequency: "TDS", duration: "3 days", instructions: "After food" }] }) },
   });
-  r = await call("POST", `/api/consults/${v1}/share`, { jar: D, body: {} });
-  check("Sharing needs the patient's consent, said so", r.status === 400 && /Ask the patient/.test(r.json?.error || ""), JSON.stringify(r.json));
-
   r = await call("POST", "/api/patients", { jar: D, body: { name: "No Phone Portalcheck" } });
   const noPhone = r.json.consultId;
   await call("POST", `/api/consults/${noPhone}/sign`, { jar: D, body: { note: note({ chiefComplaint: "Cough" }) } });
-  r = await call("POST", `/api/consults/${noPhone}/share`, { jar: D, body: { consent: true } });
+  r = await call("POST", `/api/consults/${noPhone}/share`, { jar: D, body: {} });
   check("A patient with no phone number cannot be shared with", r.status === 400 && /phone/.test(r.json?.error || ""), JSON.stringify(r.json));
 
-  r = await call("POST", `/api/consults/${v1}/share`, { jar: D, body: { consent: true } });
+  r = await call("POST", `/api/consults/${v1}/share`, { jar: D, body: {} });
   const code1 = r.json?.code;
-  check("The doctor shares the signed visit and gets a code to print", r.status === 200 && /^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{2}$/.test(code1 || "") && /\/p$/.test(r.json?.portalUrl || ""), JSON.stringify(r.json));
+  check("The doctor shares the signed visit in one tap, with nothing read out, and gets a code to print", r.status === 200 && /^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{2}$/.test(code1 || "") && /\/p$/.test(r.json?.portalUrl || ""), JSON.stringify(r.json));
   r = await call("GET", `/consult/${v1}`, { jar: D });
   check("The visit shows it is shared", r.status === 200 && r.text.includes("Shared"), r.status);
 
@@ -104,21 +102,33 @@ const db = async (fn) => {
     const s = await d.get(`SELECT "payloadEnc", "phoneHmac", "codeHash", "consentBy" FROM "PortalShare" WHERE "consultId" = ?`, v1);
     check("The shared prescription is stored encrypted", s && s.payloadEnc.startsWith("v1:") && !s.payloadEnc.includes("Viral") && !s.payloadEnc.includes("Mina"), s?.payloadEnc?.slice(0, 20));
     check("…the phone number only as an HMAC, and the code only as a hash", s && !s.phoneHmac.includes("9830012345") && s.codeHash.length === 64 && !s.codeHash.includes(code1.replace(/-/g, "")), JSON.stringify({ p: s?.phoneHmac?.slice(0, 8) }));
-    check("…with who asked the patient", s && /Dr Das/.test(s.consentBy), s?.consentBy);
+    check("…with no read-out recorded for it: the patient agrees themselves", s && s.consentBy === null, s?.consentBy);
     const a = await d.get(`SELECT detail FROM "AuditEvent" WHERE action = 'consult_share' AND "targetId" = ?`, v1);
     check("Sharing is in the clinic's log, without the patient's name", a && !a.detail.includes("Mina"), a?.detail);
   });
 
   // ------------------------------------------------ the patient signs in
   const P = {};
-  r = await call("POST", "/api/portal/start", { jar: P, body: { phone: "9830012346", code: code1, pin: "123456" } });
-  check("A code with the wrong phone number is refused", r.status === 401 && !P.clinicos_patient, r.status);
+  r = await call("GET", "/p");
+  check("On a new phone the portal asks for a language first", r.status === 200 && r.text.includes("Choose your language") && r.text.includes("বাংলা") && r.text.includes("हिन्दी"), r.status);
+  r = await call("GET", "/p", { jar: { clinicos_lang: "bn" } });
+  check("…and then signs in in that language", r.status === 200 && r.text.includes("ফোন নম্বর") && !r.text.includes("Choose your language"), r.status);
+  r = await call("POST", "/api/portal/start", { jar: P, body: { phone: "9830012346", code: code1, pin: "123456", acceptTerms: true } });
+  check("A code with the wrong phone number is refused, with a code the portal can say in any language", r.status === 401 && r.json?.code === "code-mismatch" && !P.clinicos_patient, JSON.stringify(r.json));
   r = await call("POST", "/api/portal/start", { jar: P, body: { phone: "98300 12345", code: code1.toLowerCase(), pin: "12345" } });
   check("A PIN must be 6 digits", r.status === 400, r.status);
-  r = await call("POST", "/api/portal/start", { jar: P, body: { phone: "098300-12345", code: code1.toLowerCase(), pin: "482913" } });
-  check("The patient opens it with their phone, however typed, and the code, and sets a PIN", r.status === 200 && P.clinicos_patient, JSON.stringify(r.json));
+  r = await call("POST", "/api/portal/start", { jar: P, body: { phone: "098300-12345", code: code1.toLowerCase(), pin: "482913", lang: "bn" } });
+  check("The first sign-in goes no further until the patient agrees to the terms", r.status === 409 && r.json?.needTerms === true && r.json?.code === "terms" && !P.clinicos_patient, JSON.stringify(r.json));
+  r = await call("POST", "/api/portal/start", { jar: P, body: { phone: "098300-12345", code: code1.toLowerCase(), pin: "482913", lang: "bn", acceptTerms: true } });
+  check("The patient agrees, opens it with their phone, however typed, and the code, and sets a PIN", r.status === 200 && P.clinicos_patient, JSON.stringify(r.json));
+  await db(async (d) => {
+    const a = await d.get(`SELECT "termsAcceptedAt", "termsVersion", language FROM "PortalAccount" ORDER BY "createdAt" DESC LIMIT 1`);
+    check("Their agreement is kept with the account, with the language they chose", a && a.termsAcceptedAt && a.termsVersion && a.language === "bn", JSON.stringify(a));
+  });
   r = await call("GET", "/p", { jar: P });
-  check("They see the prescription in their list", r.status === 200 && r.text.includes("Viral fever") && r.text.includes("Das Clinic"), r.status);
+  check("They see the prescription in their list, the portal in Bengali and the prescription as the doctor wrote it", r.status === 200 && r.text.includes("Viral fever") && r.text.includes("Das Clinic") && r.text.includes("আপনার প্রেসক্রিপশন"), r.status);
+  r = await call("GET", "/p", { jar: { ...P, clinicos_lang: "hi" } });
+  check("…and can switch it to Hindi", r.status === 200 && r.text.includes("आपके पर्चे") && r.text.includes("Viral fever"), r.status);
   const shareId = await db(async (d) => (await d.get(`SELECT id FROM "PortalShare" WHERE "consultId" = ?`, v1)).id);
   r = await call("GET", `/p/visits/${shareId}`, { jar: P });
   check("…and open it, exactly as printed", r.status === 200 && r.text.includes("Paracetamol") && r.text.includes("Dr Das") && r.text.includes("Mina Portalcheck"), r.status);
@@ -136,7 +146,14 @@ const db = async (fn) => {
   r = await call("GET", "/p", { jar: P });
   check("Signing out ends it", r.status === 200 && !r.text.includes("Viral fever"), r.status);
   r = await call("POST", "/api/portal/login", { jar: P, body: { phone: "9830012345", pin: "482913" } });
-  check("The patient signs in again with phone and PIN", r.status === 200 && P.clinicos_patient, r.status);
+  check("The patient signs in again with phone and PIN, and is not asked to agree again", r.status === 200 && P.clinicos_patient, r.status);
+  await call("POST", "/api/portal/logout", { jar: P });
+  // An account made before the portal had terms agrees once, at its next sign-in.
+  await db((d) => d.run(`UPDATE "PortalAccount" SET "termsVersion" = NULL, "termsAcceptedAt" = NULL WHERE language = 'bn'`));
+  r = await call("POST", "/api/portal/login", { jar: P, body: { phone: "9830012345", pin: "482913" } });
+  check("An account from before the terms is asked to agree once, and goes no further without it", r.status === 409 && r.json?.needTerms === true && !P.clinicos_patient, JSON.stringify(r.json));
+  r = await call("POST", "/api/portal/login", { jar: P, body: { phone: "9830012345", pin: "482913", acceptTerms: true } });
+  check("…and signs in once it has", r.status === 200 && P.clinicos_patient, JSON.stringify(r.json));
   await call("POST", "/api/portal/logout", { jar: P });
   for (let i = 0; i < 5; i++) await call("POST", "/api/portal/login", { body: { phone: "9830012345", pin: "000000" } });
   r = await call("POST", "/api/portal/login", { jar: P, body: { phone: "9830012345", pin: "482913" } });
@@ -148,12 +165,12 @@ const db = async (fn) => {
   r = await call("POST", "/api/consults", { jar: D, body: { patientId } });
   const v2 = r.json.consult.id;
   await call("POST", `/api/consults/${v2}/sign`, { jar: D, body: { note: note({ chiefComplaint: "Follow-up", diagnosis: "Recovered" }) } });
-  r = await call("POST", `/api/consults/${v2}/share`, { jar: D, body: { consent: true } });
+  r = await call("POST", `/api/consults/${v2}/share`, { jar: D, body: {} });
   const code2 = r.json?.code;
   r = await call("GET", "/p", { jar: P });
   check("A later visit shared to the same phone appears by itself", r.text.includes("Recovered") && r.text.includes("Viral fever"), r.status);
 
-  r = await call("POST", `/api/consults/${v2}/share`, { jar: D, body: { consent: true } });
+  r = await call("POST", `/api/consults/${v2}/share`, { jar: D, body: {} });
   const code2b = r.json?.code;
   check("Sharing again gives a new code", r.status === 200 && code2b && code2b !== code2 && r.json.renewed === true, JSON.stringify(r.json));
   r = await call("POST", "/api/portal/start", { body: { phone: "9830012345", code: code2, pin: "111222" } });
@@ -172,7 +189,7 @@ const db = async (fn) => {
   r = await call("POST", "/api/auth/login", { body: { clinic: "sharma", username: "doctor", password: "sharma-pass-1" } });
   const other = {};
   await call("POST", "/api/auth/login", { jar: other, body: { clinic: "sharma", username: "doctor", password: "sharma-pass-1" } });
-  r = await call("POST", `/api/consults/${v2}/share`, { jar: other, body: { consent: true } });
+  r = await call("POST", `/api/consults/${v2}/share`, { jar: other, body: {} });
   const r2 = await call("DELETE", `/api/consults/${v2}/share`, { jar: other });
   check("Another clinic's doctor can neither share nor stop sharing this clinic's visit", r.status === 404 && r2.status === 404, `${r.status} ${r2.status}`);
 

@@ -4,6 +4,7 @@ import { hashPassword, homeFor, sessionCookie, startSession, toSessionUser } fro
 import { cleanText, cleanUsername, passwordProblem, USERNAME_RULE } from "@/lib/users";
 import { setupCodeMatches } from "@/lib/setup-code";
 import { CLINIC_COOKIE, MULTI_CLINIC, resolveClinic } from "@/lib/tenant";
+import { acceptClinicTerms } from "@/lib/clinic";
 
 /**
  * First run only. Creates a clinic's owner account while that clinic has no
@@ -71,6 +72,10 @@ export async function POST(req: NextRequest) {
 
   const token = await startSession(user.id);
   await recordAudit(clinic.id, user, "setup", "user", user.id);
+  // The setup form's tickbox: the clinic accepts ClinicOS's terms once, here,
+  // and recording is switched on. Without it the clinic is set up all the same,
+  // and accepts them later in Clinic admin before its first recording.
+  if (body.acceptTerms === true) await acceptClinicTerms(clinic.id, user);
 
   const secure = req.nextUrl.protocol === "https:";
   const res = NextResponse.json({ ok: true, redirect: homeFor(toSessionUser(user, clinic.status)) });

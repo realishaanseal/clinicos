@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getConsult, setAudio } from "@/lib/db";
 import { requireApiUser } from "@/lib/auth";
+import { RECORDING_OFF, allowRecording } from "@/lib/clinic";
 import { writeWhole } from "@/lib/audio-store";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -11,12 +12,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const consult = await getConsult(auth.user.clinicId, id);
   if (!consult) return NextResponse.json({ error: "Consult not found" }, { status: 404 });
 
-  // Hard gate. Without recorded consent there is no lawful basis to store this.
-  if (!consult.consentGiven) {
-    return NextResponse.json({ error: "Consent has not been recorded for this consultation." }, { status: 403 });
-  }
   if (consult.signedAt) {
     return NextResponse.json({ error: "This consultation is already signed." }, { status: 409 });
+  }
+  // Hard gate, on the server: nothing is stored unless the clinic has accepted
+  // ClinicOS's terms, in which it tells every patient and records no one who
+  // says no (CLAUDE.md, invariant 5).
+  if (!(await allowRecording(auth.user.clinicId, consult))) {
+    return NextResponse.json({ error: RECORDING_OFF, code: "terms" }, { status: 403 });
   }
 
   const form = await req.formData();

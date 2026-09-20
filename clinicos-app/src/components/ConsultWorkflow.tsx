@@ -7,6 +7,8 @@ import { ClinicalNote, Medication, mergeMedicines, noteHasContent } from "@/lib/
 import Prescription from "./Prescription";
 import Favourites from "./Favourites";
 import SharePanel, { type ShareState } from "./SharePanel";
+import ClinicTermsCard from "./ClinicTerms";
+import { WHAT_TO_SAY, type ClinicTerms } from "@/lib/terms";
 import type { FavouriteView } from "@/lib/db";
 import {
   IcMic, IcRec, IcStop, IcDoc, IcCheck, IcAlert, IcPrint, IcPlus, IcTrash, IcShield,
@@ -18,7 +20,6 @@ type Props = {
   consultId: string;
   patient: { name: string; age: number | null; sex: string | null; phone: string | null; guardianName: string | null };
   initial: {
-    consentGiven: boolean;
     hasAudio: boolean;
     transcript: string;
     note: ClinicalNote;
@@ -44,14 +45,19 @@ type Props = {
   favourites: FavouriteView[];
   /** Sharing the signed prescription with the patient (v0.5 Part C). */
   sharing: { share: ShareState; available: boolean; reason: string | null };
+  /** Whether the clinic has accepted ClinicOS's terms, which is what lets it
+   *  record, and whether this account may accept them for the clinic. */
+  recording: { mayRecord: boolean; terms: ClinicTerms | null; canAccept: boolean };
 };
 
 type LastVisit = { signedAt: string; diagnosis: string; medications: Medication[] };
 
-const STEPS = ["Consent", "Record", "Transcript", "Review & sign"];
+// No consent step since 20 Sep 2026: the clinic accepts ClinicOS's terms once,
+// and the server refuses to record until it has (lib/terms.ts).
+const STEPS = ["Record", "Transcript", "Review & sign"];
 
-export default function ConsultWorkflow({ consultId, patient, initial, clinic, lastVisit, favourites, sharing }: Props) {
-  const [consent, setConsent] = useState(initial.consentGiven);
+export default function ConsultWorkflow({ consultId, patient, initial, clinic, lastVisit, favourites, sharing, recording }: Props) {
+  const [mayRecord, setMayRecord] = useState(recording.mayRecord);
   const [transcript, setTranscript] = useState(initial.transcript);
   const [note, setNote] = useState<ClinicalNote>(initial.note);
   const [signedAt, setSignedAt] = useState<string | null>(initial.signedAt);
@@ -77,17 +83,8 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic, l
   const mounted = useRef(false);
 
   const hasNote = !!(note.chiefComplaint || note.diagnosis || note.history || note.medications.length);
-  const step = signedAt ? 4 : hasNote || manual ? 3 : transcript ? 2 : consent ? 1 : 0;
+  const step = signedAt ? 3 : hasNote || manual ? 2 : transcript ? 1 : 0;
   const written = noteHasContent(note);
-
-  async function giveConsent(by: "doctor" | "staff") {
-    setError("");
-    const res = await fetch(appPath(`/api/consults/${consultId}/consent`), {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ by }),
-    });
-    if (!res.ok) return setError("Could not record consent.");
-    setConsent(true);
-  }
 
   /* ---------------------------------------------------- recovery on mount */
   useEffect(() => {
@@ -271,145 +268,131 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic, l
           </span>
           {!written && (
             <button className="ghost small" type="button" onClick={() => setManual(false)}>
-              {consent ? "Record instead" : "Back"}
+              {mayRecord ? "Record instead" : "Back"}
             </button>
           )}
         </div>
       )}
 
-      {/* -------------------------------------------------------- 1 consent */}
-      {!consent && !manual ? (
-        <div className="consent">
-          <div className="hd"><IcShield size={17} /> Read aloud to the patient before recording</div>
-          <div className="bd">
-            <div className="bn">
-              নমস্কার। ডাক্তারবাবু এই চেম্বারে একটি নতুন ব্যবস্থা ব্যবহার করছেন। আপনার সঙ্গে ডাক্তারবাবুর
-              কথা একটি যন্ত্রে রেকর্ড করা হবে, যাতে আপনার প্রেসক্রিপশন ছাপার অক্ষরে তৈরি করা যায়।
-              <ul>
-                <li>শুধু আপনার আর ডাক্তারবাবুর কথাটুকুই রেকর্ড হবে।</li>
-                <li>ডাক্তারবাবু নিজে দেখে, দরকার হলে ঠিক করে, তবেই সই করবেন।</li>
-                <li>ডাক্তারবাবু সই করার পরেই রেকর্ডিংটি মুছে ফেলা হবে।</li>
-                <li>আপনার তথ্য কোনো ওষুধ কোম্পানিকে দেওয়া হবে না।</li>
-                <li>আপনি রাজি না হলেও ডাক্তারবাবু আপনাকে আগের মতোই দেখবেন।</li>
-                <li>যে কোনো সময় &lsquo;বন্ধ করুন&rsquo; বললে রেকর্ডিং বন্ধ হবে।</li>
-              </ul>
-              <div className="ask">আপনি কি রাজি আছেন?</div>
-            </div>
-
-            {patient.age !== null && patient.age < 18 && (
-              <div className="note err" style={{ marginTop: 16 }}>
-                <IcAlert size={17} />
-                <span>
-                  Patient is under 18 — guardian consent required
-                  {patient.guardianName ? `. Recorded guardian: ${patient.guardianName}.` : ", and no guardian is recorded."}
+      {/* ----------------------------------------------------- 1 record */}
+      {!manual && !mayRecord && (
+        <div className="noprint">
+          <ClinicTermsCard
+            terms={recording.terms}
+            inForce={false}
+            canAccept={recording.canAccept}
+            onAccepted={() => setMayRecord(true)}
+            compact
+          />
+          <div className="btnrow" style={{ margin: "12px 0 18px" }}>
+            <button className="ghost" type="button" onClick={() => setManual(true)}>
+              <IcDoc size={16} /> Write the note by hand
+            </button>
+          </div>
+        </div>
+      )}
+      {!manual && mayRecord && <div className="card flush">
+        <div className="card-head">
+          <span className="title" style={{ display: "flex", alignItems: "center", gap: 7 }}><IcMic size={15} /> Record the consultation</span>
+          {haveAudio && !rec.recording && <span className="pill signed">Audio captured</span>}
+        </div>
+        <div className="card-body">
+          <div className="recorder">
+            {!rec.recording ? (
+              <button className="rec" onClick={rec.start} disabled={!!busy}>
+                <IcRec size={14} /> {haveAudio ? "Record again" : "Start recording"}
+              </button>
+            ) : (
+              <>
+                <button className="ghost" onClick={onStop}><IcStop size={14} /> Stop</button>
+                <span className="timer"><span className="livedot" />{mm}:{ss}</span>
+                <span className="wave">
+                  {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+                    <i key={i} style={{ animationDelay: `${i * 0.11}s` }} />
+                  ))}
                 </span>
+                <span className="saveflag">
+                  <IcShield size={13} />
+                  {rec.uploadedBytes > 0
+                    ? `${(rec.uploadedBytes / 1024).toFixed(0)} KB safe on disk`
+                    : "saving to disk…"}
+                </span>
+              </>
+            )}
+            {haveAudio && !rec.recording && (
+              <button onClick={transcribe} disabled={!!busy}><IcDoc size={15} /> Transcribe</button>
+            )}
+          </div>
+          <p className="muted" style={{ marginTop: 13, marginBottom: 0 }}>
+            Speak normally — Bengali, Hindi, English or any mix. Audio is saved continuously as you
+            talk, so an interruption cannot lose the consultation. It is deleted the moment you sign.
+          </p>
+          {patient.age !== null && patient.age < 18 && !haveAudio && (
+            <div className="note info" style={{ marginTop: 12, marginBottom: 0 }}>
+              <IcAlert size={16} />
+              <span>
+                Under 18: ask their parent or guardian before recording
+                {patient.guardianName ? ` (${patient.guardianName} is on record).` : "."}
+              </span>
+            </div>
+          )}
+          {!rec.recording && !hasNote && (
+            <button className="quiet small" type="button" onClick={() => setManual(true)} style={{ marginTop: 8, marginLeft: -10 }}>
+              Patient said no, or no recording needed? Write the note by hand
+            </button>
+          )}
+          {!haveAudio && !rec.recording && (
+            <details className="what-to-say">
+              <summary>What to tell the patient</summary>
+              <p>{WHAT_TO_SAY.en}</p>
+              <p lang="bn">{WHAT_TO_SAY.bn}</p>
+            </details>
+          )}
+        </div>
+      </div>}
+
+      {/* -------------------------------------------------- 3 transcript */}
+      {(manual ? !!transcript : transcript || haveAudio) && (
+        <div className="card flush">
+          <div className="card-head">
+            <span className="title">{manual ? "Transcript, for reference" : "Transcript"}</span>
+            {stats.asrModel && (
+              <span className="muted mono">{stats.asrModel} · {stats.asrSeconds?.toFixed(1)}s</span>
+            )}
+          </div>
+          <div className="card-body">
+            <textarea
+              value={transcript}
+              onChange={(e) => setTranscript(e.target.value)}
+              style={{ minHeight: 150 }}
+              placeholder="The transcript appears here. Correct anything obviously misheard before generating the note."
+            />
+            {!manual && (
+              <div className="btnrow" style={{ marginTop: 12 }}>
+                <button onClick={generateNote} disabled={!transcript.trim() || !!busy}>
+                  <IcDoc size={15} /> Generate clinical note
+                </button>
               </div>
             )}
           </div>
-          <div className="ft">
-            <div className="btnrow">
-              <button onClick={() => giveConsent("staff")}><IcCheck size={16} /> Consented — form signed</button>
-              <button className="ghost" type="button" onClick={() => setManual(true)}>
-                <IcDoc size={16} /> Write the note without recording
-              </button>
-            </div>
-            <p className="muted" style={{ marginTop: 10, marginBottom: 0 }}>
-              If the patient says no, or the visit is too short to need it, nothing is recorded: write
-              the note by hand instead. Saying no changes nothing about their care.
-            </p>
-          </div>
         </div>
-      ) : (
-        <>
-          {/* ----------------------------------------------------- 2 record */}
-          {!manual && <div className="card flush">
-            <div className="card-head">
-              <span className="title" style={{ display: "flex", alignItems: "center", gap: 7 }}><IcMic size={15} /> Record the consultation</span>
-              {haveAudio && !rec.recording && <span className="pill signed">Audio captured</span>}
-            </div>
-            <div className="card-body">
-              <div className="recorder">
-                {!rec.recording ? (
-                  <button className="rec" onClick={rec.start} disabled={!!busy}>
-                    <IcRec size={14} /> {haveAudio ? "Record again" : "Start recording"}
-                  </button>
-                ) : (
-                  <>
-                    <button className="ghost" onClick={onStop}><IcStop size={14} /> Stop</button>
-                    <span className="timer"><span className="livedot" />{mm}:{ss}</span>
-                    <span className="wave">
-                      {[0, 1, 2, 3, 4, 5, 6].map((i) => (
-                        <i key={i} style={{ animationDelay: `${i * 0.11}s` }} />
-                      ))}
-                    </span>
-                    <span className="saveflag">
-                      <IcShield size={13} />
-                      {rec.uploadedBytes > 0
-                        ? `${(rec.uploadedBytes / 1024).toFixed(0)} KB safe on disk`
-                        : "saving to disk…"}
-                    </span>
-                  </>
-                )}
-                {haveAudio && !rec.recording && (
-                  <button onClick={transcribe} disabled={!!busy}><IcDoc size={15} /> Transcribe</button>
-                )}
-              </div>
-              <p className="muted" style={{ marginTop: 13, marginBottom: 0 }}>
-                Speak normally — Bengali, Hindi, English or any mix. Audio is saved continuously as you
-                talk, so an interruption cannot lose the consultation. It is deleted the moment you sign.
-              </p>
-              {!rec.recording && !hasNote && (
-                <button className="quiet small" type="button" onClick={() => setManual(true)} style={{ marginTop: 8, marginLeft: -10 }}>
-                  No recording needed? Write the note by hand
-                </button>
-              )}
-            </div>
-          </div>}
+      )}
 
-          {/* -------------------------------------------------- 3 transcript */}
-          {(manual ? !!transcript : transcript || haveAudio) && (
-            <div className="card flush">
-              <div className="card-head">
-                <span className="title">{manual ? "Transcript, for reference" : "Transcript"}</span>
-                {stats.asrModel && (
-                  <span className="muted mono">{stats.asrModel} · {stats.asrSeconds?.toFixed(1)}s</span>
-                )}
-              </div>
-              <div className="card-body">
-                <textarea
-                  value={transcript}
-                  onChange={(e) => setTranscript(e.target.value)}
-                  style={{ minHeight: 150 }}
-                  placeholder="The transcript appears here. Correct anything obviously misheard before generating the note."
-                />
-                {!manual && (
-                  <div className="btnrow" style={{ marginTop: 12 }}>
-                    <button onClick={generateNote} disabled={!transcript.trim() || !!busy}>
-                      <IcDoc size={15} /> Generate clinical note
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ------------------------------------------------------- 4 note */}
-          {(hasNote || manual) && (
-            <NoteEditor
-              favourites={favourites}
-              lastVisit={lastVisit}
-              manual={manual}
-              note={note}
-              setNote={setNote}
-              set={set}
-              stats={stats}
-              onSign={sign}
-              busy={!!busy || !written}
-              saveState={save.state}
-              savedAt={save.savedAt}
-            />
-          )}
-        </>
+      {/* ------------------------------------------------------- 4 note */}
+      {(hasNote || manual) && (
+        <NoteEditor
+          favourites={favourites}
+          lastVisit={lastVisit}
+          manual={manual}
+          note={note}
+          setNote={setNote}
+          set={set}
+          stats={stats}
+          onSign={sign}
+          busy={!!busy || !written}
+          saveState={save.state}
+          savedAt={save.savedAt}
+        />
       )}
     </>
   );

@@ -183,12 +183,14 @@ The clinic app also runs on the clinic computer, exactly as before. Start it wit
     a sandbox operator.
 - **v0.5 Part C, the patient portal** (19 Sep 2026, branch `saas`), inside the online app
   rather than as a separate `portal/` app:
-  - After signing, **Share with the patient**: a separate spoken consent (the words on
-    screen in English and Bengali), then a 10-character code printed at the foot of the
-    prescription with the portal's address and a QR code. Works online, and from a
-    clinic computer connected to its clinic online.
-  - The patient opens `vxclinicos.vercel.app/app/p` on their phone: phone number + code
-    the first time (choosing a 6-digit PIN), phone + PIN after. Later visits shared to
+  - After signing, **Share with the patient** in one tap (no read-out since 20 Sep 2026),
+    then a 10-character code printed at the foot of the prescription with the portal's
+    address and a QR code. Works online, and from a clinic computer connected to its
+    clinic online.
+  - The patient opens `vxclinicos.vercel.app/app/p` on their phone: first a choice of
+    English, বাংলা or हिन्दी, then phone number + code the first time (choosing a 6-digit
+    PIN and agreeing to the portal's terms, once), phone + PIN after. The whole portal is
+    in their language; the prescription stays as the doctor wrote it. Later visits shared to
     the same phone appear by themselves. They can print, remove a visit from their list,
     or delete their account (typed DELETE). Five wrong PINs lock for 15 minutes; a code
     resets the PIN.
@@ -196,11 +198,16 @@ The clinic app also runs on the clinic computer, exactly as before. Start it wit
     even by direct address). Deleting the patient deletes what was shared.
   - Stored encrypted (AES-256-GCM), phones only as HMACs, codes only as hashes. Needs
     `PORTAL_ENCRYPTION_KEY` and `PORTAL_HMAC_KEY` on Vercel (§7).
-  - 38 checks in `portal-test.cjs`, and 3 more in the sync suite for sharing from a
-    clinic computer. **393 checks pass on Postgres, 232 on SQLite.**
-- **Part D, drafted:** the sharing consent is written and in use on screen; the consent
-  script's lines for keeping records online are a **draft awaiting Ishaan** in
-  `docs/Patient_Consent_Script_EN_BN.md`; the pilot agreement lists Vercel and Supabase
+  - 44 checks in `portal-test.cjs`, and 3 more in the sync suite for sharing from a
+    clinic computer.
+- **Consent, since 20 Sep 2026 (Ishaan's decision):** no consent screen for the doctor
+  any more. The clinic accepts ClinicOS's terms once — a tickbox at signup, or a card in
+  Clinic admin and on the recorder for clinics set up before — undertaking to tell every
+  patient and record no one who says no; the server refuses to record until it has, and
+  marks each recorded visit with that basis. The patient accepts the portal's terms once,
+  in their own language. Terms text and versions: `clinicos-app/src/lib/terms.ts`.
+- **Part D, drafted:** the consent script's lines for keeping records online are a
+  **draft awaiting Ishaan** in `docs/Patient_Consent_Script_EN_BN.md`; the pilot agreement lists Vercel and Supabase
   (Mumbai) as sub-processors, with the AI service still to be named; the website says
   records can be kept on the clinic's computer, online, or both.
 - **Prescription extras** (19 Sep 2026, branch `saas`, commit `d577d4f`):
@@ -255,13 +262,13 @@ The clinic app also runs on the clinic computer, exactly as before. Start it wit
 - **Clinic app:** `cd clinicos-app && npm run test:e2e`
   - Builds the app and runs it on port 3100 against a throwaway seeded database in
     `clinicos-app/.test-data/` (git-ignored). It never uses `data/`.
-  - Suites, in order: upgrade safety and the permission matrix (133 checks), the day's
-    list and phone search (50), the doctor's speed features (52), prescription extras
+  - Suites, in order: upgrade safety and the permission matrix (137 checks), the day's
+    list and phone search (50), the doctor's speed features (51), prescription extras
     (18), billing and follow-ups (61), reset script and restoring a pre-accounts backup
     (14), many clinics (71, Postgres only), clinic computer sync (71, Postgres only),
-    the patient portal (38, Postgres only). On SQLite the last three only check that
+    the patient portal (44, Postgres only). On SQLite the last three only check that
     their online parts are absent.
-  - All passed on 20 September 2026: 508 checks on Postgres (PGlite), 334 on SQLite,
+  - All passed on 20 September 2026: 517 checks on Postgres (PGlite), 337 on SQLite,
     on the Windows laptop.
   - Don't run it while `npm run dev` is running in that folder.
 - **Website:** `cd landing && npm run build`
@@ -312,6 +319,8 @@ The clinic app also runs on the clinic computer, exactly as before. Start it wit
 | 20 Sep 2026 | Everyone who takes money can bill — doctor, front desk and clinic admin — and only Clinic admin cancels, with a reason and `CANCEL` typed. Bills are never edited or deleted. | In a small clinic whoever is free takes the money. A bill carries nothing clinical, so the admin's no-clinical-access rule still holds; the admin gets billing's own patient search, not the front desk's. |
 | 20 Sep 2026 | Receipt numbers are given at payment. Online they are plain; each clinic computer puts its own three-letter tag in front, made the first time it takes a payment and kept in a setting that never travels. | Replaces the design's `L-` then device-id prefix: a tag that changed at connect time would split one computer's receipts into two series, and two unconnected computers would both print `L-0001`. Consonants only, never L, so a tag spells no word. |
 | 20 Sep 2026 | A cancel reason stays on the bill, never in the activity log. | It is typed freely and could name the patient; a deleted patient must not survive in the log. |
+| 20 Sep 2026 | **No consent screen per visit or per share.** The clinic accepts ClinicOS's terms once (signup tickbox, or Clinic admin), undertaking to tell every patient and record no one who says no; the server refuses to record until then. The patient accepts the portal's terms once, at first sign-in, after choosing English, Bengali or Hindi. | Ishaan: "the concent thing … is not needed not like the doctor is gonna show evertime … keep this in terms and conditions as a tickbox during login or signup one time … can have a language option at the start", then "Both" (recording and sharing). A tickbox in the portal alone could not cover recording, which happens before a patient sees the portal, so the clinic's own acceptance is the basis for that. Invariant 5 rewritten. |
+| 20 Sep 2026 | `main` is the SaaS web version. `saas` was fast-forwarded into it and went live the same night. | Ishaan: "ye put into main … rn we are focussing on complete saas product web version. so that will be the main". |
 | 20 Sep 2026 | Follow-ups stay on the list for 60 days, leave it when the patient is back (a later visit, or put on the day's list) or the desk acts, and the reminder's template has only `{name}`, `{clinic}`, `{doctor}`, `{date}`. | A phone's lock screen shows the message to anyone; there is deliberately no way to put a diagnosis in it. WhatsApp through `wa.me` costs nothing and needs no account or API. |
 | Prototype era | The invariants in CLAUDE.md. | No clinical judgement. Audio deleted at signing. No training on audio. Consent enforced server-side. `draftJson` immutable. Backups via the SQLite backup API. No lock-in. |
 
@@ -557,14 +566,9 @@ the times are measured (§3). Cutting them further needs real consultations to m
 
 ## 7. Waiting on Ishaan
 
-0. **Say whether `saas` can go into `main`.** It contains `workflow-speed`, so merging
-   puts the doctor's speed features, many clinics, the platform console and clinic
-   computer sync, the patient portal, prescription extras, and billing and follow-ups live
-   at vxclinicos.vercel.app/app. The production build adds the new tables and columns to
-   the online database by itself (migrations 002–007); nothing needs typing into a
-   dashboard. Until then, the branch's Vercel Preview shows errors,
-   because previews never change the database.
-   **Then add the two portal keys**: run `npm run portal:keys` in `clinicos-app` and paste
+0. **Done 20 Sep 2026: `saas` is in `main` and live** at vxclinicos.vercel.app/app; the
+   production build applied the migrations itself.
+   **Now add the two portal keys**: run `npm run portal:keys` in `clinicos-app` and paste
    the two lines into the `vxclinicos-app` project's environment (Production, marked
    Sensitive), then redeploy. Set them once: changing them later makes what was shared
    unreadable.
@@ -938,21 +942,28 @@ and `--scope varaxis` reaches the projects (`demo`, `vxclinicos-app`, `scholar`,
     cancelling, the come-back date, the Follow-ups list and its WhatsApp message, the desk's
     Today. Found on the way: screen-reader-only text in the front desk's list made every
     page with such a table scroll sideways on a phone (fixed in `globals.css`).
+  - Ishaan: put it in `main` — the SaaS web version is the product now — and **take the
+    consent screens out**: "not like the doctor is gonna show evertime", keeping consent
+    as "a tickbox during login or signup one time", with "a language option at the start"
+    for patients; asked which of the two consent screens, he answered **both**. So: the
+    clinic accepts ClinicOS's terms once and the server refuses to record until it has;
+    the patient chooses English, Bengali or Hindi on the portal's first screen and agrees
+    to its terms once. `saas` was merged into `main` and went live; billing answered on
+    the deployed app within minutes. 517 checks pass on Postgres, 337 on SQLite.
 
 ### Where to pick up
 
-**For the next session:** work is on branch **`saas`** (pushed; `git fetch` then
-`git checkout saas`). It contains `workflow-speed` and everything since, billing and
-follow-up recall included. Nothing of it is in `main` yet. Every item in Ishaan's order of
-work is built; ask Ishaan before merging into `main`.
+**For the next session:** `main` is the SaaS web version and is live; work continues on
+branch **`saas`** and is fast-forwarded into `main` once both test runs pass (`git fetch`,
+then `git checkout saas`). Every item in Ishaan's order of work is built.
 
-0. Ishaan: say whether `saas` (which contains `workflow-speed`) can be merged into
-   `main`, then make an operator account and add the portal keys (§7.0).
+0. Ishaan: make an operator account and add the portal keys (§7.0).
 1. Ishaan: set up the online clinic with the setup code (§7.2), and add a hosted AI
    service so transcription and drafting work online (§7.1).
 2. Ishaan: reset the Supabase password, then update `DATABASE_URL` on `vxclinicos-app`
    (§7.3); fix the Tally form's privacy link (§7.4).
-3. Before real patients use the online copy: the consent script, invariant 2 and the
-   pilot agreement rewritten for online use, and paid plans with backups (§6, §7.6).
+3. Before real patients use the online copy: patients told their records are kept
+   online (the clinic's terms or the script), the pilot agreement's sub-processors, and
+   paid plans with backups (§6, §7.6).
 4. Ishaan: read the Bengali follow-up reminder (§7.9).
 5. Always: CLAUDE.md's gate — the 20 doctor interviews have still not been done.

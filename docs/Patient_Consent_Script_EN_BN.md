@@ -2,6 +2,15 @@
 
 **Bilingual script and written form · English and বাংলা**
 
+> **Changed on 20 September 2026 (Ishaan's decision).** ClinicOS no longer shows this
+> script as a step before every recording. Instead the clinic accepts ClinicOS's terms
+> once — at signup or in Clinic admin — and in them undertakes to tell every patient
+> before recording and to record no one who says no; the server refuses to record until
+> it has (`clinicos-app/src/lib/terms.ts`). This script stays the recommended way to tell
+> patients, and a short version sits under "What to tell the patient" on the recorder.
+> The sharing consent further down is superseded too: the patient now agrees to the
+> portal's own terms, in English, Bengali or Hindi, the first time they sign in.
+
 ---
 
 ## Before you use this

@@ -57,18 +57,24 @@ trade them away for a feature.
    - Online, one clinic's records are never shown to, sent to, or changed by another
      clinic, and never opened by Varaxis: the platform console shows counts only.
    - The online copy keeps records in Supabase (Mumbai) and would send audio to a
-     hosted AI service. The consent script does not cover that yet, so the online copy
-     is a prototype for made-up patients only, says so on every screen, and a clinic
-     computer connecting to it must confirm its patients are made up. Rewriting the
-     consent script for online use (Part D) is what lifts this, with Ishaan's say-so.
-3. **Audio is deleted when the doctor signs.** Promised aloud to the patient in the
-   consent script, and enforced in `signConsult()`. Do not add audio retention.
+     hosted AI service. Patients are not yet told that, and the online database keeps
+     no backups, so the online copy is a prototype for made-up patients only, says so on
+     every screen, and a clinic computer connecting to it must confirm its patients are
+     made up. Only Ishaan lifts this (`NEXT_PUBLIC_CLINICOS_PROTOTYPE=0`).
+3. **Audio is deleted when the doctor signs.** Promised to every patient under the
+   clinic's terms (`lib/terms.ts`), and enforced in `signConsult()`. Do not add audio retention.
    Recordings never sync; a visit signed on one copy deletes the other copy's
    recording of it when the signature arrives (`mergeConsult()` in `sync.ts`).
 4. **Never train on patient audio.** Settled decision. Pilot Agreement clause 8
    permits de-identified data only, with an opt-out.
-5. **Consent is enforced server-side.** The recording endpoints return 403 when
-   `consentGiven` is false. A UI-only gate is not acceptable.
+5. **Recording is allowed only on a basis the server checks.** Since 20 Sep 2026
+   (Ishaan's decision) that basis is the clinic's one-time acceptance of ClinicOS's
+   terms — at setup or in Clinic admin — in which it undertakes to tell every patient
+   and record no one who says no. The recording endpoints return 403 until the terms
+   in force are accepted (`allowRecording()` in `clinic.ts`), and mark each recorded
+   visit with that basis (`consentBy`). There is no per-visit consent screen any more.
+   A UI-only gate is still not acceptable, and a change to the terms' text needs a new
+   version, which everyone accepts again.
 6. **`draftJson` is immutable once written.** It holds the AI's original output.
    Doctor edits go to `workingJson`, and the diff between them at signing is the
    accuracy metric. Never overwrite `draftJson` with edited content.
@@ -197,6 +203,8 @@ clinicos-app/
     llm.ts           note generation provider interface (ollama | openai)
                      SYSTEM_PROMPT lives here — the clinical safety text
     types.ts         ClinicalNote shape and parseNote()
+    terms.ts         the clinic's terms (what lets it record) and the patient portal's, in 3 languages
+    portal-words.ts  every word of the patient portal in English, Bengali and Hindi
     money.ts         bills in whole paise: parsing rupees, ₹ with Indian grouping, bill lines
     recall.ts        the follow-up reminder: its template and the wa.me link the desk taps
     clinic.ts        clinic identity: ClinicSetting first, .env as fallback (first clinic only)
@@ -293,8 +301,11 @@ synced table means adding it to `COLUMNS` in `sync.ts`**, or it silently stays o
 copy; a new table needs a decision about whether it travels. Settings travel only when
 their key starts `clinic_` or `rx_`.
 
-**Sharing with the patient (the portal).** A second, optional consent after signing,
-asked aloud (the words are on the screen, in English and Bengali). The share is made
+**Sharing with the patient (the portal).** One tap after signing; nothing is read out.
+The patient chooses a language (English, Bengali, Hindi) on the portal's first screen
+and agrees to its terms once, at their first sign-in (`PortalAccount.termsVersion`);
+the portal then speaks their language (`portal-words.ts`), while the prescription stays
+as the doctor wrote it. The share is made
 online: directly there, or by a connected clinic computer through `/api/sync/share`. What
 the patient gets is exactly the signed prescription, encrypted with
 `PORTAL_ENCRYPTION_KEY` — never the transcript, recording, draft or edits. Phone numbers
@@ -338,7 +349,7 @@ is never the control:
 | Capability | doctor | staff | admin |
 |---|---|---|---|
 | `clinical` — transcripts, notes, signing, prescriptions, patient history | yes | no | no |
-| `frontdesk` — register and find patients, today's list, record consent | yes | yes | no |
+| `frontdesk` — register and find patients, today's list, follow-ups | yes | yes | no |
 | `admin` — people, clinic details, backups, export, deletion, activity log | if `isAdmin` | no | yes |
 | `billing` — make bills, take payment, print receipts (cancelling needs `admin`) | yes | yes | yes |
 
@@ -430,7 +441,8 @@ is never the control:
 
 Built and tested:
 
-- The full consultation flow: consent → record → transcribe → draft → sign → print
+- The full consultation flow: record → transcribe → draft → sign → print (the clinic
+  accepts ClinicOS's terms once; there is no consent step per visit since 20 Sep 2026)
 - Patient records, history, search, type-to-confirm deletion
 - **Backlog #1 — crash and offline recovery.** Audio streams to disk in 5-second
   chunks; the note autosaves to both the server and localStorage; unfinished
@@ -464,8 +476,9 @@ Built and tested:
   full copy in step with its clinic online, where the plan includes it. Verified by
   `sync-test.cjs`, which runs two clinic computers beside the online copy.
 - **v0.5 Part C, the patient portal (19 Sep 2026, branch `saas`):** inside the online app
-  at `/p`. Verified by `portal-test.cjs`. Part D's text is drafted: the sharing consent is
-  in use; the consent script for keeping records online is a draft awaiting Ishaan.
+  at `/p`. Verified by `portal-test.cjs`. Since 20 Sep 2026 the patient chooses English,
+  Bengali or Hindi and agrees to the portal's terms once at first sign-in; the doctor
+  shares in one tap.
 - **Prescription extras (19 Sep 2026, branch `saas`):** the clinic's logo (#25), "come back
   at once if…" in the doctor's own words (#20, `returnIf` — never filled by the AI), and
   the medicine timing card in English, Bengali or Hindi (#9, `rx-card.ts` — re-reads what

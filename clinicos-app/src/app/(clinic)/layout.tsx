@@ -28,12 +28,12 @@ export default async function ClinicLayout({ children }: { children: React.React
       />
       <div className="main">
         {PROTOTYPE && (
-          // The consent script still promises patients that nothing leaves the
-          // clinic computer. Until it is rewritten for the online copy, the
-          // online copy is for trying ClinicOS, not for real patients.
+          // Patients have not been told their records are kept online, and the
+          // online copy has no backups yet. Until Varaxis switches this off
+          // (deployment.ts), it is for trying ClinicOS, not for real patients.
           <div className="prototype-banner" role="note">
             <strong>Online prototype.</strong> Use made-up patients only — real patient details belong on the
-            clinic computer until the consent script covers online use.
+            clinic computer until ClinicOS online is ready for them.
           </div>
         )}
         {user.clinicStatus === "suspended" && (

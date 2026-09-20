@@ -4,6 +4,7 @@ import { useState } from "react";
 import { IcAlert } from "./Icons";
 import { PASSWORD_MIN, USERNAME_RULE } from "@/lib/users";
 import { appPath } from "@/lib/base-path";
+import { ClinicTermsList } from "./ClinicTerms";
 
 type Defaults = { clinicName: string; name: string; qualification: string; regNo: string };
 
@@ -28,6 +29,7 @@ export default function SetupForm({
     qualification: defaults.qualification,
     regNo: defaults.regNo,
   });
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -46,7 +48,7 @@ export default function SetupForm({
       const res = await fetch(appPath("/api/setup"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, clinic }),
+        body: JSON.stringify({ ...form, clinic, acceptTerms }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Setup didn't complete. Try again.");
@@ -171,6 +173,17 @@ export default function SetupForm({
         </div>
       </div>
 
+      {/* Once, for the whole clinic: this is what lets ClinicOS record, instead
+          of a consent screen before every visit (lib/terms.ts). */}
+      <div className="terms-box">
+        <div className="terms-hd">ClinicOS terms for this clinic</div>
+        <ClinicTermsList />
+        <label className="check">
+          <input type="checkbox" checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)} required /> I accept
+          these terms for the clinic, and we will tell every patient before recording.
+        </label>
+      </div>
+
       {error && (
         <div className="note err" role="alert">
           <IcAlert size={16} />
@@ -178,7 +191,7 @@ export default function SetupForm({
         </div>
       )}
 
-      <button type="submit" className="wide" disabled={busy}>
+      <button type="submit" className="wide" disabled={busy || !acceptTerms}>
         {busy ? "Setting up…" : "Create account and start"}
       </button>
     </form>

@@ -1,10 +1,12 @@
 /**
  * Sharing a signed visit with the patient (v0.5 Part C).
  *
- * The doctor asks — a short spoken consent, separate from the recording
- * consent and just as optional — and ClinicOS puts exactly the printed
- * prescription where the patient can read it on their phone. Never the
- * transcript, the recording, the AI draft or the corrections.
+ * The doctor presses Share, and ClinicOS puts exactly the printed prescription
+ * where the patient can read it on their phone — never the transcript, the
+ * recording, the AI draft or the corrections. The patient agrees to the
+ * portal's terms themselves, once, in their own language, the first time they
+ * sign in (lib/terms.ts); until then nobody can open it, and a patient who
+ * never signs in has shared nothing with anyone.
  *
  * The share is made online, where the portal is. A clinic computer connected
  * to its clinic online asks online to make it (sync-client.ts), and gets the
@@ -61,8 +63,7 @@ export function getShare(clinicId: ClinicId, consultId: string): Promise<ShareRo
 export async function shareVisit(
   clinicId: ClinicId,
   consultId: string,
-  actor: NonNullable<AuditActor>,
-  consentBy: string
+  actor: NonNullable<AuditActor>
 ): Promise<{ code: string; share: ShareRow; renewed: boolean }> {
   if (BACKEND !== "postgres") throw new ShareRefusal("Visits are shared from ClinicOS online.", 409);
   if (!portalReady()) throw new ShareRefusal(PORTAL_NOT_READY, 503);
@@ -106,10 +107,10 @@ export async function shareVisit(
     `INSERT INTO "PortalShare" (id, "clinicId", "consultId", "patientId", "visitDate", "sharedAt", "sharedBy", "consentBy",
                                 "phoneHmac", "codeHash", "payloadEnc")
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    id, clinicId, consultId, c.patientId, c.signedAt.slice(0, 10), now, actor.name, consentBy,
+    id, clinicId, consultId, c.patientId, c.signedAt.slice(0, 10), now, actor.name, null,
     phoneHmac(phone), codeHash(code), encrypt(payload)
   );
-  await recordAudit(clinicId, actor, "consult_share", "consult", consultId, "shared with the patient, with their consent");
+  await recordAudit(clinicId, actor, "consult_share", "consult", consultId, "shared with the patient");
   return { code, share: (await getShare(clinicId, consultId))!, renewed: false };
 }
 

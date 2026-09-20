@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getCurrentPatient, visitFor } from "@/lib/portal";
+import { getCurrentPatient, portalLang, visitFor } from "@/lib/portal";
+import { wordsFor } from "@/lib/portal-words";
 import { decrypt } from "@/lib/portal-crypto";
 import type { SharedVisit } from "@/lib/share";
 import Prescription from "@/components/Prescription";
@@ -17,13 +18,15 @@ export default async function PortalVisit({ params }: { params: Promise<{ id: st
   const row = await visitFor(patient, id);
   if (!row) notFound();
   const v = decrypt<SharedVisit>(row.payloadEnc);
+  const lang = await portalLang(patient);
+  const w = wordsFor(lang);
 
   return (
     <main className="page">
-      <div className="noprint" style={{ marginBottom: 16 }}>
-        <Link href="/p">← Your prescriptions</Link>
+      <div className="noprint" style={{ marginBottom: 16 }} lang={lang}>
+        <Link href="/p">{w.back}</Link>
       </div>
-      <PortalVisitActions id={row.id} />
+      <PortalVisitActions id={row.id} lang={lang} />
       <Prescription note={v.note} patient={v.patient} clinic={v.clinic} date={v.date} visitId={v.visitId} />
     </main>
   );

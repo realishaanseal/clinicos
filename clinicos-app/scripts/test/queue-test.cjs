@@ -139,7 +139,6 @@ async function call(method, path, { token, body } = {}) {
   check("Marking them gone twice is refused", r.status === 409, r.status);
 
   // ------------------------------------------------------- signing finishes it
-  await call("POST", `/api/consults/${consultA}/consent`, { token: owner });
   r = await call("POST", `/api/consults/${consultA}/sign`, {
     token: owner,
     body: { note: { chiefComplaint: "Cough", history: "", examination: "", diagnosis: "Zebracough syndrome", medications: [], investigations: [], advice: "", followUp: "" } },

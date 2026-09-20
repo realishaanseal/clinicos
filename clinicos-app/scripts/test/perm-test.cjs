@@ -77,7 +77,7 @@ const idOf = async (username) => {
 
   const everyApi = [
     ["GET", "/api/patients"], ["POST", "/api/patients"], ["POST", "/api/consults"],
-    ["POST", "/api/consults/seedconsult2/consent"], ["POST", "/api/consults/seedconsult2/audio"],
+    ["GET", "/api/admin/terms"], ["POST", "/api/admin/terms"], ["POST", "/api/consults/seedconsult2/audio"],
     ["POST", "/api/consults/seedconsult2/audio/chunk"], ["POST", "/api/consults/seedconsult2/audio/finalize"],
     ["PATCH", "/api/consults/seedconsult2/draft"], ["POST", "/api/consults/seedconsult2/draft"],
     ["POST", "/api/consults/seedconsult2/note"], ["POST", "/api/consults/seedconsult2/transcribe"],
@@ -187,8 +187,13 @@ const idOf = async (username) => {
   const consultAId = consultA.json?.consult?.id;
   await expectStatus("Doctor", doc2.token, "GET", "/api/patients", 200);
   await expectStatus("Doctor", doc2.token, "PATCH", "/api/consults/seedconsult2/draft", 200, { transcript: "edited transcript" });
+  // Setup was done without ticking the terms (the API allows it), so nothing
+  // may be recorded yet: the gate is the server's, whatever a screen shows.
   const gate = await expectStatus("Doctor", doc2.token, "POST", "/api/consults/seedconsult3/audio/chunk?first=1", 403);
-  check("Consent gate still speaks about consent, not permissions", /consent/i.test(gate.json?.error ?? ""), gate.json?.error);
+  check("Recording is refused until the clinic accepts ClinicOS's terms, and it says so", /terms/i.test(gate.json?.error ?? "") && gate.json?.code === "terms", gate.json?.error);
+  const noAudio = await call("GET", "/consult/seedconsult3", { token: doc2.token });
+  check("…and the visit offers accepting them, or writing by hand, instead of recording", noAudio.text.includes("switch recording on") && noAudio.text.includes("Write the note by hand"), noAudio.status);
+  await expectStatus("Doctor", doc2.token, "POST", "/api/admin/terms", 403, { accept: true });
   await expectStatus("Doctor", doc2.token, "GET", "/api/backup/export", 403);
   await expectStatus("Doctor", doc2.token, "POST", "/api/admin/users", 403, { name: "X", username: "xxx", role: "staff" });
   await expectStatus("Doctor", doc2.token, "GET", "/api/patients/seedpatient1/export", 403);
@@ -207,7 +212,7 @@ const idOf = async (username) => {
   await expectStatus("Staff", desk.token, "GET", "/api/patients", 200);
   const walkIn = await expectStatus("Staff", desk.token, "POST", "/api/patients", 200, { name: "Walk In Patient", age: "30" });
   check("Staff registering a patient does not open a consultation", walkIn.json?.consultId === null, JSON.stringify(walkIn.json));
-  await expectStatus("Staff", desk.token, "POST", `/api/consults/${consultAId}/consent`, 200);
+  await expectStatus("Staff", desk.token, "POST", "/api/admin/terms", 403, { accept: true });
   await expectStatus("Staff", desk.token, "POST", "/api/consults", 403, { patientId: "seedpatient2" });
   await expectStatus("Staff", desk.token, "PATCH", "/api/consults/seedconsult2/draft", 403, { transcript: "x" });
   await expectStatus("Staff", desk.token, "POST", "/api/consults/seedconsult2/note", 403);
@@ -237,16 +242,12 @@ const idOf = async (username) => {
   const deskList = await call("GET", "/patients", { token: desk.token });
   check("Staff patient list has no links into clinical records", !deskList.text.includes('href="/patients/seedpatient1"'));
 
-  {
-    const db = peek(dbPath);
-    const consentBy = (await db.get(`SELECT "consentBy" FROM "Consult" WHERE id = ?`, consultAId))?.consentBy;
-    check("Consent records who actually took it", consentBy === "Front Desk (Front desk)", consentBy);
-    await db.close();
-  }
 
   // non-clinical admin
   await expectStatus("Admin", mgr.token, "GET", "/api/patients", 403);
-  await expectStatus("Admin", mgr.token, "POST", `/api/consults/${consultAId}/consent`, 403);
+  await expectStatus("Admin", mgr.token, "POST", "/api/admin/terms", 400, { accept: false });
+  const accepted = await expectStatus("Admin", mgr.token, "POST", "/api/admin/terms", 200, { accept: true });
+  check("Clinic admin accepts the terms once, for the whole clinic", accepted.json?.inForce === true && accepted.json?.terms?.byName === "Manager", JSON.stringify(accepted.json));
   await expectStatus("Admin", mgr.token, "PATCH", "/api/consults/seedconsult2/draft", 403, { transcript: "x" });
   await expectStatus("Admin", mgr.token, "POST", "/api/consults/seedconsult2/sign", 403, { note: {} });
   await expectStatus("Admin", mgr.token, "POST", "/api/consults/seedconsult2/note", 403);
@@ -288,7 +289,7 @@ const idOf = async (username) => {
     };
     const first = await post(`/api/consults/${consultAId}/audio/chunk?first=1`, slice(1));
     const second = await post(`/api/consults/${consultAId}/audio/chunk`, slice(2));
-    check("Recording: slices are accepted once consent is recorded", first.status === 200 && second.status === 200, `${first.status} ${second.status}`);
+    check("Recording: slices are accepted once the clinic has accepted the terms", first.status === 200 && second.status === 200, `${first.status} ${second.status}`);
     check("Recording: the stored size grows slice by slice", second.json?.total === 2000, JSON.stringify(second.json));
     const fin = await call("POST", `/api/consults/${consultAId}/audio/finalize`, { token: doc2.token, body: { seconds: 10 } });
     check("Recording: finalising reports the whole recording", fin.status === 200 && fin.json?.bytes === 2000, JSON.stringify(fin.json));
@@ -302,6 +303,8 @@ const idOf = async (username) => {
       check("Recording (local): stored as one file on disk", !!c?.audioPath && fs.existsSync(c.audioPath) && fs.statSync(c.audioPath).size === 2000, c?.audioPath);
     }
     check("Recording: marked as finished, with its size", c?.audioBytes === 2000 && !!c?.recordingEndedAt, JSON.stringify(c));
+    const basis = await db.get(`SELECT "consentGiven", "consentBy" FROM "Consult" WHERE id = ?`, consultAId);
+    check("Recording: the visit says on what basis it was recorded", basis?.consentGiven === 1 && /^Under the clinic's terms, accepted by Manager on \d{4}-\d{2}-\d{2}$/.test(basis.consentBy || ""), basis?.consentBy);
     const audioPathBefore = c?.audioPath;
     await db.close();
 
@@ -393,7 +396,7 @@ const idOf = async (username) => {
   {
     const db = peek(dbPath);
     const actions = new Set((await db.all(`SELECT DISTINCT action FROM "AuditEvent"`)).map((a) => a.action));
-    const want = ["setup", "login", "login_failed", "logout", "password_change", "user_create", "user_update", "user_password_reset", "settings_update", "consult_sign", "export_all", "patient_export"];
+    const want = ["setup", "login", "login_failed", "logout", "password_change", "user_create", "user_update", "user_password_reset", "settings_update", "consult_sign", "export_all", "patient_export", "terms_accept"];
     const missing = want.filter((a) => !actions.has(a));
     check("Activity log recorded every kind of event exercised", missing.length === 0, `missing: ${missing.join(",")}`);
     const leaks = (await db.get(`SELECT CAST(COUNT(*) AS INTEGER) AS n FROM "AuditEvent" WHERE detail LIKE '%Seed Patient%'`)).n;

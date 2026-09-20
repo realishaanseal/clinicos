@@ -47,10 +47,7 @@ const emptyNote = { chiefComplaint: "", history: "", examination: "", diagnosis:
   check("A doctor registering a walk-in gets a consultation", r.status === 200 && hw, JSON.stringify(r.json));
 
   r = await call("GET", `/consult/${hw}`, { token: owner });
-  check("A new visit offers writing the note without recording", r.status === 200 && r.text.includes("Write the note without recording"), r.status);
-
-  r = await call("POST", `/api/consults/${hw}/audio/chunk?first=1`, { token: owner });
-  check("Writing by hand does not open the microphone gate: recording still needs consent", r.status === 403, r.status);
+  check("A new visit opens on the recorder, with no consent step, and offers writing by hand", r.status === 200 && r.text.includes("Start recording") && r.text.includes("Write the note by hand") && !r.text.includes("Read aloud to the patient"), r.status);
 
   const typed = {
     ...emptyNote,
@@ -62,7 +59,7 @@ const emptyNote = { chiefComplaint: "", history: "", examination: "", diagnosis:
   check("A hand-written note autosaves with no recording and no consent", r.status === 200, r.status);
 
   r = await call("GET", `/consult/${hw}`, { token: owner });
-  check("Reopening it lands back in the hand-written note, not the consent step", r.text.includes("Writing the note by hand") && !r.text.includes("Read aloud to the patient"), r.status);
+  check("Reopening it lands back in the hand-written note, not the recorder", r.text.includes("Writing the note by hand") && !r.text.includes("Read aloud to the patient"), r.status);
 
   r = await call("POST", `/api/consults/${hw}/sign`, { token: owner, body: { note: emptyNote } });
   check("An empty note cannot be signed", r.status === 400, `${r.status} ${JSON.stringify(r.json)}`);
@@ -80,7 +77,7 @@ const emptyNote = { chiefComplaint: "", history: "", examination: "", diagnosis:
     const edits = (await db.get(`SELECT CAST(COUNT(*) AS INTEGER) AS n FROM "Edit" WHERE "consultId" = ?`, hw)).n;
     const final = JSON.parse(c?.finalJson || "{}");
     check("No correction rows: there was no AI draft to correct", edits === 0, edits);
-    check("It stays a visit without consent to record, and without a draft", c?.consentGiven === 0 && c?.draftJson === null && !!c?.signedAt, JSON.stringify(c));
+    check("It stays a visit that was never recorded, and has no draft", c?.consentGiven === 0 && c?.draftJson === null && !!c?.signedAt, JSON.stringify(c));
     check("The signed note keeps only the note's own fields, all as text", !("injected" in final) && final.medications?.[0]?.dose === "5", c?.finalJson);
     const audit = await db.get(`SELECT detail FROM "AuditEvent" WHERE action = 'consult_sign' AND "targetId" = ?`, hw);
     check("The activity log says it was written by hand", /written by hand/.test(audit?.detail || ""), audit?.detail);

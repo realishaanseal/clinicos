@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     if (body.action === "revoke") {
       return NextResponse.json({ ok: await revokeShare(clinic.id, consultId, actor) });
     }
-    const made = await shareVisit(clinic.id, consultId, actor, String(body.consentBy ?? actor.name).slice(0, 120));
+    const made = await shareVisit(clinic.id, consultId, actor);
     // The computer knows this copy's address — it is the one it was connected
     // with — so it prints the portal's address itself.
     return NextResponse.json({ code: made.code, renewed: made.renewed });

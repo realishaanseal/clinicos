@@ -3,10 +3,13 @@
 import { useState } from "react";
 import { IcAlert } from "./Icons";
 import { appPath } from "@/lib/base-path";
+import type { Lang } from "@/lib/terms";
+import { errorText, wordsFor } from "@/lib/portal-words";
 
 /** Sign out, or delete the account — typed DELETE, as anything that cannot be
  *  undone asks for. */
-export default function PortalAccountActions() {
+export default function PortalAccountActions({ lang }: { lang: Lang }) {
+  const w = wordsFor(lang);
   const [deleting, setDeleting] = useState(false);
   const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
@@ -28,7 +31,7 @@ export default function PortalAccountActions() {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      setError(data.error || "That didn't work. Try again.");
+      setError(errorText(w, data));
       setBusy(false);
       return;
     }
@@ -36,27 +39,24 @@ export default function PortalAccountActions() {
   }
 
   return (
-    <div style={{ marginTop: 24 }}>
+    <div style={{ marginTop: 24 }} lang={lang}>
       <div className="btnrow">
         <button type="button" className="ghost" onClick={signOut} disabled={busy}>
-          Sign out
+          {w.signOut}
         </button>
         {!deleting && (
           <button type="button" className="quiet" onClick={() => setDeleting(true)} disabled={busy}>
-            Delete my account…
+            {w.deleteAsk}
           </button>
         )}
       </div>
       {deleting && (
         <div className="danger" style={{ marginTop: 16 }}>
-          <div className="danger-hd">Delete my account</div>
+          <div className="danger-hd">{w.deleteTitle}</div>
           <div className="danger-bd">
-            <p className="muted" style={{ marginTop: 0 }}>
-              Your PIN goes, and every prescription leaves this list. Your clinics keep their own records, as the law
-              requires. A code from a prescription can start a new account later.
-            </p>
+            <p className="muted" style={{ marginTop: 0 }}>{w.deleteText}</p>
             <div className="field">
-              <label htmlFor="pp-del">Type DELETE to confirm</label>
+              <label htmlFor="pp-del">{w.typeDelete}</label>
               <input id="pp-del" value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" />
             </div>
             {error && (
@@ -67,10 +67,10 @@ export default function PortalAccountActions() {
             )}
             <div className="btnrow">
               <button type="button" className="ghost danger-btn" onClick={remove} disabled={busy || typed.trim().toUpperCase() !== "DELETE"}>
-                Delete my account
+                {w.deleteTitle}
               </button>
               <button type="button" className="quiet" onClick={() => setDeleting(false)} disabled={busy}>
-                Cancel
+                {w.cancel}
               </button>
             </div>
           </div>

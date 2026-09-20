@@ -14,7 +14,9 @@ import {
 import { MULTI_CLINIC, PLANS, clinicPath, parseFeatures } from "@/lib/tenant";
 import { publicAppUrl } from "@/lib/public-url";
 import { clinicDayAt, fmtDate, localDayBounds } from "@/lib/time";
-import { getBillingSettings, getClinic } from "@/lib/clinic";
+import { getBillingSettings, getClinic, getClinicTerms } from "@/lib/clinic";
+import { termsInForce } from "@/lib/terms";
+import ClinicTermsCard from "@/components/ClinicTerms";
 import { formatPaise } from "@/lib/money";
 import { listBackups } from "@/lib/backup";
 import BackupPanel from "@/components/BackupPanel";
@@ -106,6 +108,7 @@ export default async function AdminPage() {
   const steps = await stepTimes(user.clinicId, localDayBounds(clinicDayAt(-6))[0]);
   const clinic = await getClinic(user.clinicId);
   const billing = await getBillingSettings(user.clinicId);
+  const terms = await getClinicTerms(user.clinicId);
   const collected = await collectedByDay(user.clinicId);
   const tenant = MULTI_CLINIC ? await getTenant(user.clinicId) : undefined;
   const address = tenant ? `${await publicAppUrl()}${clinicPath(tenant.slug)}` : null;
@@ -144,6 +147,9 @@ export default async function AdminPage() {
           </div>
         </div>
       )}
+
+      {/* Recording is off until this is accepted, so it comes first when it is not. */}
+      {!termsInForce(terms) && <ClinicTermsCard terms={terms} inForce={false} canAccept />}
 
       <div className="card flush">
         <div className="card-head">
@@ -363,6 +369,8 @@ export default async function AdminPage() {
         />
       )}
       {syncStatus && <SyncPanel initial={syncStatus} />}
+
+      {termsInForce(terms) && <ClinicTermsCard terms={terms} inForce canAccept />}
 
       <DeletePatient
         patients={patients.map((p) => ({ id: p.id, name: p.name, consultCount: p.consultCount }))}
