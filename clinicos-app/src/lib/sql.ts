@@ -357,6 +357,9 @@ function openSqlite(): BetterSqlite3.Database {
   addColumn("Consult", "doctorId", "TEXT");         // v0.5: the doctor who signed; NULL on older rows
   addColumn("Consult", "transcribedAt", "TEXT");    // speed pass (#3): when the transcript arrived
   addColumn("Consult", "draftedAt", "TEXT");        // speed pass (#3): when the AI draft arrived
+  // How much of the recording the transcript covers, so pressing Record again
+  // adds what was just said instead of transcribing the whole visit afresh.
+  addColumn("Consult", "transcribedParts", "INTEGER NOT NULL DEFAULT 0");
 
   // Clinics as tenants (19 Sep 2026). Online, one database holds many clinics
   // and every record says whose it is. The clinic computer holds one clinic,

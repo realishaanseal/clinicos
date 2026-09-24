@@ -137,7 +137,14 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic, l
     setBusy("Transcribing — the first run loads the model, so give it a minute.");
     setError("");
     try {
-      const res = await fetch(appPath(`/api/consults/${consultId}/transcribe`), { method: "POST" });
+      // Send what is on screen: after "Record again" the server keeps it and
+      // adds only the new part, so corrections survive and anything the doctor
+      // deleted stays deleted. The autosaved copy can be a few seconds behind.
+      const res = await fetch(appPath(`/api/consults/${consultId}/transcribe`), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript }),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setTranscript(data.transcript);

@@ -51,6 +51,9 @@ export function useRecorder(consultId: string) {
   const upload = useCallback(
     (blob: Blob) => {
       setChunksPending((n) => n + 1);
+      // The first slice after Record was pressed. The server starts a new part
+      // of the recording on it, because this is a fresh WebM stream that
+      // cannot simply be run onto the end of the last one.
       const isFirst = firstRef.current;
       firstRef.current = false;
 

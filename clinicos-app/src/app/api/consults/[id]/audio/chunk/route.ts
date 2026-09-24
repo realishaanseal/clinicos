@@ -37,9 +37,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const buf = Buffer.from(await req.arrayBuffer());
   if (buf.length === 0) return NextResponse.json({ ok: true, bytes: 0 });
 
-  const { audioPath, total } = await appendChunk(id, buf);
-
+  // "first" is the first slice after Record was pressed. Pressing it a second
+  // time continues the same consultation, but the browser has started a fresh
+  // WebM stream, so it becomes a new part rather than bytes on the end of the
+  // old one — see the note at the top of audio-store.ts.
   const first = req.nextUrl.searchParams.get("first") === "1";
+
+  const { audioPath, total, part } = await appendChunk(id, buf, first);
+
   if (first) {
     await markRecordingStarted(auth.user.clinicId, id);
     await setAudioPath(auth.user.clinicId, id, audioPath);
@@ -47,5 +52,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await setAudioPath(auth.user.clinicId, id, audioPath);
   }
 
-  return NextResponse.json({ ok: true, bytes: buf.length, total });
+  return NextResponse.json({ ok: true, bytes: buf.length, total, part });
 }

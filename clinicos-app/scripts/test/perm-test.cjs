@@ -322,18 +322,27 @@ const idOf = async (username) => {
     const second = await post(`/api/consults/${consultAId}/audio/chunk`, slice(2));
     check("Recording: slices are accepted once the clinic has accepted the terms", first.status === 200 && second.status === 200, `${first.status} ${second.status}`);
     check("Recording: the stored size grows slice by slice", second.json?.total === 2000, JSON.stringify(second.json));
-    const fin = await call("POST", `/api/consults/${consultAId}/audio/finalize`, { token: doc2.token, body: { seconds: 10 } });
-    check("Recording: finalising reports the whole recording", fin.status === 200 && fin.json?.bytes === 2000, JSON.stringify(fin.json));
+    await call("POST", `/api/consults/${consultAId}/audio/finalize`, { token: doc2.token, body: { seconds: 10 } });
+
+    // "Record again": the browser starts a fresh WebM stream, which cannot be
+    // run onto the end of the last one. It becomes a second part, so what was
+    // said after it is transcribed too instead of being silently dropped.
+    const again = await post(`/api/consults/${consultAId}/audio/chunk?first=1`, slice(3));
+    check("Recording again: it is kept as a second part of the same recording", again.status === 200 && again.json?.part === 2, JSON.stringify(again.json));
+    check("Recording again: the whole recording is counted, both parts", again.json?.total === 3000, JSON.stringify(again.json));
+    const fin = await call("POST", `/api/consults/${consultAId}/audio/finalize`, { token: doc2.token, body: { seconds: 5 } });
+    check("Recording: finalising reports the whole recording", fin.status === 200 && fin.json?.bytes === 3000, JSON.stringify(fin.json));
 
     const db = peek(dbPath);
     const c = await db.get(`SELECT "audioPath", "audioBytes", "recordingEndedAt" FROM "Consult" WHERE id = ?`, consultAId);
     if (db.online) {
-      const rows = await db.all(`SELECT seq, LENGTH(data) AS n FROM "AudioChunk" WHERE "consultId" = ? ORDER BY seq`, consultAId);
-      check("Recording (online): stored as ordered slices in the database", c?.audioPath === `db:${consultAId}` && rows.map((r) => `${r.seq}:${r.n}`).join(",") === "1:1000,2:1000", `${c?.audioPath} ${JSON.stringify(rows)}`);
+      const rows = await db.all(`SELECT seq, part, LENGTH(data) AS n FROM "AudioChunk" WHERE "consultId" = ? ORDER BY seq`, consultAId);
+      check("Recording (online): stored as ordered slices in the database, each saying which part it is", c?.audioPath === `db:${consultAId}` && rows.map((r) => `${r.seq}/${r.part}:${r.n}`).join(",") === "1/1:1000,2/1:1000,3/2:1000", `${c?.audioPath} ${JSON.stringify(rows)}`);
     } else {
-      check("Recording (local): stored as one file on disk", !!c?.audioPath && fs.existsSync(c.audioPath) && fs.statSync(c.audioPath).size === 2000, c?.audioPath);
+      const partTwo = c.audioPath.replace(/\.webm$/, ".part2.webm");
+      check("Recording (local): each part is its own file on disk", !!c?.audioPath && fs.existsSync(c.audioPath) && fs.statSync(c.audioPath).size === 2000 && fs.existsSync(partTwo) && fs.statSync(partTwo).size === 1000, c?.audioPath);
     }
-    check("Recording: marked as finished, with its size", c?.audioBytes === 2000 && !!c?.recordingEndedAt, JSON.stringify(c));
+    check("Recording: marked as finished, with its size and both parts' length", c?.audioBytes === 3000 && c?.audioSeconds === 15 && !!c?.recordingEndedAt, JSON.stringify(c));
     const basis = await db.get(`SELECT "consentGiven", "consentBy" FROM "Consult" WHERE id = ?`, consultAId);
     check("Recording: the visit says on what basis it was recorded", basis?.consentGiven === 1 && /^Under the clinic's terms, accepted by Manager on \d{4}-\d{2}-\d{2}$/.test(basis.consentBy || ""), basis?.consentBy);
     const audioPathBefore = c?.audioPath;
@@ -350,7 +359,7 @@ const idOf = async (username) => {
       const left = (await db2.get(`SELECT CAST(COUNT(*) AS INTEGER) AS n FROM "AudioChunk" WHERE "consultId" = ?`, consultAId)).n;
       check("Recording (online): no slice is left after signing", left === 0, left);
     } else {
-      check("Recording (local): the file is gone after signing", !fs.existsSync(audioPathBefore), audioPathBefore);
+      check("Recording (local): every part is gone after signing", !fs.existsSync(audioPathBefore) && !fs.existsSync(audioPathBefore.replace(/\.webm$/, ".part2.webm")), audioPathBefore);
     }
     check("Recording: the consultation records when its audio was deleted", after?.audioPath === null && !!after?.audioDeletedAt, JSON.stringify(after));
     await db2.close();

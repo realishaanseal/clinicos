@@ -1048,6 +1048,49 @@ and `--scope varaxis` reaches the projects (`demo`, `vxclinicos-app`, `scholar`,
     builds, and production is live on the commit that is in `main` (`/app/api/health`
     answers with it).
 
+### In flight: recording in parts (branch `fix/recording-parts`, 24 Sep 2026)
+
+**Pushed unfinished, so it can be picked up on another machine.** Nothing is merged; the
+branch is off `groq-404-model`.
+
+**The bug Ishaan reported:** record, stop, delete part of the transcript, press *Record
+again* — and the first part's text comes back. Behind it sits a worse one: everything said
+after *Record again* was never transcribed at all.
+
+**Why.** `useRecorder` starts a fresh `MediaRecorder` on every press, so the second
+recording is a complete WebM stream with its own header. `appendChunk()` ran it onto the
+end of the first one. A decoder reads the first stream and stops at the second's header,
+so part two was thrown away — and because `/transcribe` always read the whole file and
+replaced the transcript, part one came back however the doctor had edited it.
+
+**The fix.** A recording is now made of *parts*, one per press of Record.
+
+- `audio-store.ts` keeps parts apart — `<id>.webm`, `<id>.part2.webm` … on the clinic
+  computer, `AudioChunk.part` online. Part 1 keeps the plain name, so existing recordings
+  and `Consult.audioPath` are untouched. `audioBytes()` sums them and `removeAudio()`
+  deletes every one, so the promise made at signing still holds.
+- `Consult.transcribedParts` says how much of the recording the transcript already covers.
+  It never syncs — neither does the recording it counts.
+- `/transcribe` transcribes only the parts beyond that mark and adds their text to what the
+  doctor has, which the client now sends with the request. With nothing new recorded it is
+  a deliberate "do it again": every part, transcript replaced.
+- `markRecordingEnded` adds each part's seconds instead of overwriting, so a visit recorded
+  in two goes shows the length of both.
+
+**Done:** `audio-store.ts`, the chunk and transcribe routes, `db.ts`, `sql.ts`,
+`migrations/pg/010_recording_parts.sql`, `ConsultWorkflow.tsx`, `useRecorder.ts`, and the
+multi-part checks in `perm-test.cjs`. `npx tsc --noEmit` is clean.
+
+**Not done, and the reason to be careful:** **neither suite has been run** — the laptop ran
+out of battery. Before this goes anywhere near `main`: `npm run test:e2e` **and**
+`npm run test:e2e:pg`, then a real two-part recording through `npm run dev:sandbox` with
+the ASR sidecar up, checking that part two's words actually appear and that deleting text
+before pressing *Record again* keeps it deleted.
+
+**Also worth checking while in there:** `.claude/launch.json` has an uncommitted
+`clinic-sandbox-pg` entry that reuses port 3002, the same as `clinic-sandbox` — two entries
+cannot both hold it. It is not in this branch.
+
 ### Where to pick up
 
 **For the next session:** `main` is the SaaS web version and is live; work continues on

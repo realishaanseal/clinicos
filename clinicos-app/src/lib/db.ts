@@ -165,6 +165,9 @@ export type Consult = {
   createdBy: string | null;
   doctorId: string | null;
   transcribedAt: string | null;
+  // How many parts of the recording the transcript already covers. Never
+  // travels between copies: the recording it counts never does either.
+  transcribedParts: number | null;
   draftedAt: string | null;
   followUpOn: string | null;
   createdAt: string;
@@ -331,10 +334,13 @@ export async function setAudio(clinicId: ClinicId, id: string, audioPath: string
   );
 }
 
-export async function setTranscript(clinicId: ClinicId, id: string, transcript: string, model: string, seconds: number) {
+export async function setTranscript(
+  clinicId: ClinicId, id: string, transcript: string, model: string, seconds: number, parts: number
+) {
   await q().run(
-    `UPDATE "Consult" SET transcript = ?, "asrModel" = ?, "asrSeconds" = ?, "transcribedAt" = ? WHERE id = ? AND "clinicId" = ?`,
-    transcript, model, seconds, now(), id, clinicId
+    `UPDATE "Consult" SET transcript = ?, "asrModel" = ?, "asrSeconds" = ?, "transcribedAt" = ?, "transcribedParts" = ?
+     WHERE id = ? AND "clinicId" = ?`,
+    transcript, model, seconds, now(), parts, id, clinicId
   );
 }
 
@@ -611,10 +617,13 @@ export async function markRecordingStarted(clinicId: ClinicId, id: string) {
   );
 }
 
+/** Close a part of the recording. `seconds` is that part alone, so it adds to
+ *  what is already there: a consultation recorded in two goes lasted both. */
 export async function markRecordingEnded(clinicId: ClinicId, id: string, seconds: number | null, bytes: number | null) {
   await q().run(
-    `UPDATE "Consult" SET "recordingEndedAt" = ?, "audioSeconds" = ?, "audioBytes" = ? WHERE id = ? AND "clinicId" = ?`,
-    now(), seconds, bytes, id, clinicId
+    `UPDATE "Consult" SET "recordingEndedAt" = ?, "audioSeconds" = COALESCE("audioSeconds", 0) + ?, "audioBytes" = ?
+     WHERE id = ? AND "clinicId" = ?`,
+    now(), seconds ?? 0, bytes, id, clinicId
   );
 }
 
