@@ -13,10 +13,16 @@
  *
  * **Parts.** A recording is made of parts, one per press of Record. Each part
  * is a complete WebM stream with its own header, because the browser starts a
- * fresh MediaRecorder every time. Two of them run together are not one longer
- * recording: a decoder reads the first and stops at the second's header, so
- * everything said after "Record again" used to be thrown away silently. Parts
- * are therefore kept apart, transcribed one at a time, and their text joined.
+ * fresh MediaRecorder every time. Two of them run onto one another are not one
+ * longer recording — whether a decoder reads past the second header is up to
+ * the decoder, not something the format promises. ffmpeg, which is what the
+ * local sidecar uses, happens to read both (measured 24 Sep 2026); a hosted
+ * service's decoder has not been tested and is not ours to assume. Parts are
+ * therefore kept apart, transcribed one at a time, and their text joined.
+ *
+ * Keeping them apart is also what lets transcribing add the new part to what
+ * the doctor has on screen instead of doing the whole visit over, which is the
+ * bug that was actually reported: a correction came back undone.
  */
 import { appendFile, mkdir, readFile, stat, unlink, writeFile } from "fs/promises";
 import path from "path";

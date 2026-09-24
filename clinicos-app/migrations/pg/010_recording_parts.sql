@@ -1,9 +1,10 @@
 -- A recording is made of parts, one per press of Record (24 Sep 2026). Each
--- part is a complete WebM stream with its own header, so two of them run
--- together are not one longer recording: a decoder reads the first and stops at
--- the second's header. Everything said after "Record again" was being thrown
--- away, and re-transcribing put the first part's text back after the doctor had
--- deleted it. The twin of the addColumn line in src/lib/sql.ts.
+-- part is a complete WebM stream with its own header, so two of them run onto
+-- one another are not one longer recording — reading past the second header is
+-- decoder-dependent, not promised. What was actually going wrong: re-transcribing
+-- read the whole recording and replaced the transcript, so the first part's text
+-- came back after the doctor had deleted it. The twin of the addColumn line in
+-- src/lib/sql.ts.
 --
 -- Additive and safe to apply while the previous version serves: every slice
 -- already stored belongs to part 1, and the version still running ignores the

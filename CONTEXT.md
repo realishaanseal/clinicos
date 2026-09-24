@@ -1048,20 +1048,34 @@ and `--scope varaxis` reaches the projects (`demo`, `vxclinicos-app`, `scholar`,
     builds, and production is live on the commit that is in `main` (`/app/api/health`
     answers with it).
 
-### In flight: recording in parts (branch `fix/recording-parts`, 24 Sep 2026)
+### Recording in parts (branch `fix/recording-parts`, 24 Sep 2026) — tested, ready to merge
 
-**Pushed unfinished, so it can be picked up on another machine.** Nothing is merged; the
-branch is off `groq-404-model`.
+Nothing is merged yet; the branch is off `groq-404-model`, which is one commit off `main`.
 
 **The bug Ishaan reported:** record, stop, delete part of the transcript, press *Record
-again* — and the first part's text comes back. Behind it sits a worse one: everything said
-after *Record again* was never transcribed at all.
+again* — and the first part's text comes back.
 
-**Why.** `useRecorder` starts a fresh `MediaRecorder` on every press, so the second
-recording is a complete WebM stream with its own header. `appendChunk()` ran it onto the
-end of the first one. A decoder reads the first stream and stops at the second's header,
-so part two was thrown away — and because `/transcribe` always read the whole file and
-replaced the transcript, part one came back however the doctor had edited it.
+**Why.** `/transcribe` read the whole recording and replaced the transcript every time, so
+a re-run undid whatever the doctor had corrected or deleted. That is the reported bug, and
+it reproduces exactly.
+
+**Why `useRecorder` makes it awkward.** It starts a fresh `MediaRecorder` on every press,
+so the second recording is a complete WebM stream with its own header, and `appendChunk()`
+ran it onto the end of the first one. Concatenating two WebM streams is not defined
+behaviour — whether a decoder reads past the second header is up to the decoder.
+
+**Measured, 24 Sep 2026 — the second part was *not* being lost on the local path.** The
+first write-up of this branch said everything after *Record again* was silently thrown
+away. That was not confirmed. Two real `MediaRecorder` recordings, made in a browser and
+joined exactly as `appendChunk()` joined them, decoded in full (3.12s + 2.94s → 6.06s) and
+faster-whisper transcribed both sentences. Synthetic WebM muxed live, the same. So on the
+clinic computer the words survived; only the doctor's edits did not. Leave the claim out
+of anything shown to Ishaan.
+
+**It is still the right fix.** Concatenation working is ffmpeg's leniency, not a
+guarantee, and a hosted ASR is now in play (§7.1) whose decoder has not been tested. Parts
+are independently decodable by anything, and incremental transcription is what actually
+fixes the reported bug.
 
 **The fix.** A recording is now made of *parts*, one per press of Record.
 
@@ -1079,17 +1093,44 @@ replaced the transcript, part one came back however the doctor had edited it.
 
 **Done:** `audio-store.ts`, the chunk and transcribe routes, `db.ts`, `sql.ts`,
 `migrations/pg/010_recording_parts.sql`, `ConsultWorkflow.tsx`, `useRecorder.ts`, and the
-multi-part checks in `perm-test.cjs`. `npx tsc --noEmit` is clean.
+multi-part checks in `perm-test.cjs`.
 
-**Not done, and the reason to be careful:** **neither suite has been run** — the laptop ran
-out of battery. Before this goes anywhere near `main`: `npm run test:e2e` **and**
-`npm run test:e2e:pg`, then a real two-part recording through `npm run dev:sandbox` with
-the ASR sidecar up, checking that part two's words actually appear and that deleting text
-before pressing *Record again* keeps it deleted.
+**Tested, 24 Sep 2026 on the Mac.** `npx tsc --noEmit` clean. `npm run test:e2e`: 363
+passed, 0 failed. `npm run test:e2e:pg`: 549 passed, 0 failed. One of the branch's own new
+checks was failing — it read `audioSeconds` out of a row it had not selected — and that is
+fixed here, not the code it was checking.
 
-**Also worth checking while in there:** `.claude/launch.json` has an uncommitted
-`clinic-sandbox-pg` entry that reuses port 3002, the same as `clinic-sandbox` — two entries
-cannot both hold it. It is not in this branch.
+Then a real two-part recording through `npm run dev:sandbox` with the local faster-whisper
+sidecar, two separately-muxed WebM parts of actual speech:
+
+- part one transcribed to "The patient has had a fever for three days. He also complains
+  of a headache."
+- the headache sentence deleted, *Record again*, part two recorded and transcribed
+- the transcript came back as part one's edited text, a blank line, then "On examination
+  the chest is clear and the throat is red." **Part two's words are there and the deleted
+  sentence stayed deleted.**
+- both parts on disk as `<id>.webm` + `<id>.part2.webm`, `audioBytes` 79363,
+  `audioSeconds` 8 (5 + 3), `transcribedParts` 2
+- signing deleted **both** files — invariant 3 holds across parts
+- transcribing again with nothing new recorded redid the whole recording, as intended
+
+**One thing left, and it is a decision rather than a bug.** `onStop()` in
+`ConsultWorkflow.tsx` only auto-transcribes when the transcript is empty, so after *Record
+again* nothing happens until the doctor presses *Transcribe*. That guard was there because
+re-transcribing used to clobber corrections; it no longer does. As it stands a doctor who
+records a second time and signs without pressing *Transcribe* loses part two from the
+note — silently, which is the same class of failure this branch fixes. It is not a
+regression (the old code behaved this way too), so it is not held against the merge, but
+it is the obvious next change. Ishaan's call: it costs one line.
+
+**Not reproduced here:** `.claude/launch.json` on this Mac has three entries — `landing`
+(3001), `clinic` (3000), `clinic-sandbox` (3002) — and no `clinic-sandbox-pg`, so there is
+no port clash to fix. It was an uncommitted entry on the other laptop.
+
+**Also noticed, pre-existing and unreachable:** `POST /api/consults/[id]/audio` (a whole
+file in one go) has no caller left in the UI. If it ever gets one, `writeWhole()` clears
+only the parts matching the *new* extension, so a chunked `<id>.part2.webm` would outlive
+an `<id>.mp4` upload and survive signing. Worth closing if that route is ever revived.
 
 ### Where to pick up
 

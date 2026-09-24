@@ -334,7 +334,7 @@ const idOf = async (username) => {
     check("Recording: finalising reports the whole recording", fin.status === 200 && fin.json?.bytes === 3000, JSON.stringify(fin.json));
 
     const db = peek(dbPath);
-    const c = await db.get(`SELECT "audioPath", "audioBytes", "recordingEndedAt" FROM "Consult" WHERE id = ?`, consultAId);
+    const c = await db.get(`SELECT "audioPath", "audioBytes", "audioSeconds", "recordingEndedAt" FROM "Consult" WHERE id = ?`, consultAId);
     if (db.online) {
       const rows = await db.all(`SELECT seq, part, LENGTH(data) AS n FROM "AudioChunk" WHERE "consultId" = ? ORDER BY seq`, consultAId);
       check("Recording (online): stored as ordered slices in the database, each saying which part it is", c?.audioPath === `db:${consultAId}` && rows.map((r) => `${r.seq}/${r.part}:${r.n}`).join(",") === "1/1:1000,2/1:1000,3/2:1000", `${c?.audioPath} ${JSON.stringify(rows)}`);
