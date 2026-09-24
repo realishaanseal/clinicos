@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireApiUser } from "@/lib/auth";
 import { getAiConfig } from "@/lib/ai-settings";
+import { serviceSaid } from "@/lib/llm";
 
 /**
  * TEMPORARY (see ai-settings.ts): does the saved AI setup actually answer?
@@ -52,10 +53,19 @@ async function timed(run: () => Promise<string>): Promise<Check> {
 /** Says what went wrong in a sentence, without pasting the service's whole
  *  error page into the screen. */
 async function refuse(res: Response, what: string): Promise<never> {
-  if (res.status === 401 || res.status === 403) throw new Error(`${what} turned down the key (${res.status}).`);
-  if (res.status === 404) throw new Error(`${what} has nothing at that address (404). Check the address.`);
-  const body = (await res.text().catch(() => "")).trim().slice(0, 200);
-  throw new Error(`${what} answered ${res.status}${body ? `: ${body}` : "."}`);
+  const said = serviceSaid(await res.text().catch(() => ""));
+  if (res.status === 401 || res.status === 403) {
+    throw new Error(`${what} turned down the key (${res.status}).${said ? ` It said: ${said}` : ""}`);
+  }
+  // A 404 is read out rather than explained away. These services answer 404
+  // for a model the key may not use as well as for a wrong address, so saying
+  // only "check the address" sends whoever set it up looking in the wrong place.
+  if (res.status === 404) {
+    throw new Error(
+      `${what} answered 404.${said ? ` It said: ${said}` : ""} Check the model name as well as the address — a 404 here is often a model this key cannot use.`
+    );
+  }
+  throw new Error(`${what} answered ${res.status}${said ? `: ${said}` : "."}`);
 }
 
 export async function POST() {
@@ -108,9 +118,13 @@ export async function POST() {
       headers: { "Content-Type": "application/json", ...(cfg.llm.key ? { Authorization: `Bearer ${cfg.llm.key}` } : {}) },
       body: JSON.stringify({
         model: cfg.llm.model,
-        max_tokens: 5,
+        max_tokens: 30,
         temperature: 0,
-        messages: [{ role: "user", content: "Reply with the single word: ready" }],
+        // The same shape a real note asks for. A service can answer an ordinary
+        // question and still refuse JSON mode, and finding that out here beats
+        // finding it out with a patient waiting.
+        response_format: { type: "json_object" },
+        messages: [{ role: "user", content: 'Reply with this JSON object and nothing else: {"ready": true}' }],
       }),
       signal: AbortSignal.timeout(TIMEOUT),
     }).catch((e) => {

@@ -260,7 +260,7 @@ export default function AiSettings({ initial }: { initial: AiConfigView }) {
                 id="llm-model"
                 value={llmModel}
                 onChange={(e) => setLlmModel(e.target.value)}
-                placeholder="llama-3.3-70b-versatile"
+                placeholder="openai/gpt-oss-120b"
                 spellCheck={false}
                 style={{ maxWidth: 320 }}
               />
@@ -290,7 +290,8 @@ export default function AiSettings({ initial }: { initial: AiConfigView }) {
           </button>
         </div>
         <p className="hint">
-          Test sends a quarter-second of silence and a one-word question. No patient information is involved.
+          Test sends a quarter-second of silence and a one-line question, asked exactly the way a note is asked
+          for. No patient information is involved.
         </p>
       </div>
     </div>

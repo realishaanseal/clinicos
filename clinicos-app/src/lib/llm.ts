@@ -43,6 +43,26 @@ Respond with ONLY a JSON object, no markdown fences, in exactly this shape:
   "followUp": "string"
 }`;
 
+/**
+ * The one sentence a service put in its error, rather than its whole page.
+ *
+ * Shared with the Clinic admin test, so the two cannot disagree about what
+ * went wrong. It matters most on a 404: an OpenAI-compatible service answers
+ * 404 both for a wrong address and for a model this key may not use, and only
+ * the service's own sentence says which.
+ */
+export function serviceSaid(body: string): string {
+  if (!body.trim()) return "";
+  try {
+    const j = JSON.parse(body) as { error?: { message?: string } | string; message?: string };
+    const m = typeof j.error === "string" ? j.error : j.error?.message ?? j.message;
+    if (m) return m.trim().slice(0, 200);
+  } catch {
+    // Not JSON — an HTML error page, say. Its first words still beat nothing.
+  }
+  return body.trim().slice(0, 200);
+}
+
 function extractJson(text: string): ClinicalNote {
   let t = text.trim();
   const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -136,7 +156,14 @@ class OpenAiCompatible implements LlmProvider {
           : "Note drafting isn't switched on here yet: the note-writing service needs an API key. An admin can add it in Clinic admin."
       );
     }
-    if (!res.ok) throw new Error(`LLM error (${res.status}): ${await res.text()}`);
+    if (!res.ok) {
+      const said = serviceSaid(await res.text().catch(() => ""));
+      throw new Error(
+        res.status === 404
+          ? `The note-writing service has no "${model}" for this key (404).${said ? ` It said: ${said}` : ""} An admin can change the model in Clinic admin.`
+          : `The note-writing service answered ${res.status}${said ? `: ${said}` : "."}`
+      );
+    }
     const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
     const raw = data.choices?.[0]?.message?.content ?? "";
     return { note: extractJson(raw), model: `openai:${model}`, seconds: (Date.now() - started) / 1000, raw };
