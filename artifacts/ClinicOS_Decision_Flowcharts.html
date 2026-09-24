@@ -1,0 +1,707 @@
+<title>ClinicOS Decision Flows</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #e9edf1;
+    --plate: #ffffff;
+    --grid: #eef2f6;
+    --ink: #121821;
+    --ink-2: #4a5a6b;
+    --ink-3: #74869a;
+    --line: #d3dce5;
+    --rule: #5b7794;          /* connector lines + box strokes */
+    --navy: #1e3d5c;          /* terminators */
+    --navy-ink: #ffffff;
+    --box: #ffffff;
+    --box-line: #3f6285;
+    --dia: #fbf1df;           /* decisions */
+    --dia-line: #a9752a;
+    --dia-ink: #6f4a10;
+    --warnline: #9c3a32;
+    --warn: #fbeceb;
+    --accent: #2f5d8a;
+    --shadow: 0 1px 2px rgba(18,24,33,.07), 0 10px 26px -18px rgba(18,24,33,.4);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0c1218;
+      --plate: #141d26;
+      --grid: #18222c;
+      --ink: #e6edf4;
+      --ink-2: #a6b6c6;
+      --ink-3: #8293a5;
+      --line: #263341;
+      --rule: #7b9bb8;
+      --navy: #2b5b86;
+      --navy-ink: #f2f8ff;
+      --box: #1b2634;
+      --box-line: #6d93b6;
+      --dia: #2d2413;
+      --dia-line: #c79644;
+      --dia-ink: #e8c483;
+      --warnline: #d98b83;
+      --warn: #2b1b1a;
+      --accent: #74a8d6;
+      --shadow: 0 1px 2px rgba(0,0,0,.5), 0 12px 30px -20px rgba(0,0,0,.9);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0c1218;
+    --plate: #141d26;
+    --grid: #18222c;
+    --ink: #e6edf4;
+    --ink-2: #a6b6c6;
+    --ink-3: #8293a5;
+    --line: #263341;
+    --rule: #7b9bb8;
+    --navy: #2b5b86;
+    --navy-ink: #f2f8ff;
+    --box: #1b2634;
+    --box-line: #6d93b6;
+    --dia: #2d2413;
+    --dia-line: #c79644;
+    --dia-ink: #e8c483;
+    --warnline: #d98b83;
+    --warn: #2b1b1a;
+    --accent: #74a8d6;
+    --shadow: 0 1px 2px rgba(0,0,0,.5), 0 12px 30px -20px rgba(0,0,0,.9);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: Archivo, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 15px; line-height: 1.55; -webkit-font-smoothing: antialiased;
+  }
+  code { font-family: "IBM Plex Mono", ui-monospace, Consolas, monospace; font-size: .89em; }
+  h1, h2 { font-weight: 700; letter-spacing: -0.015em; text-wrap: balance; margin: 0; }
+  .wrap { max-width: 1140px; margin: 0 auto; padding: 0 20px; }
+
+  header.top { background: var(--plate); border-bottom: 1px solid var(--line); }
+  .top-inner { padding-block: 32px 24px; }
+  .eyebrow { font-size: 11.5px; font-weight: 600; letter-spacing: .15em; text-transform: uppercase; color: var(--accent); margin: 0 0 10px; }
+  header.top h1 { font-size: clamp(26px, 4.6vw, 40px); line-height: 1.06; margin-bottom: 12px; }
+  header.top p { color: var(--ink-2); max-width: 64ch; margin: 0; }
+
+  .shapekey { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+  .shapekey div { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-2); }
+  .shapekey svg { flex: none; }
+
+  nav.tabs {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10;
+    background: color-mix(in srgb, var(--bg) 90%, transparent);
+    backdrop-filter: blur(8px); border-bottom: 1px solid var(--line);
+  }
+  .tabs-inner { display: flex; gap: 2px; overflow-x: auto; padding: 8px 20px; max-width: 1140px; margin: 0 auto; }
+  .tab {
+    flex: none; appearance: none; border: 1px solid transparent; background: none; color: var(--ink-2);
+    font: inherit; font-size: 13.5px; font-weight: 500; padding: 7px 13px; border-radius: 7px; cursor: pointer; white-space: nowrap;
+  }
+  .tab:hover { background: var(--plate); color: var(--ink); }
+  .tab[aria-selected="true"] { background: var(--plate); color: var(--ink); border-color: var(--line); box-shadow: inset 0 -2px 0 var(--accent); }
+  .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .panel { padding-block: 28px 52px; }
+  .panel h2 { font-size: clamp(20px, 3vw, 25px); margin-bottom: 7px; }
+  .panel > .intro { color: var(--ink-2); max-width: 74ch; margin: 0 0 6px; }
+  .panel > .files { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--ink-3); margin: 0 0 20px; }
+
+  .plate {
+    background: var(--plate);
+    background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 28px 28px;
+    border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow);
+    padding: 14px; overflow-x: auto;
+  }
+  .plate svg { display: block; width: 100%; min-width: 720px; height: auto; }
+
+  /* --- shapes --- */
+  .term { fill: var(--navy); stroke: none; }
+  .term-t { fill: var(--navy-ink); font-weight: 600; }
+  .box { fill: var(--box); stroke: var(--box-line); stroke-width: 1.4; }
+  .dia { fill: var(--dia); stroke: var(--dia-line); stroke-width: 1.4; }
+  .note { fill: var(--warn); stroke: var(--warnline); stroke-width: 1.3; stroke-dasharray: 5 4; }
+  text { font-family: Archivo, system-ui, sans-serif; text-anchor: middle; }
+  .t { font-size: 13.5px; font-weight: 600; fill: var(--ink); }
+  .m { font-family: "IBM Plex Mono", monospace; font-size: 11px; fill: var(--ink-2); }
+  .dia .x { fill: var(--dia-ink); }
+  .t.dq { fill: var(--dia-ink); }
+  .m.dq { fill: var(--dia-ink); opacity: .85; }
+  .t.wn, .m.wn { fill: var(--warnline); }
+  .a { fill: none; stroke: var(--rule); stroke-width: 1.5; }
+  .j { fill: none; stroke: var(--rule); stroke-width: 1.5; }
+  .dot { fill: none; stroke: var(--warnline); stroke-width: 1.3; stroke-dasharray: 4 4; }
+  .head { fill: var(--rule); stroke: none; }
+  .lbl { font-size: 11.5px; font-weight: 700; fill: var(--ink-2); letter-spacing: .04em; }
+  .merge { fill: var(--rule); }
+  text.term-t, .t.term-t, .m.term-t { fill: var(--navy-ink); }
+
+  .after { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); margin-top: 18px; }
+  .card { background: var(--plate); border: 1px solid var(--line); border-radius: 11px; padding: 14px 15px; }
+  .card h3 { margin: 0 0 7px; font-size: 14.5px; font-weight: 700; }
+  .card p { margin: 0; font-size: 13.2px; color: var(--ink-2); }
+  .card.flag { border-color: color-mix(in srgb, var(--warnline) 45%, transparent); background: var(--warn); }
+  .card.flag h3 { color: var(--warnline); }
+
+  footer { border-top: 1px solid var(--line); background: var(--plate); padding-block: 20px 28px; font-size: 12.8px; color: var(--ink-3); }
+  footer p { margin: 0; max-width: 80ch; }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<header class="top">
+  <div class="wrap top-inner">
+    <p class="eyebrow">ClinicOS · decision flows</p>
+    <h1>Four flowcharts: what happens, and what the code asks before it happens</h1>
+    <p>
+      Rectangles are steps and carry the file that does the work. Diamonds are the questions the server
+      actually asks — not the ones the interface asks. Dashed boxes are where an invariant is enforced.
+    </p>
+    <div class="shapekey">
+      <div><svg width="46" height="22" viewBox="0 0 46 22"><rect class="term" x="1" y="1" width="44" height="20" rx="10"/></svg> start / end</div>
+      <div><svg width="46" height="22" viewBox="0 0 46 22"><rect class="box" x="1" y="1" width="44" height="20" rx="4"/></svg> step</div>
+      <div><svg width="46" height="26" viewBox="0 0 46 26"><polygon class="dia" points="23,2 44,13 23,24 2,13"/></svg> decision</div>
+      <div><svg width="46" height="22" viewBox="0 0 46 22"><rect class="note" x="1" y="1" width="44" height="20" rx="4"/></svg> invariant</div>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs" aria-label="Flowcharts">
+  <div class="tabs-inner" role="tablist">
+    <button class="tab" role="tab" id="t-visit" aria-controls="p-visit" aria-selected="true">A patient's visit</button>
+    <button class="tab" role="tab" id="t-start" aria-controls="p-start" aria-selected="false">Starting the software</button>
+    <button class="tab" role="tab" id="t-access" aria-controls="p-access" aria-selected="false">A request arrives</button>
+    <button class="tab" role="tab" id="t-sync" aria-controls="p-sync" aria-selected="false">One minute of sync</button>
+  </div>
+</nav>
+
+<main class="wrap">
+
+<!-- ============================================================ 1. VISIT -->
+<section class="panel" id="p-visit" role="tabpanel" aria-labelledby="t-visit">
+  <h2>A patient's visit, end to end</h2>
+  <p class="intro">From walking in to walking out with a prescription. Five decisions decide the path: whether they are already on file, whether the clinic may record at all, whether this visit is recorded or typed, whether the note is ready, and whether it is shared.</p>
+  <p class="files">FrontDeskToday.tsx · ConsultWorkflow.tsx · api/consults/* · asr.ts · llm.ts · Prescription.tsx</p>
+
+  <div class="plate">
+    <svg viewBox="0 0 980 1890" role="img" aria-label="Flowchart of a patient's visit from arrival to prescription">
+      <defs>
+        <marker id="ah1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path class="head" d="M0 0 L10 5 L0 10 z"/>
+        </marker>
+      </defs>
+
+      <!-- T1 -->
+      <rect class="term" x="120" y="24" width="360" height="52" rx="26"/>
+      <text class="t term-t" x="300" y="55">A patient arrives at the clinic</text>
+      <path class="a" d="M300 76 V112" marker-end="url(#ah1)"/>
+
+      <!-- N1 -->
+      <rect class="box" x="150" y="116" width="300" height="58" rx="7"/>
+      <text class="t" x="300" y="140">The desk searches by name or phone</text>
+      <text class="m" x="300" y="158">FrontDeskToday.tsx · GET /api/patients</text>
+      <path class="a" d="M300 174 V210" marker-end="url(#ah1)"/>
+
+      <!-- D1 -->
+      <polygon class="dia" points="300,214 450,262 300,310 150,262"/>
+      <text class="t dq" x="300" y="258">Already on file?</text>
+      <text class="m dq" x="300" y="276">search by name or phone</text>
+      <text class="lbl" x="468" y="255">No</text>
+      <text class="lbl" x="316" y="330">Yes</text>
+      <path class="a" d="M450 262 H576" marker-end="url(#ah1)"/>
+      <!-- R1 register -->
+      <rect class="box" x="580" y="233" width="300" height="58" rx="7"/>
+      <text class="t" x="730" y="257">Register: name, age, phone</text>
+      <text class="m" x="730" y="275">NewPatient.tsx → POST /api/patients</text>
+      <path class="j" d="M730 291 V330 H300"/>
+      <path class="a" d="M300 310 V346" marker-end="url(#ah1)"/>
+
+      <!-- N2 queue -->
+      <rect class="box" x="150" y="350" width="300" height="58" rx="7"/>
+      <text class="t" x="300" y="374">Added to today's list</text>
+      <text class="m" x="300" y="392">POST /api/queue → QueueEntry</text>
+      <path class="a" d="M300 408 V444" marker-end="url(#ah1)"/>
+
+      <!-- N3 start visit -->
+      <rect class="box" x="150" y="448" width="300" height="58" rx="7"/>
+      <text class="t" x="300" y="472">Doctor taps Start visit</text>
+      <text class="m" x="300" y="490">WaitingPanel.tsx → POST /api/consults</text>
+      <path class="a" d="M300 506 V542" marker-end="url(#ah1)"/>
+
+      <!-- D2 terms -->
+      <polygon class="dia" points="300,546 450,594 300,642 150,594"/>
+      <text class="t dq" x="300" y="588">Has the clinic accepted</text>
+      <text class="t dq" x="300" y="604">the terms in force?</text>
+      <text class="lbl" x="468" y="587">No</text>
+      <text class="lbl" x="316" y="662">Yes</text>
+      <path class="a" d="M450 594 H576" marker-end="url(#ah1)"/>
+      <!-- R2 -->
+      <rect class="box" x="580" y="565" width="300" height="58" rx="7"/>
+      <text class="t" x="730" y="589">403. An admin accepts them once</text>
+      <text class="m" x="730" y="607">ClinicTerms.tsx → allowRecording()</text>
+      <path class="a" d="M730 565 V477 H454" marker-end="url(#ah1)"/>
+      <path class="a" d="M300 642 V678" marker-end="url(#ah1)"/>
+
+      <!-- D3 record? -->
+      <polygon class="dia" points="300,682 450,730 300,778 150,730"/>
+      <text class="t dq" x="300" y="724">Record this consultation?</text>
+      <text class="m dq" x="300" y="742">the doctor's choice, per visit</text>
+      <text class="lbl" x="468" y="723">No</text>
+      <text class="lbl" x="316" y="798">Yes</text>
+      <path class="a" d="M450 730 H576" marker-end="url(#ah1)"/>
+      <!-- R3 handwritten -->
+      <rect class="box" x="580" y="701" width="300" height="58" rx="7"/>
+      <text class="t" x="730" y="725">Write the note by hand</text>
+      <text class="m" x="730" y="743">draftJson stays NULL — no diff, no metric</text>
+
+      <path class="a" d="M300 778 V814" marker-end="url(#ah1)"/>
+
+      <!-- N4 record -->
+      <rect class="box" x="150" y="822" width="300" height="58" rx="7"/>
+      <text class="t" x="300" y="846">Recording, five seconds at a time</text>
+      <text class="m" x="300" y="864">useRecorder.ts → POST …/audio/chunk</text>
+      <path class="a" d="M300 880 V916" marker-end="url(#ah1)"/>
+
+      <!-- N5 transcribe -->
+      <rect class="box" x="150" y="920" width="300" height="58" rx="7"/>
+      <text class="t" x="300" y="944">Stop → transcription starts at once</text>
+      <text class="m" x="300" y="962">asr.ts → :8756 sidecar, or a hosted URL</text>
+      <path class="a" d="M300 978 V1014" marker-end="url(#ah1)"/>
+
+      <!-- N6 draft -->
+      <rect class="box" x="150" y="1018" width="300" height="58" rx="7"/>
+      <text class="t" x="300" y="1042">A structured note is drafted</text>
+      <text class="m" x="300" y="1060">llm.ts → draftJson (written once)</text>
+      <path class="a" d="M300 1076 V1112" marker-end="url(#ah1)"/>
+
+      <!-- side note: no judgement -->
+      <rect class="note" x="580" y="1018" width="300" height="58" rx="7"/>
+      <text class="t wn" x="730" y="1042">No diagnosis, no score, no flag</text>
+      <text class="m wn" x="730" y="1060">followUpOn and returnIf are never the AI's</text>
+      <path class="dot" d="M450 1047 H580"/>
+
+      <!-- N7 review -->
+      <rect class="box" x="150" y="1116" width="300" height="58" rx="7"/>
+      <text class="t" x="300" y="1140">The doctor reviews and edits</text>
+      <text class="m" x="300" y="1158">edits → workingJson, autosaved</text>
+      <path class="a" d="M300 1174 V1210" marker-end="url(#ah1)"/>
+
+      <!-- D4 ready -->
+      <polygon class="dia" points="300,1214 450,1262 300,1310 150,1262"/>
+      <text class="t dq" x="300" y="1256">Is the note right?</text>
+      <text class="m dq" x="300" y="1274">nothing is lost if not</text>
+      <text class="lbl" x="104" y="1255">No</text>
+      <text class="lbl" x="316" y="1330">Yes</text>
+      <path class="a" d="M150 1262 H60 V1145 H146" marker-end="url(#ah1)"/>
+      <path class="a" d="M300 1310 V1346" marker-end="url(#ah1)"/>
+
+      <!-- join from handwritten branch -->
+      <path class="j" d="M880 730 H950 V1326 H300"/>
+      <circle class="merge" cx="300" cy="1326" r="3.5"/>
+
+      <!-- N8 sign -->
+      <rect class="box" x="150" y="1354" width="300" height="58" rx="7"/>
+      <text class="t" x="300" y="1378">Sign</text>
+      <text class="m" x="300" y="1396">POST …/sign → Edit rows, signedAt, followUpOn</text>
+      <rect class="note" x="580" y="1354" width="300" height="58" rx="7"/>
+      <text class="t wn" x="730" y="1378">The recording is deleted here</text>
+      <text class="m wn" x="730" y="1396">signConsult() — promised in the terms</text>
+      <path class="dot" d="M450 1383 H580"/>
+      <path class="a" d="M300 1412 V1448" marker-end="url(#ah1)"/>
+
+      <!-- D5 share -->
+      <polygon class="dia" points="300,1452 450,1500 300,1548 150,1500"/>
+      <text class="t dq" x="300" y="1494">Share with the patient?</text>
+      <text class="m dq" x="300" y="1512">online only, one tap</text>
+      <text class="lbl" x="468" y="1493">Yes</text>
+      <text class="lbl" x="316" y="1568">No</text>
+      <path class="a" d="M450 1500 H576" marker-end="url(#ah1)"/>
+      <rect class="box" x="580" y="1471" width="300" height="58" rx="7"/>
+      <text class="t" x="730" y="1495">Encrypted, code printed once</text>
+      <text class="m" x="730" y="1513">shareVisit() → PortalShare · never the audio</text>
+      <path class="j" d="M730 1529 V1568 H300"/>
+      <path class="a" d="M300 1548 V1584" marker-end="url(#ah1)"/>
+
+      <!-- N9 print -->
+      <rect class="box" x="150" y="1592" width="300" height="58" rx="7"/>
+      <text class="t" x="300" y="1616">Print the prescription</text>
+      <text class="m" x="300" y="1634">Prescription.tsx + rx-card.ts (3 languages)</text>
+      <path class="a" d="M300 1650 V1686" marker-end="url(#ah1)"/>
+
+      <!-- N10 bill -->
+      <rect class="box" x="150" y="1690" width="300" height="58" rx="7"/>
+      <text class="t" x="300" y="1714">The desk bills and takes payment</text>
+      <text class="m" x="300" y="1732">Bill → receipt number at payment</text>
+      <rect class="note" x="580" y="1690" width="300" height="58" rx="7"/>
+      <text class="t wn" x="730" y="1714">Nothing clinical on a bill</text>
+      <text class="m wn" x="730" y="1732">whoever takes money reads it</text>
+      <path class="dot" d="M450 1719 H580"/>
+      <path class="a" d="M300 1748 V1784" marker-end="url(#ah1)"/>
+
+      <!-- T2 -->
+      <rect class="term" x="100" y="1788" width="400" height="52" rx="26"/>
+      <text class="t term-t" x="300" y="1811">The patient leaves with a prescription.</text>
+      <text class="m term-t" x="300" y="1829">The recording no longer exists.</text>
+    </svg>
+  </div>
+
+  <div class="after">
+    <div class="card"><h3>Two minutes</h3><p>That is what the doctor has per patient — greet, history, examine, explain, prescribe <em>and</em> record. The record is what gets dropped, so ClinicOS records the consultation that was already happening.</p></div>
+    <div class="card"><h3>If it crashes mid-visit</h3><p>Chunks are already on disk and the note is mirrored in localStorage. The unfinished visit reappears on Today with the reason it stopped.</p></div>
+    <div class="card flag"><h3>The one-way door</h3><p>Signing is irreversible: it writes the <code>Edit</code> diff, stamps the signature, and deletes the audio. Everything before it can be redone.</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ 2. START -->
+<section class="panel" id="p-start" role="tabpanel" aria-labelledby="t-start" hidden>
+  <h2>Starting the software</h2>
+  <p class="intro">One codebase, two deployments. No branch decides which — environment variables do, and the same build reads them at boot.</p>
+  <p class="files">go.sh · go.ps1 · src/lib/sql.ts · migrations/pg/ · setup-code.ts · sync-client.ts</p>
+
+  <div class="plate">
+    <svg viewBox="0 0 980 1040" role="img" aria-label="Flowchart of ClinicOS startup and configuration decisions">
+      <defs>
+        <marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path class="head" d="M0 0 L10 5 L0 10 z"/>
+        </marker>
+      </defs>
+
+      <rect class="term" x="310" y="24" width="360" height="52" rx="26"/>
+      <text class="t term-t" x="490" y="55">ClinicOS is started</text>
+      <path class="a" d="M490 76 V112" marker-end="url(#ah2)"/>
+
+      <rect class="box" x="310" y="116" width="360" height="58" rx="7"/>
+      <text class="t" x="490" y="140">Set up whatever is missing, then start</text>
+      <text class="m" x="490" y="158">go.sh (macOS) · go.ps1 (Windows) — idempotent</text>
+      <path class="a" d="M490 174 V210" marker-end="url(#ah2)"/>
+
+      <polygon class="dia" points="490,214 620,262 490,310 360,262"/>
+      <text class="t dq" x="490" y="258">DATA_BACKEND?</text>
+      <text class="m dq" x="490" y="276">read by sql.ts</text>
+      <text class="lbl" x="336" y="250">sqlite</text>
+      <text class="lbl" x="644" y="250">postgres</text>
+
+      <path class="a" d="M360 262 H324" marker-end="url(#ah2)"/>
+      <rect class="box" x="40" y="233" width="280" height="58" rx="7"/>
+      <text class="t" x="180" y="257">A file on this computer</text>
+      <text class="m" x="180" y="275">data/clinicos.db · audio to disk</text>
+
+      <path class="a" d="M620 262 H656" marker-end="url(#ah2)"/>
+      <rect class="box" x="660" y="233" width="280" height="58" rx="7"/>
+      <text class="t" x="800" y="257">Supabase, many clinics</text>
+      <text class="m" x="800" y="275">pooler :6543 · audio in AudioChunk</text>
+
+      <path class="j" d="M180 291 V340 H490"/>
+      <path class="j" d="M800 291 V340 H490"/>
+      <circle class="merge" cx="490" cy="340" r="3.5"/>
+      <path class="a" d="M490 340 V356" marker-end="url(#ah2)"/>
+
+      <rect class="box" x="280" y="360" width="420" height="58" rx="7"/>
+      <text class="t" x="490" y="384">The schema is brought up to date</text>
+      <text class="m" x="490" y="402">PRAGMA table_info + ALTER · or migrate-pg --deploy at build</text>
+      <rect class="note" x="720" y="360" width="240" height="58" rx="7"/>
+      <text class="t wn" x="840" y="384">Additive only</text>
+      <text class="m wn" x="840" y="402">never drop a pilot's table</text>
+      <path class="dot" d="M700 389 H720"/>
+      <path class="a" d="M490 418 V454" marker-end="url(#ah2)"/>
+
+      <polygon class="dia" points="490,458 620,506 490,554 360,506"/>
+      <text class="t dq" x="490" y="500">Does any account exist?</text>
+      <text class="m dq" x="490" y="518">createFirstAccount()</text>
+      <text class="lbl" x="336" y="494">No</text>
+      <text class="lbl" x="506" y="574">Yes</text>
+
+      <path class="a" d="M360 506 H324" marker-end="url(#ah2)"/>
+      <rect class="box" x="40" y="477" width="280" height="58" rx="7"/>
+      <text class="t" x="180" y="501">/setup makes the owner</text>
+      <text class="m" x="180" y="519">one-time code, then it refuses forever</text>
+      <path class="j" d="M180 535 V582 H490"/>
+      <path class="a" d="M490 554 V590" marker-end="url(#ah2)"/>
+
+      <rect class="box" x="310" y="594" width="360" height="58" rx="7"/>
+      <text class="t" x="490" y="618">Someone signs in</text>
+      <text class="m" x="490" y="636">/login · or a clinic's own /c/&lt;slug&gt; online</text>
+      <path class="a" d="M490 652 V696" marker-end="url(#ah2)"/>
+
+      <polygon class="dia" points="490,700 620,748 490,796 360,748"/>
+      <text class="t dq" x="490" y="742">Does the plan include</text>
+      <text class="t dq" x="490" y="758">a clinic-computer copy?</text>
+      <text class="lbl" x="644" y="740">Yes</text>
+      <text class="lbl" x="506" y="816">No</text>
+
+      <path class="a" d="M620 748 H656" marker-end="url(#ah2)"/>
+      <rect class="box" x="660" y="719" width="280" height="58" rx="7"/>
+      <text class="t" x="800" y="743">Connect it with a key</text>
+      <text class="m" x="800" y="761">SyncPanel → /api/sync/hello · every minute</text>
+      <path class="j" d="M800 777 V824 H490"/>
+      <path class="a" d="M490 796 V832" marker-end="url(#ah2)"/>
+
+      <rect class="box" x="310" y="836" width="360" height="58" rx="7"/>
+      <text class="t" x="490" y="860">The clinic works</text>
+      <text class="m" x="490" y="878">Today · records · bills · follow-ups · admin</text>
+      <path class="a" d="M490 894 V934" marker-end="url(#ah2)"/>
+
+      <rect class="term" x="270" y="938" width="440" height="52" rx="26"/>
+      <text class="t term-t" x="490" y="961">Three processes on a clinic computer:</text>
+      <text class="m term-t" x="490" y="979">:3000 the app · :8756 whisper · :11434 ollama</text>
+    </svg>
+  </div>
+
+  <div class="after">
+    <div class="card"><h3>Not connected means silent</h3><p>A clinic computer that has not been connected sends nothing anywhere. Sync is the only path out, and it needs both the plan and a key made online.</p></div>
+    <div class="card"><h3>Claim it immediately</h3><p>Until the owner account exists, anyone who reaches the app could claim it. That is why <code>/setup</code> is the first screen and never opens again.</p></div>
+    <div class="card flag"><h3>Prototype, still</h3><p>The online copy keeps no backups and would send audio to a hosted service patients have not been told about. Made-up patients only, said on every screen.</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ 3. ACCESS -->
+<section class="panel" id="p-access" role="tabpanel" aria-labelledby="t-access" hidden>
+  <h2>A request arrives</h2>
+  <p class="intro">Four questions between a click and a row. The first is asked at the edge and is not a security control; the other three are asked in the handler, which is where the answer counts.</p>
+  <p class="files">src/middleware.ts · auth.ts · users.ts · tenant.ts · db.ts</p>
+
+  <div class="plate">
+    <svg viewBox="0 0 980 1130" role="img" aria-label="Flowchart of authentication, capability and tenancy checks on a request">
+      <defs>
+        <marker id="ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path class="head" d="M0 0 L10 5 L0 10 z"/>
+        </marker>
+      </defs>
+
+      <rect class="term" x="140" y="24" width="360" height="52" rx="26"/>
+      <text class="t term-t" x="320" y="55">A page or API request arrives</text>
+      <path class="a" d="M320 76 V112" marker-end="url(#ah3)"/>
+
+      <polygon class="dia" points="320,116 470,164 320,212 170,164"/>
+      <text class="t dq" x="320" y="158">Is a session cookie there?</text>
+      <text class="m dq" x="320" y="176">middleware.ts, on the Edge</text>
+      <text class="lbl" x="488" y="157">No</text>
+      <text class="lbl" x="336" y="232">Yes</text>
+      <path class="a" d="M470 164 H596" marker-end="url(#ah3)"/>
+      <rect class="box" x="600" y="135" width="330" height="58" rx="7"/>
+      <text class="t" x="765" y="159">Redirect to /login</text>
+      <text class="m" x="765" y="177">absolute URL built on x-forwarded-host</text>
+      <path class="a" d="M320 212 V248" marker-end="url(#ah3)"/>
+
+      <rect class="box" x="170" y="252" width="300" height="58" rx="7"/>
+      <text class="t" x="320" y="276">The handler runs its own check</text>
+      <text class="m" x="320" y="294">requireUser() / requireApiUser(cap)</text>
+      <rect class="note" x="600" y="252" width="330" height="58" rx="7"/>
+      <text class="t wn" x="765" y="276">better-sqlite3 cannot load at the edge</text>
+      <text class="m wn" x="765" y="294">so the cookie check is all middleware can do</text>
+      <path class="dot" d="M470 281 H600"/>
+      <path class="a" d="M320 310 V346" marker-end="url(#ah3)"/>
+
+      <polygon class="dia" points="320,350 470,398 320,446 170,398"/>
+      <text class="t dq" x="320" y="392">Is the session live?</text>
+      <text class="m dq" x="320" y="410">SHA-256 of the token · 12h idle</text>
+      <text class="lbl" x="488" y="391">No</text>
+      <text class="lbl" x="336" y="466">Yes</text>
+      <path class="a" d="M470 398 H596" marker-end="url(#ah3)"/>
+      <rect class="box" x="600" y="369" width="330" height="58" rx="7"/>
+      <text class="t" x="765" y="393">Sign in again</text>
+      <text class="m" x="765" y="411">sliding, so nobody is dropped mid-recording</text>
+      <path class="a" d="M320 446 V482" marker-end="url(#ah3)"/>
+
+      <polygon class="dia" points="320,486 470,534 320,582 170,534"/>
+      <text class="t dq" x="320" y="528">Does the role hold</text>
+      <text class="t dq" x="320" y="544">the capability?</text>
+      <text class="lbl" x="488" y="527">No</text>
+      <text class="lbl" x="336" y="602">Yes</text>
+      <path class="a" d="M470 534 H596" marker-end="url(#ah3)"/>
+      <rect class="box" x="600" y="505" width="330" height="58" rx="7"/>
+      <text class="t" x="765" y="529">403</text>
+      <text class="m" x="765" y="547">clinical · frontdesk · admin · billing</text>
+      <path class="a" d="M320 582 V618" marker-end="url(#ah3)"/>
+
+      <polygon class="dia" points="320,622 470,670 320,718 170,670"/>
+      <text class="t dq" x="320" y="664">Does the row belong</text>
+      <text class="t dq" x="320" y="680">to this clinic?</text>
+      <text class="lbl" x="488" y="663">No</text>
+      <text class="lbl" x="336" y="738">Yes</text>
+      <path class="a" d="M470 670 H596" marker-end="url(#ah3)"/>
+      <rect class="box" x="600" y="641" width="330" height="58" rx="7"/>
+      <text class="t" x="765" y="665">Not found — as if it were not there</text>
+      <text class="m" x="765" y="683">"clinicId" = ? is in the WHERE of writes too</text>
+      <path class="a" d="M320 718 V754" marker-end="url(#ah3)"/>
+
+      <rect class="box" x="140" y="758" width="360" height="58" rx="7"/>
+      <text class="t" x="320" y="782">The work happens</text>
+      <text class="m" x="320" y="800">db.ts, ClinicId first — a record id will not compile</text>
+      <path class="a" d="M320 816 V852" marker-end="url(#ah3)"/>
+
+      <rect class="box" x="140" y="856" width="360" height="58" rx="7"/>
+      <text class="t" x="320" y="880">Written to the activity log</text>
+      <text class="m" x="320" y="898">AuditEvent — never a patient's name in detail</text>
+      <path class="a" d="M320 914 V954" marker-end="url(#ah3)"/>
+
+      <rect class="term" x="140" y="958" width="360" height="52" rx="26"/>
+      <text class="t term-t" x="320" y="989">A response, for this clinic only</text>
+
+      <!-- the two other doors -->
+      <text class="lbl" x="765" y="765">TWO OTHER DOORS, CHECKED SEPARATELY</text>
+      <rect class="box" x="600" y="777" width="330" height="58" rx="7"/>
+      <text class="t" x="765" y="801">/platform has its own cookie</text>
+      <text class="m" x="765" y="819">requireApiOperator() — counts, never records</text>
+      <rect class="box" x="600" y="856" width="330" height="58" rx="7"/>
+      <text class="t" x="765" y="880">/api/sync/* has its own key</text>
+      <text class="m" x="765" y="898">requireDevice() — hash stored, never the key</text>
+      <text class="m" x="765" y="948">/api/health is open, and says only that ClinicOS is up</text>
+    </svg>
+  </div>
+
+  <div class="after">
+    <div class="card"><h3>Hiding a link is not a control</h3><p>Every page and every route handler asks for the capability it needs. The navigation only reflects what the handler would allow anyway.</p></div>
+    <div class="card"><h3>The desk stays clean</h3><p>The front desk's Today renders before any clinical query runs — and nothing clinical may reach a page or route a front-desk account can open.</p></div>
+    <div class="card flag"><h3>A forgotten WHERE is a leak</h3><p><code>tenancy-test.cjs</code> tries every route with another clinic's ids. A new route has to be added to it.</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ 4. SYNC -->
+<section class="panel" id="p-sync" role="tabpanel" aria-labelledby="t-sync" hidden>
+  <h2>One minute of sync</h2>
+  <p class="intro">What the clinic computer does every minute, and how a row that changed in both places is settled. The merge rules are the same code on both sides — the only reason the two copies can be trusted to agree.</p>
+  <p class="files">sync-client.ts · sync-server.ts · sync.ts · api/sync/{hello,push,pull,share}</p>
+
+  <div class="plate">
+    <svg viewBox="0 0 980 1230" role="img" aria-label="Flowchart of one sync cycle between a clinic computer and the clinic online">
+      <defs>
+        <marker id="ah4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path class="head" d="M0 0 L10 5 L0 10 z"/>
+        </marker>
+      </defs>
+
+      <rect class="term" x="140" y="24" width="360" height="52" rx="26"/>
+      <text class="t term-t" x="320" y="47">The minute timer fires</text>
+      <text class="m term-t" x="320" y="65">sync-client.ts — never awaited by a page</text>
+      <path class="a" d="M320 76 V112" marker-end="url(#ah4)"/>
+
+      <polygon class="dia" points="320,116 470,164 320,212 170,164"/>
+      <text class="t dq" x="320" y="158">Connected, and in the plan?</text>
+      <text class="m dq" x="320" y="176">SyncConfig · tenant.ts localSync</text>
+      <text class="lbl" x="488" y="157">No</text>
+      <text class="lbl" x="336" y="232">Yes</text>
+      <path class="a" d="M470 164 H596" marker-end="url(#ah4)"/>
+      <rect class="term" x="600" y="138" width="330" height="52" rx="26"/>
+      <text class="t term-t" x="765" y="169">Nothing leaves this computer</text>
+      <path class="a" d="M320 212 V248" marker-end="url(#ah4)"/>
+
+      <rect class="box" x="140" y="252" width="360" height="58" rx="7"/>
+      <text class="t" x="320" y="276">Collect what changed here</text>
+      <text class="m" x="320" y="294">triggers set syncSeq · skip syncOrigin = me</text>
+      <rect class="note" x="600" y="252" width="330" height="58" rx="7"/>
+      <text class="t wn" x="765" y="276">A new column must join COLUMNS</text>
+      <text class="m wn" x="765" y="294">in sync.ts — or it silently stays on one copy</text>
+      <path class="dot" d="M500 281 H600"/>
+      <path class="a" d="M320 310 V346" marker-end="url(#ah4)"/>
+
+      <rect class="box" x="140" y="350" width="360" height="58" rx="7"/>
+      <text class="t" x="320" y="374">Push them up</text>
+      <text class="m" x="320" y="392">POST /api/sync/push → requireDevice()</text>
+      <path class="a" d="M320 408 V444" marker-end="url(#ah4)"/>
+
+      <polygon class="dia" points="320,448 470,496 320,544 170,496"/>
+      <text class="t dq" x="320" y="490">Does the row exist online?</text>
+      <text class="m dq" x="320" y="508">matched by id</text>
+      <text class="lbl" x="488" y="489">No</text>
+      <text class="lbl" x="336" y="564">Yes</text>
+      <path class="a" d="M470 496 H596" marker-end="url(#ah4)"/>
+      <rect class="box" x="600" y="467" width="330" height="58" rx="7"/>
+      <text class="t" x="765" y="491">Insert it</text>
+      <text class="m" x="765" y="509">stamped with the database clock, syncedAt</text>
+      <path class="j" d="M765 525 V580 H320"/>
+      <path class="a" d="M320 544 V580" marker-end="url(#ah4)"/>
+      <circle class="merge" cx="320" cy="580" r="3.5"/>
+      <path class="a" d="M320 580 V596" marker-end="url(#ah4)"/>
+
+      <rect class="box" x="110" y="600" width="420" height="58" rx="7"/>
+      <text class="t" x="320" y="624">Merge, by rule — not by whoever was last</text>
+      <text class="m" x="320" y="642">mergeConsult(): a signature wins · mergeBill(): a payment or cancellation stands</text>
+      <path class="a" d="M320 658 V694" marker-end="url(#ah4)"/>
+
+      <rect class="box" x="140" y="698" width="360" height="58" rx="7"/>
+      <text class="t" x="320" y="722">Pull the other copy's changes down</text>
+      <text class="m" x="320" y="740">POST /api/sync/pull → apply locally</text>
+      <rect class="note" x="600" y="698" width="330" height="58" rx="7"/>
+      <text class="t wn" x="765" y="722">Triggers stand aside while merging</text>
+      <text class="m wn" x="765" y="740">SyncState.applying · merged rows get syncSeq = -1</text>
+      <path class="dot" d="M500 727 H600"/>
+      <path class="a" d="M320 756 V792" marker-end="url(#ah4)"/>
+
+      <polygon class="dia" points="320,796 470,844 320,892 170,844"/>
+      <text class="t dq" x="320" y="838">Was a visit signed</text>
+      <text class="t dq" x="320" y="854">on the other copy?</text>
+      <text class="lbl" x="488" y="837">Yes</text>
+      <text class="lbl" x="336" y="912">No</text>
+      <path class="a" d="M470 844 H596" marker-end="url(#ah4)"/>
+      <rect class="note" x="600" y="815" width="330" height="58" rx="7"/>
+      <text class="t wn" x="765" y="839">Delete this copy's recording of it</text>
+      <text class="m wn" x="765" y="857">recordings never travel — only the signature does</text>
+      <path class="j" d="M765 873 V928 H320"/>
+      <path class="a" d="M320 892 V928" marker-end="url(#ah4)"/>
+      <circle class="merge" cx="320" cy="928" r="3.5"/>
+      <path class="a" d="M320 928 V944" marker-end="url(#ah4)"/>
+
+      <rect class="box" x="110" y="948" width="420" height="58" rx="7"/>
+      <text class="t" x="320" y="972">Deletions are applied both ways</text>
+      <text class="m" x="320" y="990">SyncTombstone id = &lt;clinicId&gt;:&lt;table&gt;:&lt;rowId&gt;</text>
+      <path class="a" d="M320 1006 V1042" marker-end="url(#ah4)"/>
+
+      <rect class="box" x="140" y="1046" width="360" height="58" rx="7"/>
+      <text class="t" x="320" y="1070">Settings travel, selectively</text>
+      <text class="m" x="320" y="1088">only clinic_ and rx_ keys · never ai_ or receipt_tag</text>
+      <path class="a" d="M320 1104 V1144" marker-end="url(#ah4)"/>
+
+      <rect class="term" x="140" y="1148" width="400" height="52" rx="26"/>
+      <text class="t term-t" x="340" y="1171">Both copies agree. Wait a minute,</text>
+      <text class="m term-t" x="340" y="1189">and do it again.</text>
+    </svg>
+  </div>
+
+  <div class="after">
+    <div class="card"><h3>Why triggers, not queries</h3><p>A clinic's clock may be wrong, so the local side counts (<code>syncSeq</code>) instead of trusting time, and the online side stamps with the database clock.</p></div>
+    <div class="card"><h3>Receipt numbers cannot collide</h3><p>The <code>receipt_tag</code> setting never travels, so one copy prints <code>KTR-0042</code> and the other <code>0042</code> — never the same number twice.</p></div>
+    <div class="card flag"><h3>A new table needs a decision</h3><p>Does it travel at all? Left unanswered, the answer is no — and nobody notices until a clinic asks where something went.</p></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>ClinicOS by Varaxis · flows as of 24 September 2026. The diamonds are the questions the server asks; the dashed boxes are the promises the code has to keep. Zero of the twenty doctor discovery interviews have been done — that, not the next feature, is the gate.</p>
+  </div>
+</footer>
+
+<script>
+  (function () {
+    var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab'));
+    function select(tab) {
+      tabs.forEach(function (t) {
+        var on = t === tab;
+        t.setAttribute('aria-selected', on ? 'true' : 'false');
+        document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+      });
+    }
+    tabs.forEach(function (t) {
+      t.addEventListener('click', function () {
+        select(t);
+        try { localStorage.setItem('clinicos-fc-tab', t.id); } catch (e) {}
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      });
+      t.addEventListener('keydown', function (e) {
+        var i = tabs.indexOf(t), n = null;
+        if (e.key === 'ArrowRight') n = tabs[(i + 1) % tabs.length];
+        if (e.key === 'ArrowLeft') n = tabs[(i - 1 + tabs.length) % tabs.length];
+        if (n) { e.preventDefault(); n.focus(); n.click(); }
+      });
+    });
+    var saved = null;
+    try { saved = localStorage.getItem('clinicos-fc-tab'); } catch (e) {}
+    var target = tabs.filter(function (t) { return t.id === saved; })[0];
+    if (target) select(target);
+  })();
+</script>

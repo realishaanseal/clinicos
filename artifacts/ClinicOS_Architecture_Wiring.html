@@ -1,0 +1,1036 @@
+<title>ClinicOS Wiring</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #eef1f0;
+    --surface: #ffffff;
+    --surface-2: #f7f9f8;
+    --ink: #101719;
+    --ink-2: #47585c;
+    --ink-3: #6e8085;
+    --line: #d2dbda;
+    --line-strong: #b4c2c1;
+    --accent: #0f6e63;
+    --accent-soft: #dcece9;
+    --accent-ink: #0b544b;
+    --ai: #8a5a00;
+    --ai-soft: #f6ecd8;
+    --danger: #9e2f2f;
+    --danger-soft: #f6e2e0;
+    --data: #3c4a7a;
+    --data-soft: #e3e7f3;
+    --shadow: 0 1px 2px rgba(16,23,25,.06), 0 8px 24px -16px rgba(16,23,25,.28);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0d1314;
+      --surface: #151d1f;
+      --surface-2: #1b2426;
+      --ink: #e7efee;
+      --ink-2: #a9bbbc;
+      --ink-3: #859899;
+      --line: #273436;
+      --line-strong: #37484a;
+      --accent: #46b7a6;
+      --accent-soft: #14312e;
+      --accent-ink: #7fd4c6;
+      --ai: #d9a441;
+      --ai-soft: #302716;
+      --danger: #e08b84;
+      --danger-soft: #35201e;
+      --data: #9fb0e6;
+      --data-soft: #1c2338;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.8);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0d1314;
+    --surface: #151d1f;
+    --surface-2: #1b2426;
+    --ink: #e7efee;
+    --ink-2: #a9bbbc;
+    --ink-3: #859899;
+    --line: #273436;
+    --line-strong: #37484a;
+    --accent: #46b7a6;
+    --accent-soft: #14312e;
+    --accent-ink: #7fd4c6;
+    --ai: #d9a441;
+    --ai-soft: #302716;
+    --danger: #e08b84;
+    --danger-soft: #35201e;
+    --data: #9fb0e6;
+    --data-soft: #1c2338;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.8);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  code, .mono { font-family: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace; }
+  h1, h2, h3, .cond {
+    font-family: "IBM Plex Sans Condensed", "IBM Plex Sans", system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.005em;
+    text-wrap: balance;
+  }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+
+  /* ---------- header ---------- */
+  header.top {
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .eyebrow {
+    font-size: 11.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 10px;
+  }
+  header.top h1 { font-size: clamp(28px, 5vw, 44px); margin: 0 0 12px; line-height: 1.05; }
+  header.top .lede { max-width: 62ch; color: var(--ink-2); margin: 0 0 22px; font-size: 16px; }
+  .top-inner { padding-block: 34px 26px; }
+  .facts { display: flex; flex-wrap: wrap; gap: 10px 28px; border-top: 1px solid var(--line); padding-top: 18px; }
+  .fact { min-width: 120px; }
+  .fact dt { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 3px; }
+  .fact dd { margin: 0; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  /* ---------- legend ---------- */
+  .legend { display: flex; flex-wrap: wrap; gap: 8px; padding-block: 16px; }
+  .key {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 12px; color: var(--ink-2);
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 999px; padding: 4px 11px 4px 8px;
+  }
+  .swatch { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+  .s-ui { background: var(--accent); }
+  .s-api { background: var(--ink-3); }
+  .s-lib { background: var(--data); }
+  .s-db { background: var(--line-strong); }
+  .s-ai { background: var(--ai); }
+  .s-guard { background: var(--danger); }
+
+  /* ---------- tabs ---------- */
+  nav.tabs {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  .tabs-inner { display: flex; gap: 2px; overflow-x: auto; padding: 8px 20px; max-width: 1180px; margin: 0 auto; scrollbar-width: thin; }
+  .tab {
+    flex: none; appearance: none; border: 1px solid transparent; background: none;
+    color: var(--ink-2); font: inherit; font-size: 13.5px; font-weight: 500;
+    padding: 7px 13px; border-radius: 7px; cursor: pointer; white-space: nowrap;
+  }
+  .tab:hover { color: var(--ink); background: var(--surface); }
+  .tab[aria-selected="true"] {
+    background: var(--surface); color: var(--ink); border-color: var(--line);
+    box-shadow: inset 0 -2px 0 var(--accent);
+  }
+  .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------- panels ---------- */
+  .panel { padding-block: 30px 56px; }
+  .panel-head { max-width: 70ch; margin-bottom: 26px; }
+  .panel-head h2 { font-size: clamp(21px, 3vw, 27px); margin: 0 0 8px; }
+  .panel-head p { margin: 0; color: var(--ink-2); }
+  .panel-head .path { font-size: 12.5px; color: var(--ink-3); margin-top: 8px; }
+
+  /* ---------- stage (one step of the flow) ---------- */
+  .stage {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+  .stage-head {
+    display: flex; gap: 14px; align-items: baseline;
+    padding: 15px 18px 12px;
+  }
+  .step-n {
+    flex: none;
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 500;
+    color: var(--accent-ink); background: var(--accent-soft);
+    border-radius: 6px; padding: 3px 7px; line-height: 1.3;
+    font-variant-numeric: tabular-nums;
+  }
+  .stage-head h3 { margin: 0; font-size: 16.5px; }
+  .stage-head p { margin: 3px 0 0; color: var(--ink-2); font-size: 13.5px; max-width: 78ch; }
+
+  .chain {
+    display: flex; align-items: stretch; gap: 0;
+    padding: 0 18px 18px;
+    overflow-x: auto;
+  }
+  .chain::-webkit-scrollbar { height: 8px; }
+  .node {
+    flex: 1 1 0; min-width: 178px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 11px 12px;
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .node .kind {
+    font-size: 10px; letter-spacing: .1em; text-transform: uppercase; font-weight: 600;
+    color: var(--ink-3);
+  }
+  .node code { font-size: 12.2px; color: var(--ink); word-break: break-word; line-height: 1.4; }
+  .node p { margin: 2px 0 0; font-size: 12.5px; color: var(--ink-2); }
+  .node.ui { border-left: 3px solid var(--accent); }
+  .node.api { border-left: 3px solid var(--ink-3); }
+  .node.lib { border-left: 3px solid var(--data); }
+  .node.db { border-left: 3px solid var(--line-strong); background: var(--surface); }
+  .node.ai { border-left: 3px solid var(--ai); background: var(--ai-soft); }
+  .node.ui .kind { color: var(--accent-ink); }
+  .node.lib .kind { color: var(--data); }
+  .node.ai .kind { color: var(--ai); }
+
+  .link {
+    flex: none; width: 30px;
+    display: grid; place-items: center;
+    color: var(--line-strong);
+  }
+  .link svg { width: 16px; height: 16px; display: block; }
+
+  .guard {
+    display: flex; gap: 9px; align-items: flex-start;
+    margin: 0 18px 16px; padding: 10px 12px;
+    background: var(--danger-soft); border: 1px solid color-mix(in srgb, var(--danger) 32%, transparent);
+    border-radius: 8px;
+    font-size: 12.8px; color: var(--ink);
+  }
+  .guard b { font-family: "IBM Plex Sans Condensed", sans-serif; }
+  .guard .tag {
+    flex: none; font-size: 10px; letter-spacing: .09em; text-transform: uppercase;
+    font-weight: 700; color: var(--danger); padding-top: 2px;
+  }
+  .guard code { font-size: 12px; }
+
+  /* ---------- side-by-side cards ---------- */
+  .cards { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(255px, 1fr)); margin-bottom: 18px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 11px;
+    padding: 15px 16px; box-shadow: var(--shadow);
+  }
+  .card h3 { margin: 0 0 8px; font-size: 15.5px; }
+  .card p { margin: 0 0 8px; font-size: 13.3px; color: var(--ink-2); }
+  .card ul { margin: 0; padding-left: 17px; font-size: 13.2px; color: var(--ink-2); }
+  .card li { margin-bottom: 4px; }
+  .card li code, .card p code { font-size: 12.2px; color: var(--ink); }
+
+  /* ---------- tables ---------- */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); box-shadow: var(--shadow); }
+  table { border-collapse: collapse; width: 100%; font-size: 13.2px; min-width: 620px; }
+  th, td { text-align: left; padding: 9px 13px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th {
+    font-family: "IBM Plex Sans Condensed", sans-serif; font-size: 11.5px; letter-spacing: .07em;
+    text-transform: uppercase; color: var(--ink-3); background: var(--surface-2); white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td code { font-size: 12.1px; }
+  .yes { color: var(--accent); font-weight: 600; }
+  .no { color: var(--ink-3); }
+
+  h3.sub {
+    font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3);
+    margin: 30px 0 12px; padding-bottom: 7px; border-bottom: 1px solid var(--line);
+  }
+
+  .note { font-size: 12.8px; color: var(--ink-3); margin: 12px 0 0; max-width: 76ch; }
+
+  footer {
+    border-top: 1px solid var(--line); background: var(--surface);
+    padding-block: 22px 30px; font-size: 12.8px; color: var(--ink-3);
+  }
+  footer p { margin: 0 0 6px; max-width: 80ch; }
+
+  @media (max-width: 820px) {
+    .chain { flex-direction: column; padding-bottom: 16px; }
+    .node { min-width: 0; }
+    .link { width: auto; height: 22px; transform: rotate(90deg); }
+    table { min-width: 520px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<header class="top">
+  <div class="wrap top-inner">
+    <p class="eyebrow">ClinicOS · program-level architecture</p>
+    <h1>Every file the consultation touches, in the order it touches it</h1>
+    <p class="lede">
+      One codebase runs two ways: on a clinic's own computer against a SQLite file, and online against
+      Postgres as a service many clinics share. What follows is the wiring — screen, route handler,
+      library, table — for each thing a clinic actually does, with the rules that are enforced in code
+      rather than in the interface.
+    </p>
+    <dl class="facts">
+      <div class="fact"><dt>Framework</dt><dd>Next.js 15 · React 19</dd></div>
+      <div class="fact"><dt>Data layer</dt><dd>hand-written SQL, no ORM</dd></div>
+      <div class="fact"><dt>Backends</dt><dd>SQLite · Postgres</dd></div>
+      <div class="fact"><dt>Route handlers</dt><dd>68</dd></div>
+      <div class="fact"><dt>Library modules</dt><dd>35 in <code>src/lib</code></dd></div>
+      <div class="fact"><dt>Local processes</dt><dd>3 — :3000 :8756 :11434</dd></div>
+    </dl>
+    <div class="legend" aria-label="Node types">
+      <span class="key"><span class="swatch s-ui"></span>screen / component</span>
+      <span class="key"><span class="swatch s-api"></span>route handler</span>
+      <span class="key"><span class="swatch s-lib"></span>library module</span>
+      <span class="key"><span class="swatch s-db"></span>table / file on disk</span>
+      <span class="key"><span class="swatch s-ai"></span>AI provider (out of process)</span>
+      <span class="key"><span class="swatch s-guard"></span>invariant enforced here</span>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs" aria-label="Flows">
+  <div class="tabs-inner" role="tablist">
+    <button class="tab" role="tab" id="t-boot" aria-controls="p-boot" aria-selected="true">Boot &amp; config</button>
+    <button class="tab" role="tab" id="t-consult" aria-controls="p-consult" aria-selected="false">The consultation</button>
+    <button class="tab" role="tab" id="t-desk" aria-controls="p-desk" aria-selected="false">Front desk, bills, follow-ups</button>
+    <button class="tab" role="tab" id="t-access" aria-controls="p-access" aria-selected="false">Accounts &amp; access</button>
+    <button class="tab" role="tab" id="t-sync" aria-controls="p-sync" aria-selected="false">Sync</button>
+    <button class="tab" role="tab" id="t-portal" aria-controls="p-portal" aria-selected="false">Patient portal</button>
+    <button class="tab" role="tab" id="t-platform" aria-controls="p-platform" aria-selected="false">Platform &amp; tenancy</button>
+    <button class="tab" role="tab" id="t-files" aria-controls="p-files" aria-selected="false">Module reference</button>
+  </div>
+</nav>
+
+<main class="wrap">
+
+<!-- ================= BOOT ================= -->
+<section class="panel" id="p-boot" role="tabpanel" aria-labelledby="t-boot">
+  <div class="panel-head">
+    <h2>From a cold machine to a running clinic</h2>
+    <p>
+      Nothing about the two deployments is a code branch. The same build reads environment variables and
+      decides which database it is talking to, whether it lives under <code>/app</code>, and which speech and
+      note-drafting services to call.
+    </p>
+    <p class="path mono">go.sh · go.ps1 · .env · src/lib/sql.ts · src/lib/clinic.ts · migrations/pg/</p>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head">
+      <span class="step-n">01</span>
+      <div>
+        <h3>Launch</h3>
+        <p>Idempotent setup, then three processes. <code>go.sh</code> on macOS and <code>go.ps1</code> on Windows keep the same contract — installing packages, rebuilding the native SQLite binary, creating the Python venv, locating Ollama.</p>
+      </div>
+    </div>
+    <div class="chain">
+      <div class="node ui"><span class="kind">entry</span><code>go.sh / go.ps1</code><p>Sets up whatever is missing, then starts everything.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node api"><span class="kind">process :3000</span><code>next start</code><p>The app itself.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node ai"><span class="kind">process :8756</span><code>asr/server.py</code><p>FastAPI + faster-whisper sidecar.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node ai"><span class="kind">process :11434</span><code>ollama</code><p><code>qwen2.5:7b-instruct</code> drafts the note.</p></div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head">
+      <span class="step-n">02</span>
+      <div>
+        <h3>Which database, and where the app lives</h3>
+        <p><code>sql.ts</code> is the only file that knows SQLite from Postgres. Everything above it calls the same async functions, written once for both.</p>
+      </div>
+    </div>
+    <div class="chain">
+      <div class="node lib"><span class="kind">env</span><code>DATA_BACKEND</code><p><code>sqlite</code> → a file at <code>DB_PATH</code>. <code>postgres</code> → the Supabase pooler on 6543.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node lib"><span class="kind">module</span><code>src/lib/sql.ts</code><p>Connections, transactions via <code>AsyncLocalStorage</code>, <code>savepoint()</code>, and the SQLite schema + <code>PRAGMA table_info</code> migrations.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node lib"><span class="kind">module</span><code>src/lib/db.ts</code><p>Every query in the product. Each one takes a <code>ClinicId</code> first.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node db"><span class="kind">storage</span><code>data/clinicos.db</code><br><code>migrations/pg/001…009</code><p>Postgres changes are numbered files; <code>vercel.json</code> runs <code>migrate-pg.mjs --deploy</code> before <code>next build</code>.</p></div>
+    </div>
+    <div class="guard">
+      <span class="tag">rule</span>
+      <div><b>One SQL for two databases.</b> <code>?</code> placeholders, every capitalised identifier double-quoted (<code>"Consult"</code>, <code>"patientId"</code>), <code>CAST(COUNT(*) AS INTEGER)</code>, <code>LOWER()</code> instead of <code>COLLATE NOCASE</code>, ISO strings and 0/1 flags. A missed quote returns <code>patientid</code> on Postgres and nothing on SQLite.</div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head">
+      <span class="step-n">03</span>
+      <div>
+        <h3>First run — who owns this install</h3>
+        <p>Until an account exists, anyone who reaches the app could claim it, so <code>/setup</code> is the first screen and refuses forever after the owner is created.</p>
+      </div>
+    </div>
+    <div class="chain">
+      <div class="node ui"><span class="kind">screen</span><code>src/app/setup/page.tsx</code><p><code>SetupForm.tsx</code>, plus <code>ConnectAtSetup.tsx</code> when a clinic computer is joining its clinic online.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node api"><span class="kind">route</span><code>POST /api/setup</code><p>Checks the code, then <code>createFirstAccount()</code> — which handles the Postgres race SQLite cannot have.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node lib"><span class="kind">modules</span><code>setup-code.ts</code> · <code>auth.ts</code> · <code>tenant.ts</code><p>Each clinic's own one-time code, or <code>SETUP_CODE</code> for the first. Passwords are scrypt.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node db"><span class="kind">tables</span><code>User</code> · <code>Session</code> · <code>Tenant</code><p>A clinic computer holds exactly one clinic, <code>FIRST_CLINIC_ID</code> = <code>"first"</code>.</p></div>
+    </div>
+  </div>
+
+  <h3 class="sub">What the environment decides</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Variable</th><th>Clinic computer</th><th>Online</th><th>Read by</th></tr></thead>
+      <tbody>
+        <tr><td><code>DATA_BACKEND</code></td><td><code>sqlite</code></td><td><code>postgres</code></td><td><code>sql.ts</code>, <code>audio-store.ts</code></td></tr>
+        <tr><td><code>NEXT_PUBLIC_BASE_PATH</code></td><td>unset</td><td><code>/app</code></td><td><code>next.config.ts</code>, <code>base-path.ts</code></td></tr>
+        <tr><td><code>NEXT_PUBLIC_CLINIC_TIMEZONE</code></td><td>machine local</td><td><code>Asia/Kolkata</code></td><td><code>time.ts</code></td></tr>
+        <tr><td><code>NEXT_PUBLIC_CLINICOS_ONLINE</code></td><td>unset</td><td><code>1</code></td><td><code>deployment.ts</code> — wording only, never a control</td></tr>
+        <tr><td><code>NEXT_PUBLIC_CLINICOS_PROTOTYPE</code></td><td>banner on</td><td>banner on</td><td>made-up-patients banner; only Ishaan sets <code>0</code></td></tr>
+        <tr><td><code>ASR_PROVIDER</code> / <code>LLM_PROVIDER</code></td><td><code>local</code> / <code>ollama</code></td><td><code>http</code> / <code>openai</code></td><td><code>asr.ts</code>, <code>llm.ts</code>; Clinic admin overrides via <code>ai-settings.ts</code></td></tr>
+        <tr><td><code>PORTAL_ENCRYPTION_KEY</code> / <code>PORTAL_HMAC_KEY</code></td><td>—</td><td>from <code>npm run portal:keys</code></td><td><code>portal-crypto.ts</code>; changing them loses what was shared</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">Paths written by hand need <code>appPath()</code>. Next.js prefixes <code>&lt;Link&gt;</code>, <code>redirect()</code> and <code>router.push</code>; it cannot see <code>fetch("/api/…")</code>, <code>&lt;a href&gt;</code> or <code>window.location</code>. <code>npm run check:paths</code> runs first in both test commands because the suites call the API directly and would never notice.</p>
+</section>
+
+<!-- ================= CONSULT ================= -->
+<section class="panel" id="p-consult" role="tabpanel" aria-labelledby="t-consult" hidden>
+  <div class="panel-head">
+    <h2>Record → transcribe → draft → sign → print</h2>
+    <p>
+      The doctor gets about two minutes per patient. ClinicOS records the consultation that was already
+      happening and asks only for a review and a signature. Four steps in one component, each backed by
+      its own route so a crash mid-visit loses nothing.
+    </p>
+    <p class="path mono">src/components/ConsultWorkflow.tsx · src/app/api/consults/… · src/lib/asr.ts · src/lib/llm.ts</p>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head">
+      <span class="step-n">01</span>
+      <div>
+        <h3>Start the visit</h3>
+        <p>From the doctor's Today — "Waiting now" — or from the patient's record. The server checks that the clinic may record at all before any endpoint will accept audio.</p>
+      </div>
+    </div>
+    <div class="chain">
+      <div class="node ui"><span class="kind">screen</span><code>(clinic)/page.tsx</code><p><code>WaitingPanel.tsx</code> → Start visit; <code>NewConsultButton.tsx</code> from a record.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node api"><span class="kind">route</span><code>POST /api/consults</code><p><code>requireApiUser("clinical")</code>, then <code>allowRecording()</code>.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node lib"><span class="kind">modules</span><code>clinic.ts</code> · <code>terms.ts</code><p>Has this clinic accepted the terms in force? Stamps <code>consentBy</code> on the visit.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node ui"><span class="kind">screen</span><code>(clinic)/consult/[id]/page.tsx</code><p>Renders <code>ConsultWorkflow</code> at step 1.</p></div>
+    </div>
+    <div class="guard">
+      <span class="tag">invariant 5</span>
+      <div><b>Recording is allowed only on a basis the server checks.</b> The recording endpoints return <b>403</b> until the clinic has accepted the terms in force, in which it undertakes to tell every patient and record no one who says no. A gate in the interface alone is not acceptable; new terms text means a new version everyone accepts again.</div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head">
+      <span class="step-n">02</span>
+      <div>
+        <h3>Recording — five seconds at a time</h3>
+        <p>Audio never waits in memory for the end of the visit. Chunks land on disk (or in a table, online) as they are captured, which is what makes a crash survivable.</p>
+      </div>
+    </div>
+    <div class="chain">
+      <div class="node ui"><span class="kind">hook</span><code>src/lib/useRecorder.ts</code><p>MediaRecorder → a 5-second WebM chunk, posted as it closes.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node api"><span class="kind">routes</span><code>POST …/audio/chunk</code><br><code>POST …/audio/finalize</code><p>Append, then close the recording when the doctor stops.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node lib"><span class="kind">module</span><code>src/lib/audio-store.ts</code><p>One interface, two stores: a file on the clinic computer, <code>AudioChunk</code> rows online.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node db"><span class="kind">storage</span><code>data/audio/&lt;id&gt;.webm</code><br><code>AudioChunk</code><p>Never synced between copies.</p></div>
+    </div>
+    <div class="guard">
+      <span class="tag">deliberate</span>
+      <div><b>A truncated WebM still decodes</b> up to the point it was cut. That is what makes partial-recording recovery work — it is not a bug to be fixed. Unfinished visits resurface on Today with the reason they stopped.</div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head">
+      <span class="step-n">03</span>
+      <div>
+        <h3>Transcribe, then draft</h3>
+        <p>Transcription starts the moment recording stops, not when the doctor asks. Both AI steps sit behind small interfaces, so a hosted endpoint replaces the local one through environment variables alone.</p>
+      </div>
+    </div>
+    <div class="chain">
+      <div class="node api"><span class="kind">route</span><code>POST …/transcribe</code><p>Reads the recording, hands it to the provider.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node ai"><span class="kind">provider</span><code>src/lib/asr.ts</code><p><code>local</code> → the sidecar on :8756. <code>http</code> → a hosted endpoint.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node ai"><span class="kind">provider</span><code>src/lib/llm.ts</code><p><code>POST …/draft</code> → <code>ollama</code> or <code>openai</code>. <code>SYSTEM_PROMPT</code> — the clinical safety text — lives here.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node db"><span class="kind">column</span><code>Consult.draftJson</code><p>Parsed through <code>parseNote()</code> in <code>types.ts</code>.</p></div>
+    </div>
+    <div class="guard">
+      <span class="tag">invariant 1</span>
+      <div><b>No clinical judgement.</b> No diagnosis generation, no risk scores, no triage badges, no "needs attention" flags. Software that stores, formats and communicates data sits outside CDSCO device regulation; software that quantifies a physiological parameter to drive a decision does not. Raw numbers and trends are shown — the doctor sets any flag. <code>followUpOn</code> and <code>returnIf</code> are never filled by the model.</div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head">
+      <span class="step-n">04</span>
+      <div>
+        <h3>Review and edit</h3>
+        <p>The doctor's edits go somewhere else entirely from the draft. The gap between the two is the only honest accuracy measure this project has.</p>
+      </div>
+    </div>
+    <div class="chain">
+      <div class="node ui"><span class="kind">component</span><code>ConsultWorkflow.tsx</code><p>Plus <code>Favourites.tsx</code> — the doctor's own saved plans, applied without overwriting anything written.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node ui"><span class="kind">hook</span><code>src/lib/useAutosave.ts</code><p>Debounced save to the server and a localStorage mirror.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node api"><span class="kind">route</span><code>PUT …/note</code><p>Writes only the working copy.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node db"><span class="kind">column</span><code>Consult.workingJson</code><p><code>Favourite</code> holds the plan only — never a complaint, history or finding.</p></div>
+    </div>
+    <div class="guard">
+      <span class="tag">invariant 6</span>
+      <div><b><code>draftJson</code> is immutable once written.</b> It holds the model's original output; edits go to <code>workingJson</code>. Never overwrite one with the other. A note written by hand has no draft at all — <code>draftJson</code> stays NULL, signing logs no <code>Edit</code> rows, and it counts in neither "time saved" nor "edits per note".</div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head">
+      <span class="step-n">05</span>
+      <div>
+        <h3>Sign — and the recording goes</h3>
+        <p>Signing is the one irreversible moment in the flow. It writes the diff, sets the follow-up date, and deletes the audio.</p>
+      </div>
+    </div>
+    <div class="chain">
+      <div class="node api"><span class="kind">route</span><code>POST …/sign</code><p>→ <code>signConsult()</code> in <code>db.ts</code>, inside one transaction.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node db"><span class="kind">table</span><code>Edit</code><p>One row per field the doctor changed — the accuracy metric.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node db"><span class="kind">columns</span><code>signedAt</code> · <code>followUpOn</code><p>The date copies to <code>Consult</code>, which is what the desk's Follow-ups list reads.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node lib"><span class="kind">module</span><code>audio-store.ts</code><p>The recording is deleted here.</p></div>
+    </div>
+    <div class="guard">
+      <span class="tag">invariant 3</span>
+      <div><b>Audio is deleted when the doctor signs.</b> Promised to every patient in the clinic's terms and enforced in <code>signConsult()</code>. Recordings never sync, and a visit signed on one copy deletes the other copy's recording of it when the signature arrives — <code>mergeConsult()</code> in <code>sync.ts</code>. Do not add audio retention. <b>Never train on patient audio</b> (invariant 4): the Pilot Agreement permits de-identified data only, with an opt-out.</div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head">
+      <span class="step-n">06</span>
+      <div>
+        <h3>Print, and hand it over</h3>
+        <p>A branded A4 prescription out of the signed note, and — online — one tap to share exactly that with the patient.</p>
+      </div>
+    </div>
+    <div class="chain">
+      <div class="node ui"><span class="kind">component</span><code>Prescription.tsx</code><p>Clinic logo, the doctor's own "come back at once if…", follow-up date.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node lib"><span class="kind">module</span><code>src/lib/rx-card.ts</code><p>The medicine timing card in English, Bengali or Hindi — it re-reads what the doctor wrote and never guesses.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node api"><span class="kind">route</span><code>POST …/share</code><p><code>SharePanel.tsx</code> → <code>share.ts</code>; a clinic computer goes via <code>/api/sync/share</code>.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node db"><span class="kind">table</span><code>PortalShare</code><p>The signed prescription, encrypted. Never the transcript, draft, edits or recording.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FRONT DESK ================= -->
+<section class="panel" id="p-desk" role="tabpanel" aria-labelledby="t-desk" hidden>
+  <div class="panel-head">
+    <h2>The desk: register, queue, bill, call back</h2>
+    <p>
+      Everything the desk does is deliberately separated from everything clinical. The front desk's Today
+      renders before any clinical query runs, and nothing clinical may reach a page or route a front-desk
+      account can open.
+    </p>
+    <p class="path mono">FrontDeskToday.tsx · BillsDesk.tsx · FollowUps.tsx · src/lib/money.ts · src/lib/recall.ts</p>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head">
+      <span class="step-n">01</span>
+      <div><h3>Find or register, then into today's list</h3>
+        <p>Search by name or phone; a new patient in a few fields; the visit joins the queue the doctor watches.</p></div>
+    </div>
+    <div class="chain">
+      <div class="node ui"><span class="kind">component</span><code>FrontDeskToday.tsx</code><p>With <code>NewPatient.tsx</code>, <code>AddToQueueButton.tsx</code>, and <code>QuickSearch.tsx</code> on ⌘K from anywhere.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node api"><span class="kind">routes</span><code>/api/patients</code><br><code>/api/queue</code><p><code>requireApiUser("frontdesk")</code>.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node lib"><span class="kind">functions</span><code>addToQueue()</code> · <code>startQueueEntry()</code><p>Both carry a Postgres-only race SQLite's one-at-a-time transactions cannot have.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node db"><span class="kind">tables</span><code>Patient</code> · <code>QueueEntry</code><p>The doctor's side polls it every 5s via <code>useQueue.ts</code>.</p></div>
+    </div>
+    <div class="guard">
+      <span class="tag">time</span>
+      <div><b>"Today" is the clinic's local date</b> — <code>localDay()</code> in <code>db.ts</code>, and <code>time.ts</code> for everything on screen. In India a UTC date files every visit before 05:30 under yesterday, and Vercel runs on UTC.</div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head">
+      <span class="step-n">02</span>
+      <div><h3>Money, in whole paise</h3>
+        <p>Whoever takes money reads the bill, so nothing clinical reaches a bill, a receipt or the bills desk.</p></div>
+    </div>
+    <div class="chain">
+      <div class="node ui"><span class="kind">component</span><code>BillsDesk.tsx</code> · <code>Receipt.tsx</code><p>Make a bill, take payment by cash, UPI, card or other; print.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node api"><span class="kind">routes</span><code>POST /api/bills</code><br><code>…/[id]/pay</code> · <code>…/[id]/cancel</code><p><code>billing</code> for the first two; cancelling needs <code>admin</code>.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node lib"><span class="kind">module</span><code>src/lib/money.ts</code><p>Parsing rupees, ₹ with Indian grouping, bill lines. Whole paise throughout.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node db"><span class="kind">table</span><code>Bill</code><p>Receipt number given at payment, not at billing: <code>0042</code> online, <code>KTR-0042</code> behind a clinic computer's own tag.</p></div>
+    </div>
+    <div class="guard">
+      <span class="tag">house rule</span>
+      <div><b>A bill is never edited or deleted, only cancelled</b> — <code>admin</code>, a reason, and the word <code>CANCEL</code> typed out. The reason stays on the bill and not in the activity log, because it is free text and could name the patient. The <code>receipt_tag</code> setting never travels, so no two copies can print the same number.</div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head">
+      <span class="step-n">03</span>
+      <div><h3>Calling people back — and the day in one message</h3>
+        <p>ClinicOS sends nothing. It opens WhatsApp with the words already in it and a person presses send.</p></div>
+    </div>
+    <div class="chain">
+      <div class="node ui"><span class="kind">components</span><code>FollowUps.tsx</code> · <code>DaySummary.tsx</code><p>Name, phone, date and doctor — never why. The summary is shown before it is sent.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node lib"><span class="kind">modules</span><code>recall.ts</code> · <code>day-summary.ts</code><p>The template's only placeholders are <code>{name}</code>, <code>{clinic}</code>, <code>{doctor}</code>, <code>{date}</code>.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node api"><span class="kind">routes</span><code>/api/followups</code><br><code>…/[id]</code><p>Marks someone as come back, or not needed.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node db"><span class="kind">tables</span><code>Recall</code> · <code>Consult.followUpOn</code><p>A <code>wa.me</code> link is the whole delivery mechanism.</p></div>
+    </div>
+    <div class="guard">
+      <span class="tag">invariant 2</span>
+      <div><b>Counts, money, and at most one patient's name — never a diagnosis.</b> What the follow-up list is worth is the clinic's own fee times the people on it, labelled as that arithmetic and never as a forecast. Be honest in numbers shown to doctors: time saved is computed at a deliberately conservative four minutes per note.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ACCESS ================= -->
+<section class="panel" id="p-access" role="tabpanel" aria-labelledby="t-access" hidden>
+  <div class="panel-head">
+    <h2>Who may open what</h2>
+    <p>
+      Hiding a link is never the control. Every page calls <code>requireUser()</code> and every route handler
+      calls <code>requireApiUser()</code> with the capability it needs — because middleware runs on the Edge
+      runtime, where the SQLite driver cannot even load.
+    </p>
+    <p class="path mono">src/middleware.ts · src/lib/auth.ts · src/lib/session-cookie.ts · src/lib/users.ts</p>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head">
+      <span class="step-n">01</span>
+      <div><h3>A request arrives</h3>
+        <p>Two checks, and only the second one is real.</p></div>
+    </div>
+    <div class="chain">
+      <div class="node lib"><span class="kind">edge</span><code>src/middleware.ts</code><p>Is there a session cookie? If not, redirect to <code>/login</code> — as an absolute URL built on <code>x-forwarded-host</code>, or Next throws "Invalid URL".</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node ui"><span class="kind">screen</span><code>login/page.tsx</code> → <code>POST /api/auth/login</code><p><code>LoginForm.tsx</code>; <code>c/[slug]/page.tsx</code> is a clinic's own front door.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node lib"><span class="kind">module</span><code>src/lib/auth.ts</code><p>scrypt passwords; only SHA-256 hashes of session tokens are stored. Sessions slide on a 12-hour idle limit so nobody is signed out mid-recording.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node api"><span class="kind">every handler</span><code>requireApiUser(cap)</code><p>The real check, in the handler, always.</p></div>
+    </div>
+    <div class="guard">
+      <span class="tag">structural</span>
+      <div><b>Three ways in, three separate checks.</b> <code>/platform</code> carries Varaxis's own cookie (<code>platform.ts</code>), <code>/api/sync/*</code> verifies a device key (<code>requireDevice()</code> in <code>sync-server.ts</code>), and <code>/api/health</code> is open and says only that ClinicOS is up. Everything else goes through <code>requireApiUser()</code>.</div>
+    </div>
+  </div>
+
+  <h3 class="sub">The capability matrix, as the handlers enforce it</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Capability</th><th>What it reaches</th><th>doctor</th><th>staff</th><th>admin</th></tr></thead>
+      <tbody>
+        <tr><td><code>clinical</code></td><td>transcripts, notes, signing, prescriptions, patient history</td><td class="yes">yes</td><td class="no">no</td><td class="no">no</td></tr>
+        <tr><td><code>frontdesk</code></td><td>register and find patients, today's list, follow-ups</td><td class="yes">yes</td><td class="yes">yes</td><td class="no">no</td></tr>
+        <tr><td><code>admin</code></td><td>people, clinic details, backups, export, deletion, activity log</td><td>if <code>isAdmin</code></td><td class="no">no</td><td class="yes">yes</td></tr>
+        <tr><td><code>billing</code></td><td>make bills, take payment, print receipts</td><td class="yes">yes</td><td class="yes">yes</td><td class="yes">yes</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">A non-clinical admin never sees a clinical note. A doctor who owns the clinic is <code>role=doctor, isAdmin=1</code>. A locked-out owner runs <code>npm run reset-password -- &lt;username&gt;</code> at the laptop — never from a screen.</p>
+
+  <h3 class="sub">Admin's own surface</h3>
+  <div class="cards">
+    <div class="card">
+      <h3>Backups</h3>
+      <p><code>BackupPanel.tsx</code> → <code>/api/backup/*</code> → <code>backup.ts</code>. A daily snapshot triggered lazily on page load, 14 kept, one-tap download.</p>
+      <ul>
+        <li>Restore is behind a typed <code>RESTORE</code>, and snapshots the current database first.</li>
+        <li>A restore brings back the backup's accounts; if the backup predates accounts, the restoring admin is kept so <code>/setup</code> never reopens.</li>
+        <li><b>SQLite's online backup API, never a file copy</b> — WAL mode means <code>cp</code> produces a file that opens fine and is quietly missing the newest consultations.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>People</h3>
+      <p><code>UsersAdmin.tsx</code> → <code>/api/admin/users/*</code>. Add people, manage access, reset passwords. Usernames are unique within a clinic.</p>
+    </div>
+    <div class="card">
+      <h3>Activity log</h3>
+      <p><code>(clinic)/admin/audit</code> reads <code>AuditEvent</code>. <b>Never write a patient's name into <code>detail</code></b> — a deleted record must not survive in the log.</p>
+    </div>
+    <div class="card">
+      <h3>Clinic identity &amp; AI</h3>
+      <p><code>ClinicSettingsForm.tsx</code>, <code>PrescriptionSettings.tsx</code>, <code>AiSettings.tsx</code> → <code>ClinicSetting</code> via <code>clinic.ts</code>. <code>.env</code> is only the fallback, and only for the first clinic. <code>ai_</code> keys never travel to a clinic computer.</p>
+    </div>
+    <div class="card">
+      <h3>Deletion</h3>
+      <p><code>DeletePatient.tsx</code> — type the patient's name. Anything irreversible requires typing something out; apply that pattern to any new destructive action.</p>
+    </div>
+    <div class="card">
+      <h3>Export</h3>
+      <p><code>/api/backup/export</code> and <code>/api/patients/[id]/export</code>. <b>No lock-in</b> (invariant 8): full export in an open format must keep working — 35 MB in about 800 ms on the bench clinic.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SYNC ================= -->
+<section class="panel" id="p-sync" role="tabpanel" aria-labelledby="t-sync" hidden>
+  <div class="panel-head">
+    <h2>Two copies, one clinic</h2>
+    <p>
+      A clinic whose plan includes it keeps a full copy on its own computer, in step with its clinic
+      online. The merge rules are the same code on both sides — which is the only reason the two copies
+      can be trusted to agree.
+    </p>
+    <p class="path mono">src/lib/sync.ts · sync-client.ts · sync-server.ts · src/app/api/sync/*</p>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head">
+      <span class="step-n">01</span>
+      <div><h3>Connecting a computer</h3>
+        <p>Two conditions, both checked on the server: the plan includes it, and the clinic's admin made a key online.</p></div>
+    </div>
+    <div class="chain">
+      <div class="node ui"><span class="kind">online</span><code>DevicesPanel.tsx</code><p>The clinic's connected computers, their keys, switching one off.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node ui"><span class="kind">clinic computer</span><code>SyncPanel.tsx</code><p>Paste the key, connect, watch how it is going. Also <code>ConnectAtSetup.tsx</code> at first run.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node api"><span class="kind">route</span><code>POST /api/sync/hello</code><p><code>requireDevice()</code>; only hashes of device keys are stored.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node db"><span class="kind">tables</span><code>SyncDevice</code> (online)<br><code>SyncConfig</code> · <code>SyncState</code> (local)<p><code>tenant.ts</code> holds the plan's <code>localSync</code> feature.</p></div>
+    </div>
+    <div class="guard">
+      <span class="tag">invariant 2</span>
+      <div><b>A clinic computer that is not connected sends nothing anywhere.</b> It reaches the cloud only through sync, and nothing else in a clinic-computer install may call out. Because the online copy would send audio to a hosted service and patients are not yet told that, a computer connecting must confirm its patients are made up.</div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head">
+      <span class="step-n">02</span>
+      <div><h3>Every minute, both directions</h3>
+        <p>Triggers — not queries — mark what changed, so a clinic's wrong clock cannot lose a row.</p></div>
+    </div>
+    <div class="chain">
+      <div class="node lib"><span class="kind">module</span><code>sync-client.ts</code><p>Runs every minute. <b>Never awaited by a page.</b></p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node api"><span class="kind">routes</span><code>POST /api/sync/push</code><br><code>POST /api/sync/pull</code><p>Plus <code>/api/sync/share</code> so a local signature can reach the patient portal.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node lib"><span class="kind">markers</span><code>syncSeq</code> · <code>syncedAt</code> · <code>syncOrigin</code><p>A counter on SQLite, the database clock online, and an origin so a computer is never sent its own changes back.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node lib"><span class="kind">merge</span><code>mergeConsult()</code> · <code>mergeBill()</code><p>While merging, SQLite's triggers stand aside (<code>SyncState.applying</code>) and merged rows get <code>syncSeq = -1</code>.</p></div>
+    </div>
+    <div class="guard">
+      <span class="tag">easy to break</span>
+      <div><b>Adding a column to a synced table means adding it to <code>COLUMNS</code> in <code>sync.ts</code></b>, or it silently stays on one copy. A new table needs a decision about whether it travels at all. Settings travel only when the key starts <code>clinic_</code> or <code>rx_</code>. Tombstone ids include the clinic (<code>&lt;clinicId&gt;:&lt;table&gt;:&lt;rowId&gt;</code>) — without it one clinic's computer could block another's real deletion.</div>
+    </div>
+  </div>
+
+  <h3 class="sub">What travels, and what never does</h3>
+  <div class="cards">
+    <div class="card">
+      <h3>Travels</h3>
+      <ul>
+        <li><code>Patient</code>, <code>Consult</code>, <code>Edit</code>, <code>QueueEntry</code>, <code>Favourite</code></li>
+        <li><code>Bill</code>, <code>Recall</code>, <code>User</code>, <code>AuditEvent</code></li>
+        <li><code>ClinicSetting</code> — only <code>clinic_</code> and <code>rx_</code> keys</li>
+        <li><code>SyncTombstone</code> — deletions, so they land on both copies</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Never travels</h3>
+      <ul>
+        <li>Recordings — and a signature deletes the other copy's too</li>
+        <li><code>ai_</code> settings, and the AI keys behind them</li>
+        <li><code>receipt_tag</code>, so receipt numbers cannot collide</li>
+        <li><code>PortalShare</code>'s three secret columns</li>
+        <li>Sessions, device keys, operator accounts</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Proven by</h3>
+      <p><code>scripts/test/sync-test.cjs</code> runs two clinic computers beside the online copy. On Postgres, <code>test:e2e:pg</code> starts two more copies of the same build on ports 3101 and 3102.</p>
+      <p class="note" style="margin-top:6px">PGlite multiplexes every client over one session, so <code>PG_POOL_MAX=1</code> there: its race tests prove correctness, not concurrency. Those are real only against Supabase.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= PORTAL ================= -->
+<section class="panel" id="p-portal" role="tabpanel" aria-labelledby="t-portal" hidden>
+  <div class="panel-head">
+    <h2>What the patient gets</h2>
+    <p>
+      Online only, at <code>/p</code>. Exactly the signed prescription — never the transcript, the recording,
+      the draft or the edits. Three languages, chosen on the first screen; the prescription itself stays as
+      the doctor wrote it.
+    </p>
+    <p class="path mono">src/app/p/ · src/lib/portal.ts · portal-crypto.ts · portal-words.ts</p>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head">
+      <span class="step-n">01</span>
+      <div><h3>The doctor shares</h3>
+        <p>One tap after signing. Nothing is read out to the patient, and the code is shown once.</p></div>
+    </div>
+    <div class="chain">
+      <div class="node ui"><span class="kind">component</span><code>SharePanel.tsx</code><p>Without the two keys set, the button says so.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node lib"><span class="kind">module</span><code>share.ts</code> → <code>shareVisit()</code><p><code>revokeShare()</code> takes it back.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node lib"><span class="kind">module</span><code>portal-crypto.ts</code><p>AES-GCM on the prescription, HMAC on the phone number, a hash of the printed code.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node db"><span class="kind">table</span><code>PortalShare</code><p>Printed with a QR code whose <code>#code=</code> fragment is never sent to a server.</p></div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head">
+      <span class="step-n">02</span>
+      <div><h3>The patient signs in</h3>
+        <p>Phone plus the printed code, then a PIN of their own. A new code replaces a lost one.</p></div>
+    </div>
+    <div class="chain">
+      <div class="node ui"><span class="kind">screens</span><code>p/page.tsx</code> · <code>p/visits/[id]</code><p><code>PortalLang.tsx</code>, <code>PortalWelcome.tsx</code>, <code>PortalSignIn.tsx</code>, <code>PortalAccountActions.tsx</code>.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node api"><span class="kind">routes</span><code>/api/portal/start</code><br><code>/api/portal/login</code><p>And <code>…/visits/[id]/hide</code>, <code>…/account/delete</code> — the patient's own controls.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node lib"><span class="kind">modules</span><code>portal.ts</code> · <code>portal-words.ts</code><p>Accounts and sessions; every word of the portal in English, Bengali and Hindi.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node db"><span class="kind">tables</span><code>PortalAccount</code> · <code>PortalLogin</code> · <code>PortalAttempt</code><p>PIN as scrypt; <code>termsVersion</code> records the one-time agreement at first sign-in.</p></div>
+    </div>
+    <div class="guard">
+      <span class="tag">secrets</span>
+      <div><b>Set <code>PORTAL_ENCRYPTION_KEY</code> and <code>PORTAL_HMAC_KEY</code> once.</b> Changing either loses everything already shared — the prescriptions cannot be decrypted and no phone number will match its HMAC again.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= PLATFORM ================= -->
+<section class="panel" id="p-platform" role="tabpanel" aria-labelledby="t-platform" hidden>
+  <div class="panel-head">
+    <h2>Many clinics, one database</h2>
+    <p>
+      Every table of records carries <code>clinicId</code>, and every function in <code>db.ts</code> that touches
+      records takes a <code>ClinicId</code> first — in the <code>WHERE</code> of updates and deletes too, so a
+      missed check upstream still cannot reach another clinic.
+    </p>
+    <p class="path mono">src/lib/tenant.ts · platform.ts · platform-rules.ts · src/app/platform/</p>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head">
+      <span class="step-n">01</span>
+      <div><h3>Which clinic is this sign-in for</h3>
+        <p>Four ways to know, in order: the address <code>/c/&lt;slug&gt;</code>, the one remembered, the domain, or there being only one.</p></div>
+    </div>
+    <div class="chain">
+      <div class="node ui"><span class="kind">screen</span><code>c/[slug]/page.tsx</code><p>A clinic's own front door: its setup until it has an account, then its sign-in.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node lib"><span class="kind">module</span><code>src/lib/tenant.ts</code><p>Resolves the clinic, and holds plans and features such as <code>localSync</code>.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node lib"><span class="kind">type</span><code>ClinicId</code> (branded)<p>Comes only from <code>user.clinicId</code>, a verified device key, or a tenant lookup. Passing a record id in its place does not compile.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node db"><span class="kind">table</span><code>Tenant</code><p>A paused clinic's admins can still sign in and export everything — <code>(clinic)/paused</code>.</p></div>
+    </div>
+    <div class="guard">
+      <span class="tag">data leak</span>
+      <div><b>A new query that forgets <code>"clinicId" = ?</code> is a leak between clinics.</b> <code>scripts/test/tenancy-test.cjs</code> tries every route with another clinic's ids, and a new route must be added to it.</div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-head">
+      <span class="step-n">02</span>
+      <div><h3>Varaxis's own console</h3>
+        <p>Operators are made from a computer holding the database string — never from a screen — and sign in with their own cookie.</p></div>
+    </div>
+    <div class="chain">
+      <div class="node lib"><span class="kind">script</span><code>npm run operator -- add</code><p><code>scripts/operator.mjs</code>: add, reset, deactivate.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node ui"><span class="kind">screens</span><code>platform/page.tsx</code><br><code>platform/clinics/[id]</code><p><code>NewClinicForm.tsx</code>, <code>PlatformNav.tsx</code>, <code>platform/activity</code>.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node api"><span class="kind">routes</span><code>/api/platform/clinics/*</code><p><code>requireApiOperator()</code>. Creates a clinic, issues a one-time setup code, pauses it, manages its devices.</p></div>
+      <div class="link" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+      <div class="node db"><span class="kind">tables</span><code>Operator</code> · <code>OperatorSession</code><p>Postgres only. Operator changes are written into the clinic's own activity log as "Varaxis (name)".</p></div>
+    </div>
+    <div class="guard">
+      <span class="tag">invariant 2</span>
+      <div><b>Varaxis never opens a clinic's records.</b> The console shows counts only. One clinic's records are never shown to, sent to, or changed by another clinic either.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FILES ================= -->
+<section class="panel" id="p-files" role="tabpanel" aria-labelledby="t-files" hidden>
+  <div class="panel-head">
+    <h2>Module reference</h2>
+    <p>What each file in <code>src/lib</code> is responsible for, and the tooling that keeps it honest.</p>
+  </div>
+
+  <h3 class="sub">Data and time</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>File</th><th>Responsibility</th></tr></thead>
+      <tbody>
+        <tr><td><code>sql.ts</code></td><td>The only file that knows SQLite from Postgres. Connections, transactions, <code>savepoint()</code>, SQLite schema and migrations.</td></tr>
+        <tr><td><code>db.ts</code></td><td>Every query, async, written once for both databases. Each takes a <code>ClinicId</code> first.</td></tr>
+        <tr><td><code>time.ts</code></td><td>The clinic's day and clock — <code>CLINIC_TIMEZONE</code>, <code>fmt</code>, <code>fmtDate</code>, <code>fmtTime</code>.</td></tr>
+        <tr><td><code>audio-store.ts</code></td><td>Recordings: a file locally, <code>AudioChunk</code> rows online.</td></tr>
+        <tr><td><code>backup.ts</code></td><td>Snapshot, restore, retention.</td></tr>
+        <tr><td><code>types.ts</code></td><td>The <code>ClinicalNote</code> shape, <code>parseNote()</code>, and <code>planOf()</code> for favourites.</td></tr>
+        <tr><td><code>money.ts</code></td><td>Whole paise, rupee parsing, ₹ with Indian grouping, bill lines.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="sub">Identity, tenancy, access</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>File</th><th>Responsibility</th></tr></thead>
+      <tbody>
+        <tr><td><code>auth.ts</code></td><td>scrypt passwords, sessions, <code>requireUser</code> / <code>requireApiUser</code>, roles.</td></tr>
+        <tr><td><code>session-cookie.ts</code></td><td>Cookie name and idle limit, shared with middleware — no Node imports.</td></tr>
+        <tr><td><code>users.ts</code></td><td>Role labels and account validation, safe for client components.</td></tr>
+        <tr><td><code>tenant.ts</code></td><td>Which clinic a sign-in is for; plans and features.</td></tr>
+        <tr><td><code>platform.ts</code> · <code>platform-rules.ts</code></td><td>Varaxis's operator sessions and what the console may do. Online only.</td></tr>
+        <tr><td><code>clinic.ts</code></td><td>Clinic identity from <code>ClinicSetting</code>, <code>.env</code> as fallback; <code>allowRecording()</code>.</td></tr>
+        <tr><td><code>terms.ts</code></td><td>The clinic's terms and the portal's, in three languages.</td></tr>
+        <tr><td><code>setup-code.ts</code></td><td>Each clinic's one-time code, or <code>SETUP_CODE</code>.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="sub">AI, sync, portal, deployment</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>File</th><th>Responsibility</th></tr></thead>
+      <tbody>
+        <tr><td><code>asr.ts</code></td><td>Speech-to-text behind an interface: <code>local</code> | <code>http</code>.</td></tr>
+        <tr><td><code>llm.ts</code></td><td>Note drafting behind an interface: <code>ollama</code> | <code>openai</code>. Holds <code>SYSTEM_PROMPT</code>.</td></tr>
+        <tr><td><code>ai-settings.ts</code></td><td><b>Temporary.</b> The AI service set from Clinic admin, which wins over <code>.env</code>. <code>ai_</code> keys never sync.</td></tr>
+        <tr><td><code>sync.ts</code></td><td>What travels, and how the other copy's rows merge. The same code on both sides.</td></tr>
+        <tr><td><code>sync-server.ts</code> · <code>sync-client.ts</code></td><td>Device keys and <code>requireDevice()</code> online; connect, run every minute, report status locally.</td></tr>
+        <tr><td><code>share.ts</code> · <code>portal.ts</code> · <code>portal-crypto.ts</code> · <code>portal-words.ts</code></td><td>Sharing a signed visit; patients' accounts and sessions; the portal's secrets; its words in three languages.</td></tr>
+        <tr><td><code>recall.ts</code> · <code>day-summary.ts</code> · <code>rx-card.ts</code></td><td>The follow-up reminder and its <code>wa.me</code> link; the day in one message; the medicine timing card.</td></tr>
+        <tr><td><code>base-path.ts</code> · <code>deployment.ts</code> · <code>public-url.ts</code></td><td><code>appPath()</code> for hand-written paths; the <code>ONLINE</code> flag (wording only, never a control); absolute links.</td></tr>
+        <tr><td><code>useRecorder.ts</code> · <code>useAutosave.ts</code> · <code>useQueue.ts</code></td><td>5-second chunks to disk; debounced save plus a localStorage mirror; poll today's list every 5s while visible.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="sub">Tooling that has to pass</h3>
+  <div class="cards">
+    <div class="card">
+      <h3>npm run test:e2e</h3>
+      <p>Seeds a prototype-era database in <code>.test-data/</code>, builds against it, serves on :3100, and runs every suite over real HTTP.</p>
+      <ul>
+        <li><code>perm-test</code> — the capability matrix, every route</li>
+        <li><code>queue-test</code> · <code>workflow-test</code> · <code>billing-test</code> · <code>rx-test</code></li>
+        <li><code>tenancy-test</code> — every route with another clinic's ids</li>
+        <li><code>sync-test</code> — two clinic computers beside the online copy</li>
+        <li><code>portal-test</code> · <code>admin-tools-test</code></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>npm run test:e2e:pg</h3>
+      <p>The same suites the way the online copy runs — under <code>/app</code>, with the setup code and clinic timezone — against PGlite, so nothing needs installing. <code>TEST_DATABASE_URL</code> points it at real Supabase for true concurrency; <code>TEST_BASE_URL</code> tests the deployed app itself.</p>
+      <p><b>Never point either at a database holding real records.</b></p>
+    </div>
+    <div class="card">
+      <h3>npm run bench</h3>
+      <p>A throwaway clinic in <code>.bench/</code> — 5,000 patients, ~10,000 visits — timed over HTTP. Nothing is fast because it is fast with twelve patients.</p>
+      <ul style="font-variant-numeric: tabular-nums">
+        <li>Today 154 ms · Patients 50 ms</li>
+        <li>A record 32 ms · Bills 33 ms</li>
+        <li>Follow-ups 79 ms · Clinic admin 225 ms</li>
+        <li>Whole-clinic export 800 ms for 35 MB</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Traps worth remembering</h3>
+      <ul>
+        <li>Every <code>db.ts</code> function is async, and a missing <code>await</code> still compiles — <code>recordAudit(...)</code> may never run online.</li>
+        <li><code>await x().y</code> awaits <code>y</code>. Write <code>(await x()).y</code>.</li>
+        <li><code>next build</code> collects pages in parallel workers, each running the SQLite migrations — every statement must be safe to run twice at once.</li>
+        <li>Never test against <code>data/</code>. It is the clinic's real database. Use <code>npm run dev:sandbox</code>.</li>
+        <li>The website's <code>headers()</code> must skip <code>/app</code>, or its <code>Permissions-Policy: microphone=()</code> reaches the app and stops recording.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p><b>The gate that matters.</b> Zero of the twenty doctor discovery interviews have been done. Week 4 asks whether ≥ 6 of 20 doctors name documentation unprompted among their top three frustrations. Building further features before those interviews is the main risk to this project.</p>
+    <p>ClinicOS by Varaxis · architecture as of 24 September 2026 · single-doctor rural clinics, field site Krishnanagar, Nadia.</p>
+  </div>
+</footer>
+
+<script>
+  (function () {
+    var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab'));
+    function select(tab) {
+      tabs.forEach(function (t) {
+        var on = t === tab;
+        t.setAttribute('aria-selected', on ? 'true' : 'false');
+        document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+      });
+    }
+    tabs.forEach(function (t) {
+      t.addEventListener('click', function () {
+        select(t);
+        try { localStorage.setItem('clinicos-flow-tab', t.id); } catch (e) {}
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      });
+      t.addEventListener('keydown', function (e) {
+        var i = tabs.indexOf(t), n = null;
+        if (e.key === 'ArrowRight') n = tabs[(i + 1) % tabs.length];
+        if (e.key === 'ArrowLeft') n = tabs[(i - 1 + tabs.length) % tabs.length];
+        if (n) { e.preventDefault(); n.focus(); n.click(); }
+      });
+    });
+    var saved = null;
+    try { saved = localStorage.getItem('clinicos-flow-tab'); } catch (e) {}
+    var hash = (location.hash || '').replace('#', '');
+    var target = tabs.filter(function (t) { return t.id === 't-' + hash; })[0]
+      || tabs.filter(function (t) { return t.id === saved; })[0];
+    if (target) select(target);
+  })();
+</script>
