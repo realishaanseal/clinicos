@@ -160,10 +160,15 @@ const done = () => {
   const a2 = {};
   r = await call("POST", "/api/auth/login", { jar: a2, body: { clinic: "SHARMA", username: "Doctor", password: "sharma-pass-1" } });
   check("Signing in names the clinic, in any case", r.status === 200 && a2.clinicos_session && a2.clinicos_clinic === "sharma", JSON.stringify(r.json));
-  r = await call("GET", "/login", { jar: { clinicos_clinic: "sharma" } });
+  // Through the doctor's door: online, bare /login asks who is signing in first
+  // (perm-test.cjs), and the clinic's own sign-in is one tap in. Which clinic it
+  // is for is worked out exactly as before.
+  r = await call("GET", "/login?as=doctor", { jar: { clinicos_clinic: "sharma" } });
   check("The sign-in page remembers the clinic from the last sign-in", r.status === 200 && r.text.includes("Sharma Clinic") && !r.text.includes("Clinic ID"), r.status);
-  r = await call("GET", "/login");
+  r = await call("GET", "/login?as=doctor");
   check("…and asks for it on a browser that has never signed in", r.status === 200 && r.text.includes("Clinic ID"), r.status);
+  r = await call("GET", "/login", { jar: { clinicos_clinic: "sharma" } });
+  check("Asking who is signing in names no clinic", r.status === 200 && r.text.includes("Who is signing in?") && !r.text.includes("Sharma Clinic"), r.status);
 
   // ------------------------------------------------ 6. each clinic sees only its own
   r = await call("POST", "/api/patients", { jar: a, body: { name: "Asha Tenantcheck", age: "40", phone: "9123400001" } });

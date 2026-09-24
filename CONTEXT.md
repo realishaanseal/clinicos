@@ -1048,9 +1048,10 @@ and `--scope varaxis` reaches the projects (`demo`, `vxclinicos-app`, `scholar`,
     builds, and production is live on the commit that is in `main` (`/app/api/health`
     answers with it).
 
-### Recording in parts (branch `fix/recording-parts`, 24 Sep 2026) — tested, ready to merge
+### Recording in parts (24 Sep 2026) — merged and live
 
-Nothing is merged yet; the branch is off `groq-404-model`, which is one commit off `main`.
+In `main` and deployed: `/app/api/health` answers with `c3d3e6d`. It went in with the
+`groq-404-model` commit it was built on.
 
 **The bug Ishaan reported:** record, stop, delete part of the transcript, press *Record
 again* — and the first part's text comes back.
@@ -1131,6 +1132,49 @@ no port clash to fix. It was an uncommitted entry on the other laptop.
 file in one go) has no caller left in the UI. If it ever gets one, `writeWhole()` clears
 only the parts matching the *new* extension, so a chunked `<id>.part2.webm` would outlive
 an `<id>.mp4` upload and survive signing. Worth closing if that route is ever revived.
+
+### The sign-in doors: patient first (24 Sep 2026)
+
+**Ishaan's decision.** Online, almost everyone signing in to ClinicOS is a patient — a
+clinic has one doctor and one desk between all of them — so the patient's door comes
+first and the clinic's people take one more tap.
+
+Bare `/login` now asks **"Who is signing in?"**: the patient's row first and largest
+(straight to `/p`), then *I am a doctor* and *I manage the clinic*, which both open the
+same username-and-password form with different wording. The front desk uses the doctor's
+door and the foot of the card says so.
+
+- **A door is wayfinding, never a permission.** `LoginForm` never sends `as` to
+  `/api/auth/login`; where someone lands is `homeFor(user)` on their account's role.
+  Checked in the sandbox: signing in through the *admin* door with the doctor's account
+  lands on the doctor's Today, with the clinical navigation.
+- **It only appears where there is a portal to send a patient to** —
+  `PORTAL_ENABLED && portalReady()`. A clinic computer has no portal, and online without
+  the two portal keys the patient's door would lead to "not available yet". In both cases
+  `/login` is the clinic's sign-in exactly as it was, so **nothing changes in production
+  until the keys in §7.0 are set** — then the chooser appears by itself, no deploy needed.
+- Skipped for `?next=` (bounced off a clinic screen), `?choose=1` (picking another clinic)
+  and once `?as=` is answered. `/c/<slug>` is the clinic's own door and never shows it.
+- **The clinic-admin row is temporary**, at Ishaan's direction: once each clinic has its
+  own subdomain and Varaxis configures its admin from the platform console, the admin
+  arrives at the clinic's address and the row goes. Deleting it from `SignInChooser.tsx`
+  changes nothing else — no route, no permission, no account depends on it.
+
+Files: `src/components/SignInChooser.tsx` (new), `SignInCard.tsx` (the `as` wording and
+the patient link in the foot), `src/app/login/page.tsx` (which door), `globals.css`
+(`.who`, and a readable link colour on the dark auth background).
+
+Tested: `npm run test:e2e` 364 passed, `npm run test:e2e:pg` 555 passed, `npx tsc
+--noEmit` clean, `npm run check:paths` clean. New checks in `perm-test.cjs` cover both
+sides — the chooser and all three doors online, and its absence on a clinic computer. Two
+`tenancy-test.cjs` checks that read the clinic name off `/login` now read it off
+`/login?as=doctor`, where that form lives; what they prove is unchanged. Seen at 375px as
+well as desktop, because patients are on phones.
+
+**Still true, and the reason this is invisible so far:** the portal itself is built and
+tested but production says *"Not available yet"* — `PORTAL_ENCRYPTION_KEY` and
+`PORTAL_HMAC_KEY` are not set on `vxclinicos-app` (§7.0). Until Ishaan sets them, there
+is no patient door to show and `/login` behaves as it always did.
 
 ### Where to pick up
 

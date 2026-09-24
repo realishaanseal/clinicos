@@ -228,6 +228,8 @@ clinicos-app/
     WaitingPanel.tsx      the doctor's "Waiting now" and Start visit
     Favourites.tsx        the doctor's own saved prescriptions, in the note editor
     QuickSearch.tsx       Ctrl+K / ⌘K search from any screen (a native <dialog>)
+    SignInChooser.tsx     "Who is signing in?" — the patient first, then the clinic's
+                          people. Wayfinding only; see the sign-in doors below
     BackupPanel.tsx       clinic admin: backup, restore, export
     DeletePatient.tsx     type-the-name-to-confirm deletion
     UsersAdmin.tsx        clinic admin: add people, manage access, reset passwords
@@ -235,7 +237,7 @@ clinicos-app/
     DevicesPanel.tsx      online: the clinic's connected computers, keys, switching off
   src/app/(clinic)/       every clinic screen, inside the clinic's navigation (a route group:
                           no change to addresses)
-  src/app/setup, login    first-run owner account; sign-in
+  src/app/setup, login    first-run owner account; sign-in (the doors, below)
   src/app/c/[slug]        a clinic's own address: its setup until it has an account, then sign-in
   src/app/platform/       Varaxis's console: clinics, plans, pausing. Counts only, never records
   src/app/p/              the patient portal (online only): a patient's shared prescriptions
@@ -364,6 +366,26 @@ people on it, labelled as that arithmetic and never as a forecast.
 never why — and the reminder comes from a template whose only placeholders are `{name}`,
 `{clinic}`, `{doctor}` and `{date}`. ClinicOS sends nothing: the desk taps a `wa.me`
 link and presses send in WhatsApp themselves.
+
+**The sign-in doors (24 Sep 2026).** Online, almost everyone who reaches ClinicOS is a
+patient: a clinic has one doctor and one desk between all of them. So bare `/login` asks
+*who is signing in* — the patient's door first and largest (`/p`), then `?as=doctor` and
+`?as=admin`, which are the same username-and-password form said differently.
+
+- **A door is wayfinding, never a permission.** `LoginForm` posts username, password and
+  clinic to `/api/auth/login` and never says which row it came from; where someone lands
+  is `homeFor(user)` on their account's role. Signing in through the admin door with a
+  front-desk account gets the front desk. Do not give `as` any meaning beyond wording.
+- **The chooser only appears where there is a portal to send a patient to**:
+  `PORTAL_ENABLED && portalReady()`. A clinic computer has no portal, and online without
+  the two portal keys the patient's door would lead to "not available yet" — in both cases
+  `/login` is the clinic's sign-in exactly as before. It switches itself on with the keys.
+- It is skipped for `?next=` (someone bounced off a clinic screen), `?choose=1` (already on
+  the form, picking another clinic) and once `?as=` has been answered. `/c/<slug>`, a
+  clinic's own address, is the clinic's door and never shows it.
+- **The clinic-admin row is temporary.** Once each clinic has its own subdomain and Varaxis
+  configures its admin from the platform console, the admin arrives at the clinic's address
+  and the row goes. Deleting it from `SignInChooser.tsx` changes nothing else.
 
 **Accounts and permissions (v0.5).** The first run opens `/setup`, which creates the
 owner account and then refuses forever. Every page calls `requireUser()` and every

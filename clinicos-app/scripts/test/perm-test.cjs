@@ -139,6 +139,52 @@ const idOf = async (username) => {
   r = await call("GET", "/setup");
   check("/setup → /login once set up", goesTo(r, "/login"), `${r.status} ${r.location}`);
 
+  // ------------------------------------------------ 2b. who is signing in
+  // Online almost everyone reaching ClinicOS is a patient, so the patient's
+  // door comes first and the clinic's people take one more tap. A clinic
+  // computer has no portal, so there is nothing to choose between and /login
+  // stays what it always was. The doors are wayfinding only: the form posts
+  // username and password to /api/auth/login and never says which row it came
+  // from, so what an account may open is settled by its role, as the whole
+  // matrix below checks.
+  r = await call("GET", "/login");
+  if (ONLINE) {
+    check(
+      "Signed out online: /login asks who is signing in, the patient first",
+      r.text.includes("Who is signing in?") && r.text.includes("I am a patient"),
+      r.status
+    );
+    check(
+      "…with the doctor's door and, for now, the clinic admin's beside it",
+      r.text.includes("I am a doctor") && r.text.includes("I manage the clinic"),
+      r.status
+    );
+    const asDoctor = await call("GET", "/login?as=doctor");
+    check(
+      "The doctor's door is the clinic's own sign-in",
+      asDoctor.text.includes("Doctor sign-in") && asDoctor.text.includes("Username"),
+      asDoctor.status
+    );
+    const asAdmin = await call("GET", "/login?as=admin");
+    check(
+      "The clinic admin's door is the same form, said differently",
+      asAdmin.text.includes("Clinic admin sign-in") && asAdmin.text.includes("Username"),
+      asAdmin.status
+    );
+    const bounced = await call("GET", "/login?next=%2Fpatients");
+    check(
+      "Someone bounced off a clinic screen is not asked who they are",
+      !bounced.text.includes("Who is signing in?") && bounced.text.includes("Username"),
+      bounced.status
+    );
+  } else {
+    check(
+      "Clinic computer: /login is the clinic's sign-in, with no patient door",
+      !r.text.includes("Who is signing in?") && r.text.includes("Username"),
+      r.status
+    );
+  }
+
   // ------------------------------------------------ 3. owner adds people
   const add = (body) => call("POST", "/api/admin/users", { token: owner, body });
   const deskAdd = await add({ name: "Front Desk", username: "desk", role: "staff", isAdmin: true });
