@@ -1,0 +1,745 @@
+/* ==========================================================================
+   ClinicOS — landing site
+
+   This page is built from the product's own design system, not a separate
+   marketing one: the tokens below are the same values as
+   clinicos-app/src/app/globals.css — warm neutrals, one teal, one gradient,
+   hairline rules. A site that looks like the software is a claim about the
+   software, and it costs nothing to keep.
+
+   What it deliberately does not have (26 Sep 2026):
+   - no animation library. No gsap, no lenis, no motion, no canvas, no WebGL.
+     package.json is next, react and react-dom.
+   - no scroll-scrubbed film, and so none of the 21 MB of frame packs the
+     previous site loaded. That version is kept whole in archive/landing-film.
+   - no client components. Every reveal is a native CSS scroll-driven
+     animation, so there is no hydration and no scroll listener anywhere.
+     Firefox has no support for those; there it simply shows the content,
+     which is the correct fallback because none of the motion carries meaning.
+   - no webfonts. Google Fonts is unreachable in some sandboxes (CLAUDE.md), and
+     the system display face is what the app itself uses.
+
+   Contrast: every colour pair used for text was measured against its ground.
+   Body --slate-600 on --canvas is 6.7:1, --teal-600 on --canvas 5.1:1,
+   --faint on --canvas 5.2:1, white on the primary button's lighter end 5.5:1.
+   The app's --grad-brand is deliberately not used for buttons here: its
+   --teal-500 end leaves white at 3.9:1, which is fine behind the app's larger
+   labels and not fine behind a 15 px button.
+   ========================================================================== */
+
+:root {
+  /* --- brand: the product's palette ------------------------------------- */
+  --teal-900: #06342f;
+  --teal-800: #084840;
+  --teal-700: #0b5e55;
+  --teal-600: #0f766e;
+  --teal-300: #5eccc2;
+  --teal-100: #d6f2ee;
+  --teal-50:  #eefaf8;
+
+  /* --- neutrals: warm, not blue-grey ------------------------------------ */
+  --ink-900: #0c1413;
+  --ink-800: #16211f;
+  --ink-700: #24322f;
+  --slate-600: #4b5a57;
+  --slate-500: #6b7a77;
+  --faint: #5c6b68;      /* small print on --canvas; --slate-500 is 4.2:1 there */
+  --line: #e4e8e7;
+  --line-soft: #eef1f0;
+  --surface: #ffffff;
+  --canvas: #f7f9f8;
+
+  /* The one dark ground on the page: the "never" promise, the sign-in panel
+     and the footer. Deep enough that the lockup's white reads at 15:1. */
+  --dark: #0d1816;
+  --dark-2: #101d1a;
+  --on-dark: #e7efec;
+  --on-dark-dim: #b6c4c0;
+
+  /* --- elevation: the app's own scale ----------------------------------- */
+  --sh-1: 0 1px 2px rgb(12 20 19 / 0.04), 0 1px 3px rgb(12 20 19 / 0.06);
+  --sh-2: 0 2px 4px rgb(12 20 19 / 0.04), 0 8px 20px -6px rgb(12 20 19 / 0.1);
+  --sh-3: 0 4px 8px rgb(12 20 19 / 0.05), 0 20px 44px -12px rgb(12 20 19 / 0.16);
+  --sh-4: 0 6px 12px rgb(12 20 19 / 0.05), 0 40px 80px -28px rgb(12 20 19 / 0.22);
+  --sh-brand: 0 2px 6px rgb(11 94 85 / 0.2), 0 10px 24px -8px rgb(11 94 85 / 0.3);
+
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable",
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans Bengali", sans-serif;
+  --font-display: "SF Pro Display", -apple-system, BlinkMacSystemFont,
+    "Segoe UI Variable Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Marketing motion, slower than the product's 120-260ms, but nowhere near the
+     old site's 780ms: this page is meant to feel light on its feet. */
+  --dur-1: 160ms;
+  --dur-2: 240ms;
+  --dur-3: 420ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--slate-600);
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+::selection { background: var(--teal-100); color: var(--teal-900); }
+a { color: var(--teal-600); text-decoration: none; }
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  color: var(--ink-900);
+  margin: 0;
+  letter-spacing: -0.032em;
+  line-height: 1.05;
+  text-wrap: balance;
+}
+h1 { font-size: clamp(2.45rem, 5.1vw, 4rem); font-weight: 660; letter-spacing: -0.038em; }
+h2 { font-size: clamp(1.85rem, 3.5vw, 2.65rem); font-weight: 650; }
+h3 { font-size: 1.06rem; font-weight: 620; letter-spacing: -0.014em; line-height: 1.35; }
+h4 { font-size: 0.95rem; font-weight: 620; letter-spacing: -0.01em; }
+p { margin: 0; }
+
+/* The one emphasis device on the page. The old site swept a gradient across
+   accent words on a 9s loop; a single flat colour is quieter and does not
+   animate anything for the whole time the page is open. */
+.accent { color: var(--teal-700); }
+
+/* ==========================================================================
+   Layout
+   ========================================================================== */
+
+.wrap { width: min(1180px, 100% - 2.75rem); margin-inline: auto; }
+.narrow { width: min(760px, 100% - 2.75rem); margin-inline: auto; }
+section { padding-block: clamp(4.5rem, 9vh, 7rem); position: relative; }
+section[id] { scroll-margin-top: 5rem; }
+
+/* Sections are separated by a hairline across the full width, not by a change of
+   background: the page stays one sheet of paper. */
+.ruled { border-top: 1px solid var(--line); }
+.tinted { background: var(--surface); }
+
+.eyebrow {
+  display: flex; align-items: center; gap: 0.6rem;
+  font-size: 0.72rem; font-weight: 660; letter-spacing: 0.15em;
+  text-transform: uppercase; color: var(--teal-700);
+  margin-bottom: 1.15rem;
+}
+.eyebrow::before {
+  content: ""; width: 1.4rem; height: 1px; flex: none;
+  background: var(--teal-300);
+}
+.lede {
+  font-size: clamp(1.03rem, 1.5vw, 1.2rem);
+  color: var(--slate-600);
+  max-width: 60ch;
+  line-height: 1.62;
+}
+section h2 { max-width: 24ch; }
+.note { font-size: 0.82rem; color: var(--faint); }
+.note a, .prose a { text-decoration: underline; text-underline-offset: 3px; }
+
+/* ==========================================================================
+   Header — sticky, no JavaScript
+
+   The old header listened to scroll to decide how opaque to be, because it sat
+   over a film whose brightness changed. On one sheet of paper it does not need
+   to know: it is the canvas at 88% with a blur behind it and a hairline under
+   it, from the first pixel to the last.
+   ========================================================================== */
+
+.skip-link {
+  position: fixed; top: 0.7rem; left: 0.7rem; z-index: 100;
+  padding: 0.6rem 1rem; border-radius: 999px;
+  background: var(--ink-900); color: #fff;
+  font-size: 0.9rem; font-weight: 600;
+  transform: translateY(-220%);
+  transition: transform var(--dur-1) var(--ease-out);
+}
+.skip-link:focus-visible { transform: none; }
+
+.site-header {
+  position: sticky; top: 0; z-index: 50;
+  background: rgb(247 249 248 / 0.88);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  backdrop-filter: blur(14px) saturate(160%);
+  border-bottom: 1px solid var(--line);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .site-header { background: var(--canvas); }
+}
+.site-header-row { display: flex; align-items: center; gap: 2rem; height: 4.1rem; }
+.site-header nav { margin-left: auto; }
+.site-nav { display: flex; gap: 1.8rem; list-style: none; margin: 0; padding: 0; }
+.site-nav a {
+  color: var(--slate-600); font-size: 0.9rem; font-weight: 520;
+  transition: color var(--dur-1) var(--ease-out);
+}
+.site-nav a:hover { color: var(--ink-900); }
+.site-header-cta { display: flex; align-items: center; gap: 0.55rem; }
+
+@media (max-width: 839px) {
+  .site-header nav { display: none; }
+  .site-header-cta { margin-left: auto; }
+}
+@media (max-width: 420px) {
+  .site-header-row { gap: 0.75rem; height: 3.8rem; }
+  .site-header .lockup { gap: 0.5rem; }
+  .site-header .lockup-tile { width: 1.7rem; height: 1.7rem; }
+  .site-header .lockup-name { font-size: 1rem; }
+  .site-header-cta .hide-narrow { display: none; }
+}
+
+/* ==========================================================================
+   The Varaxis lockup
+
+   Set like every Varaxis product: the maker heavy, the product lighter and in
+   its own colour, same size, same baseline. On this site the maker is ink
+   rather than white, because the ground is paper. `.on-dark` puts it back for
+   the footer and the sign-in panel.
+   ========================================================================== */
+
+.lockup-link { display: inline-flex; border-radius: 10px; color: inherit; }
+.lockup { display: inline-flex; align-items: center; gap: 0.6rem; }
+.lockup-tile {
+  width: 1.95rem; height: 1.95rem; flex: none; border-radius: 0.5rem;
+  box-shadow: 0 1px 2px rgb(6 52 47 / 0.24), 0 6px 16px -8px rgb(11 94 85 / 0.5);
+}
+.lockup-name {
+  font-family: var(--font-display);
+  font-size: 1.16rem; line-height: 1;
+  letter-spacing: -0.024em; white-space: nowrap;
+}
+.lockup-maker { font-weight: 700; color: var(--ink-900); }
+.lockup-product { font-weight: 550; color: var(--teal-600); }
+.on-dark .lockup-maker { color: #fff; }
+.on-dark .lockup-product { color: var(--teal-300); }
+
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
+
+.cta-row { display: flex; gap: 0.7rem; flex-wrap: wrap; margin-top: 2.2rem; }
+.btn {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  padding: 0.78rem 1.45rem; border-radius: 999px;
+  font-family: inherit; font-size: 0.94rem; font-weight: 570;
+  border: 1px solid transparent; cursor: pointer;
+  transition: transform var(--dur-1) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out),
+    background-color var(--dur-1) var(--ease-out);
+}
+.btn-sm { padding: 0.5rem 1.05rem; font-size: 0.85rem; }
+/* teal-700 to teal-600, not the app's --grad-brand: see the note at the top. */
+.btn-primary {
+  background: linear-gradient(135deg, var(--teal-700) 0%, var(--teal-600) 100%);
+  color: #fff;
+  box-shadow: var(--sh-brand);
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgb(11 94 85 / 0.24), 0 18px 34px -12px rgb(11 94 85 / 0.4); }
+.btn-ghost { background: var(--surface); border-color: var(--line); color: var(--ink-800); box-shadow: var(--sh-1); }
+.btn-ghost:hover { transform: translateY(-2px); border-color: #d3dfdc; box-shadow: var(--sh-2); }
+.btn-on-dark { background: #fff; color: var(--ink-900); }
+.btn-on-dark:hover { transform: translateY(-2px); background: #fff; }
+.btn-quiet-dark { border-color: rgb(231 239 236 / 0.26); color: var(--on-dark); background: transparent; }
+.btn-quiet-dark:hover { border-color: rgb(231 239 236 / 0.5); }
+.btn:active { transform: none; }
+
+/* ==========================================================================
+   Cards
+   ========================================================================== */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-1);
+}
+/* Interactive cards lift on hover. Only transform, shadow and border move —
+   at 160ms, which is a hover, not a performance. */
+.card-i {
+  transition: transform var(--dur-1) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out);
+}
+.card-i:hover { transform: translateY(-3px); box-shadow: var(--sh-2); border-color: #d6e2df; }
+
+/* ==========================================================================
+   Hero
+   ========================================================================== */
+
+.hero { padding-block: clamp(3.5rem, 8vh, 6rem) clamp(3rem, 6vh, 4.5rem); overflow: hidden; }
+/* One soft teal wash behind the headline, so the top of the page has depth
+   without an image. A gradient costs one paint and nothing after that. */
+.hero::before {
+  content: ""; position: absolute; inset: -6rem 0 auto 0; height: 46rem;
+  background:
+    radial-gradient(760px 420px at 12% 0%, rgb(15 118 110 / 0.09), transparent 68%),
+    radial-gradient(620px 380px at 88% 8%, rgb(94 204 194 / 0.11), transparent 70%);
+  pointer-events: none;
+}
+.hero > * { position: relative; }
+.hero h1 { max-width: 19ch; }
+.hero .lede { margin-top: 1.5rem; max-width: 50ch; }
+
+.hero-facts {
+  display: flex; flex-wrap: wrap; gap: 0.5rem 1.6rem;
+  margin-top: 2.4rem; padding-top: 1.4rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.86rem; color: var(--faint);
+  max-width: 56rem;
+}
+.hero-facts li { list-style: none; display: flex; align-items: center; gap: 0.5rem; }
+.hero-facts ul { display: contents; }
+.hero-facts svg { width: 14px; height: 14px; flex: none; stroke: var(--teal-600); fill: none; stroke-width: 2.2; }
+
+.hero-shot { margin-top: clamp(2.5rem, 5vw, 3.75rem); }
+
+/* ==========================================================================
+   Figures — the four numbers, set as an editorial rule table rather than cards
+   ========================================================================== */
+
+.figures {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  margin-top: 3rem;
+  border-top: 1px solid var(--line);
+}
+@media (min-width: 900px) { .figures { grid-template-columns: repeat(4, 1fr); } }
+.figure { padding: 1.7rem 1.4rem 1.6rem 0; border-bottom: 1px solid var(--line); }
+.figure + .figure { padding-left: 1.4rem; border-left: 1px solid var(--line); }
+@media (min-width: 900px) { .figure:nth-child(1) { padding-left: 0; border-left: 0; } }
+@media (max-width: 899px) {
+  .figure:nth-child(odd) { padding-left: 0; border-left: 0; }
+  .figure:nth-child(even) { padding-left: 1.4rem; border-left: 1px solid var(--line); }
+}
+.figure .n {
+  font-family: var(--font-display);
+  font-size: clamp(2.1rem, 3.8vw, 2.7rem);
+  font-weight: 660; letter-spacing: -0.048em; color: var(--ink-900);
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+.figure .n small { font-size: 0.4em; font-weight: 580; color: var(--teal-600); margin-left: 0.3em; letter-spacing: 0; }
+.figure .k { margin-top: 0.8rem; font-size: 0.9rem; color: var(--slate-600); }
+.figure cite { display: block; margin-top: 0.85rem; font-size: 0.72rem; color: var(--faint); font-style: normal; }
+
+/* ==========================================================================
+   Steps — the three the app itself shows
+   ========================================================================== */
+
+.steps { display: grid; gap: 1rem; margin-top: 2.6rem; }
+@media (min-width: 860px) { .steps { grid-template-columns: repeat(3, 1fr); } }
+.step { padding: 1.6rem 1.5rem 1.7rem; }
+.step .i {
+  font-family: var(--font-mono);
+  font-size: 0.74rem; font-weight: 600; letter-spacing: 0.1em;
+  color: var(--teal-700); background: var(--teal-50);
+  border: 1px solid var(--teal-100); border-radius: 999px;
+  padding: 0.16rem 0.6rem; display: inline-block; margin-bottom: 1.1rem;
+}
+.step h3 { margin-bottom: 0.5rem; }
+.step p { font-size: 0.9rem; }
+
+/* ==========================================================================
+   Feature grid
+   ========================================================================== */
+
+.features { display: grid; gap: 1rem; margin-top: 2.8rem; }
+@media (min-width: 720px) { .features { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1040px) { .features { grid-template-columns: repeat(3, 1fr); } }
+.feature { padding: 1.5rem 1.5rem 1.6rem; }
+.feature .fi {
+  width: 2.1rem; height: 2.1rem; border-radius: 10px;
+  background: var(--teal-50); border: 1px solid var(--teal-100);
+  display: grid; place-items: center; margin-bottom: 1rem;
+}
+.feature .fi svg { width: 16px; height: 16px; stroke: var(--teal-700); fill: none; stroke-width: 1.9; }
+.feature h3 { margin-bottom: 0.45rem; }
+.feature p { font-size: 0.89rem; }
+
+/* ==========================================================================
+   Where it runs — three shapes, side by side
+   ========================================================================== */
+
+.shapes { display: grid; gap: 1rem; margin-top: 2.7rem; }
+@media (min-width: 860px) { .shapes { grid-template-columns: repeat(3, 1fr); } }
+.shape { padding: 1.6rem 1.5rem 1.7rem; display: flex; flex-direction: column; }
+.shape .tag {
+  font-size: 0.68rem; font-weight: 680; letter-spacing: 0.13em; text-transform: uppercase;
+  color: var(--teal-700); margin-bottom: 0.8rem;
+}
+.shape h3 { margin-bottom: 0.5rem; }
+.shape p { font-size: 0.89rem; }
+.shape .foot {
+  margin-top: 1.1rem; padding-top: 0.9rem; border-top: 1px solid var(--line-soft);
+  font-size: 0.8rem; color: var(--faint);
+}
+
+/* ==========================================================================
+   Promises — three kept, one never. The "never" is the page's one dark card.
+   ========================================================================== */
+
+.promises { display: grid; gap: 1rem; margin-top: 2.7rem; }
+@media (min-width: 780px) { .promises { grid-template-columns: 1fr 1fr; } }
+.promise { padding: 1.55rem 1.6rem 1.65rem; }
+.promise .tag {
+  display: inline-block; font-size: 0.67rem; font-weight: 700; letter-spacing: 0.13em;
+  text-transform: uppercase; margin-bottom: 0.7rem; color: var(--teal-700);
+}
+.promise h3 { margin-bottom: 0.5rem; }
+.promise p { font-size: 0.9rem; }
+.promise.dark {
+  background: var(--dark); border-color: var(--dark); color: var(--on-dark-dim);
+  box-shadow: var(--sh-3);
+}
+.promise.dark h3 { color: #fff; }
+.promise.dark .tag { color: var(--teal-300); }
+.promise.dark:hover { border-color: var(--dark); box-shadow: var(--sh-4); }
+
+/* ==========================================================================
+   The showcase — three screens, alternating sides, no scroll hijack
+
+   The old site pinned a stage for four screen-heights and scrubbed 3D flips
+   through it. These are the same screens as ordinary content: each one reveals
+   once as it comes up the page and then stops moving.
+   ========================================================================== */
+
+.showcase { display: grid; gap: clamp(3rem, 6vw, 4.5rem); margin-top: 3rem; }
+.shot-row { display: grid; gap: clamp(1.4rem, 3vw, 2.5rem); align-items: center; }
+@media (min-width: 960px) {
+  .shot-row { grid-template-columns: 0.8fr 1.2fr; }
+  /* Even rows put the screen on the left. `order` rather than a different column
+     definition, so the source order stays copy-then-screen for a screen reader. */
+  .shot-row.flip { grid-template-columns: 1.2fr 0.8fr; }
+  .shot-row.flip .shot-copy { order: 2; }
+}
+.shot-copy h3 { font-size: 1.3rem; margin-bottom: 0.6rem; }
+.shot-copy p { font-size: 0.94rem; }
+.shot-copy .i {
+  font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.12em;
+  color: var(--teal-700); margin-bottom: 0.7rem; display: block;
+}
+
+/* ==========================================================================
+   The closing pair — talk to us, or sign in
+   ========================================================================== */
+
+.close-grid { display: grid; gap: 1rem; margin-top: 2.6rem; align-items: stretch; }
+@media (min-width: 880px) { .close-grid { grid-template-columns: 1fr 1fr; } }
+.panel { padding: clamp(1.7rem, 3.2vw, 2.4rem); display: flex; flex-direction: column; }
+.panel h3 { font-size: 1.35rem; margin-bottom: 0.6rem; }
+.panel p { font-size: 0.93rem; }
+.panel .cta-row { margin-top: auto; padding-top: 1.7rem; }
+.panel.dark {
+  background: var(--dark); border: 1px solid var(--dark);
+  border-radius: var(--r-lg); color: var(--on-dark-dim); box-shadow: var(--sh-3);
+}
+.panel.dark h3 { color: #fff; }
+.panel.dark .tag { color: var(--teal-300); }
+.panel .tag {
+  font-size: 0.67rem; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase;
+  color: var(--teal-700); margin-bottom: 0.8rem;
+}
+
+/* The one-line honest statement about where the project is. Tinted rather than
+   white, so it reads as an aside and not as another feature. */
+.aside-panel {
+  background: var(--teal-50); border: 1px solid var(--teal-100);
+  border-radius: var(--r-lg); padding: clamp(1.7rem, 3.5vw, 2.6rem);
+}
+.aside-panel .lede { color: var(--ink-700); }
+
+/* ==========================================================================
+   Footer
+   ========================================================================== */
+
+.site-footer {
+  background: var(--dark); color: var(--on-dark-dim);
+  padding-block: 3rem 3.4rem; font-size: 0.86rem;
+}
+.site-footer .row { display: flex; justify-content: space-between; gap: 1.6rem; flex-wrap: wrap; }
+.site-footer .lockup-name { font-size: 1.1rem; }
+.foot-tag { margin-top: 0.8rem; color: var(--on-dark-dim); }
+.foot-links { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.45rem 1.4rem; }
+.foot-links a { color: var(--on-dark-dim); transition: color var(--dur-1) var(--ease-out); }
+.foot-links a:hover { color: #fff; }
+.foot-note {
+  margin-top: 1.7rem; padding-top: 1.4rem;
+  border-top: 1px solid rgb(231 239 236 / 0.12);
+  color: var(--on-dark-dim);
+}
+.sources {
+  margin: 1.1rem 0 0; padding-left: 1.1rem;
+  font-size: 0.74rem; line-height: 1.7; color: rgb(182 196 192 / 0.8);
+}
+.sources li + li { margin-top: 0.25rem; }
+.site-footer :where(a):focus-visible { outline-color: var(--teal-300); }
+
+/* ==========================================================================
+   Document pages — privacy, terms, not found
+
+   Read, not looked at: a white sheet, no reveals, nothing animated.
+   ========================================================================== */
+
+.doc { padding-block: clamp(2.5rem, 6vh, 4rem) clamp(3rem, 7vh, 4.5rem); }
+.doc-panel {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-lg); box-shadow: var(--sh-1);
+  padding: clamp(1.6rem, 4vw, 2.8rem);
+}
+.doc h1 { font-size: clamp(1.9rem, 4vw, 2.5rem); margin-bottom: 0.6rem; }
+.doc h2 { font-size: 1.14rem; letter-spacing: -0.014em; margin: 2.1rem 0 0.55rem; max-width: none; }
+.doc p, .doc li { color: var(--slate-600); max-width: 68ch; }
+.doc p + p { margin-top: 0.8rem; }
+.doc ul, .doc ol { margin: 0.7rem 0 0.9rem; padding-left: 1.2rem; }
+.doc li + li { margin-top: 0.35rem; }
+.doc .updated { font-size: 0.84rem; color: var(--faint); }
+.back-link {
+  display: inline-block; margin-bottom: 1.3rem;
+  font-size: 0.9rem; color: var(--slate-600);
+}
+.back-link:hover { color: var(--ink-900); }
+
+/* ==========================================================================
+   Focus
+   ========================================================================== */
+
+:where(a:any-link, button):focus-visible { outline: 2px solid var(--teal-600); outline-offset: 3px; border-radius: 4px; }
+.btn:focus-visible { outline-offset: 3px; }
+
+/* ==========================================================================
+   Motion
+
+   Two things move on this page: content reveals once as it comes up, and the
+   headline group rises on load. Both are pure CSS, both are off under reduced
+   motion, and the page reads identically with neither.
+
+   Reveals use native scroll-driven animations (Chrome/Edge 115+, Safari 26+).
+   There is no JavaScript fallback: in Firefox the content is simply there,
+   which is the right answer for decoration. The @supports test includes
+   animation-range deliberately, to exclude partial implementations.
+   ========================================================================== */
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes rise-in {
+    from { opacity: 0; transform: translateY(14px); }
+  }
+  @supports ((animation-timeline: view()) and (animation-range: entry)) {
+    [data-reveal] {
+      animation: rise-in auto linear backwards;
+      animation-timeline: view();
+      animation-range: entry 3% cover 24%;
+    }
+  }
+  /* On load: the eyebrow, headline, lede, buttons and screen arrive in that
+     order. `backwards` holds the from-state through the delay. */
+  .rise { animation: rise-in var(--dur-3) var(--ease-out) backwards; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  [data-reveal], .rise {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  /* The recording dot's meaning is carried by its movement, so it becomes a
+     static, visible dot rather than freezing mid-fade. */
+  .ui-dot { animation: none !important; opacity: 1 !important; }
+}
+
+/* ==========================================================================
+   The screens
+
+   Rendered mock-ups of the real app, built from its own design system — not
+   screenshots, and the page says so where they appear. An interface picture
+   that implies a running system it cannot show is the kind of thing that gets
+   noticed in a room full of clinicians.
+
+   Nothing here loops except the recording dot, and the waveform is static:
+   animating 30 bar heights is a layout pass per bar per frame, which is exactly
+   the kind of cost this version of the site exists to remove.
+   ========================================================================== */
+
+/* Used only by the mock-ups, where the app shows a warning state. */
+:root { --amber-600: #b45309; --amber-100: #fef3c7; --amber-50: #fffbeb; }
+
+.ui {
+  border: 1px solid var(--line); border-radius: 14px;
+  background: var(--surface); box-shadow: var(--sh-3);
+  overflow: hidden;
+}
+.hero-shot .ui { box-shadow: var(--sh-4); }
+.ui-bar {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.6rem 0.85rem;
+  background: #f3f6f5; border-bottom: 1px solid var(--line);
+}
+.ui-bar i { width: 8px; height: 8px; border-radius: 50%; background: #d3dcda; flex: none; }
+.ui-bar b {
+  margin-left: 0.5rem; font-size: 0.72rem; font-weight: 550;
+  color: var(--faint); letter-spacing: 0.01em;
+}
+.ui-app { display: grid; grid-template-columns: 1fr; }
+@media (min-width: 600px) { .ui-app { grid-template-columns: 158px 1fr; } }
+.ui-nav { display: none; }
+@media (min-width: 600px) {
+  .ui-nav {
+    display: flex; flex-direction: column; gap: 0.15rem;
+    padding: 0.85rem 0.7rem;
+    background: #fbfcfc; border-right: 1px solid var(--line);
+  }
+}
+.ui-nav .who {
+  font-size: 0.68rem; color: var(--faint); letter-spacing: 0.06em;
+  text-transform: uppercase; margin-bottom: 0.6rem; padding-inline: 0.45rem;
+}
+.ui-nav span {
+  font-size: 0.79rem; color: var(--slate-600);
+  padding: 0.34rem 0.5rem; border-radius: 7px;
+}
+.ui-nav span.on { background: var(--teal-50); color: var(--teal-700); font-weight: 600; }
+
+.ui-main { padding: 1rem 1.1rem 1.15rem; display: flex; flex-direction: column; gap: 0.85rem; min-width: 0; }
+.ui-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; }
+.ui-head h4 { font-size: 0.95rem; }
+.ui-head em { font-style: normal; font-size: 0.74rem; color: var(--faint); }
+
+.pill {
+  font-size: 0.7rem; font-weight: 600; border-radius: 999px;
+  padding: 0.14rem 0.52rem; white-space: nowrap;
+}
+.pill-ok { background: var(--teal-50); color: var(--teal-700); border: 1px solid var(--teal-100); }
+.pill-warn { background: var(--amber-50); color: var(--amber-600); border: 1px solid var(--amber-100); }
+.pill-quiet { background: #f4f6f6; color: var(--faint); border: 1px solid var(--line); }
+
+/* The app's own step bar: Record, Transcript, Review & sign. */
+.ui-steps { display: flex; gap: 0.4rem; }
+.ui-steps .s {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.35rem;
+  font-size: 0.75rem; padding: 0.4rem 0.35rem;
+  border: 1px solid var(--line); border-radius: 999px; color: var(--faint);
+  white-space: nowrap; overflow: hidden;
+}
+.ui-steps .s b {
+  width: 1.05rem; height: 1.05rem; border-radius: 50%; flex: none;
+  background: #eef1f0; color: var(--faint);
+  font-size: 0.64rem; font-weight: 600;
+  display: grid; place-items: center;
+}
+.ui-steps .s.done { color: var(--teal-700); border-color: var(--teal-100); background: var(--teal-50); }
+.ui-steps .s.done b { background: var(--teal-100); color: var(--teal-700); }
+.ui-steps .s.on {
+  color: #fff; border-color: transparent;
+  background: linear-gradient(135deg, var(--teal-700), var(--teal-600));
+  font-weight: 600;
+}
+.ui-steps .s.on b { background: rgb(255 255 255 / 0.22); color: #fff; }
+
+.ui-rec {
+  display: flex; align-items: center; gap: 0.7rem;
+  padding: 0.7rem 0.85rem; border: 1px solid var(--line); border-radius: 10px;
+  background: #fbfcfc;
+}
+.ui-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: #be123c; flex: none;
+  animation: ui-pulse 1.5s ease-in-out infinite;
+}
+@keyframes ui-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+/* Static, on purpose. See the note above. */
+.ui-wave { flex: 1; display: flex; align-items: flex-end; gap: 2px; height: 22px; }
+.ui-wave i { flex: 1; background: var(--teal-300); border-radius: 1px; min-width: 2px; }
+.ui-time { font-size: 0.76rem; color: var(--slate-600); font-variant-numeric: tabular-nums; }
+
+.ui-tx {
+  border: 1px solid var(--line); border-radius: 10px; background: #fbfcfc;
+  padding: 0.7rem 0.85rem; display: flex; flex-direction: column; gap: 0.4rem;
+}
+.ui-tx .h { font-size: 0.64rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
+.ui-tx p { font-size: 0.8rem; color: var(--slate-600); }
+.ui-tx p b {
+  color: var(--teal-700); font-weight: 650; margin-right: 0.4rem;
+  font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em;
+}
+
+.ui-fields { display: flex; flex-direction: column; gap: 0.75rem; }
+.ui-field label {
+  display: flex; align-items: center; gap: 0.45rem;
+  font-size: 0.63rem; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--faint); margin-bottom: 0.2rem;
+}
+.ui-field label em {
+  font-style: normal; font-size: 0.6rem; letter-spacing: 0.05em; text-transform: none;
+  color: var(--teal-700); background: var(--teal-50);
+  border: 1px solid var(--teal-100); border-radius: 999px; padding: 0.02rem 0.4rem;
+}
+.ui-field p { font-size: 0.83rem; color: var(--ink-700); line-height: 1.5; }
+
+.ui-rows { display: flex; flex-direction: column; gap: 0.35rem; }
+.ui-row {
+  display: flex; align-items: center; gap: 0.55rem;
+  font-size: 0.79rem; color: var(--slate-600);
+  padding: 0.45rem 0.6rem; border: 1px solid var(--line); border-radius: 8px;
+}
+.ui-row .t { font-variant-numeric: tabular-nums; color: var(--faint); flex: none; width: 2.9rem; }
+.ui-row .n { color: var(--ink-800); font-weight: 520; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-row.warn { border-color: var(--amber-100); background: var(--amber-50); }
+
+.ui-sign {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.75rem; flex-wrap: wrap;
+  padding-top: 0.85rem; border-top: 1px solid var(--line-soft);
+}
+.ui-sign span { font-size: 0.74rem; color: var(--faint); }
+.ui-btn {
+  font-size: 0.78rem; font-weight: 600; color: #fff;
+  background: linear-gradient(135deg, var(--teal-700), var(--teal-600));
+  border-radius: 999px; padding: 0.36rem 0.9rem;
+}
+
+/* The printed prescription: a sheet of paper inside the window. */
+.ui-paper { padding: 1.1rem 1.2rem; display: flex; flex-direction: column; gap: 0.8rem; }
+.rx-head {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;
+  border-bottom: 1px solid var(--line); padding-bottom: 0.7rem;
+}
+.rx-head b { display: block; font-family: var(--font-display); font-size: 1rem; color: var(--ink-900); }
+.rx-head i { font-style: normal; font-size: 0.74rem; color: var(--faint); }
+.rx-mark { width: 28px; height: 28px; border-radius: 8px; flex: none; background: linear-gradient(135deg, var(--teal-700), var(--teal-600)); }
+.rx-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; font-size: 0.79rem; color: var(--ink-700); }
+.rx-meta label { display: block; font-size: 0.6rem; letter-spacing: 0.09em; text-transform: uppercase; color: var(--faint); }
+.rx-body { display: flex; gap: 0.8rem; }
+.rx-symbol { font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; color: var(--teal-700); line-height: 1.1; }
+.rx-body ol { margin: 0; padding-left: 1.05rem; display: flex; flex-direction: column; gap: 0.55rem; }
+.rx-body li { font-size: 0.82rem; color: var(--ink-800); }
+.rx-body li i { display: block; font-style: normal; font-size: 0.76rem; color: var(--slate-600); }
+.rx-foot {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem;
+  border-top: 1px dashed var(--line); padding-top: 0.7rem;
+  font-size: 0.73rem; color: var(--faint);
+}
+/* A signature, drawn with gradients rather than shipped as an image. */
+.rx-scribble {
+  width: 86px; height: 24px; flex: none;
+  background:
+    radial-gradient(circle at 12% 70%, transparent 42%, #24322f 43%, transparent 47%),
+    radial-gradient(circle at 38% 30%, transparent 40%, #24322f 41%, transparent 45%),
+    radial-gradient(circle at 66% 72%, transparent 44%, #24322f 45%, transparent 49%),
+    radial-gradient(circle at 88% 34%, transparent 40%, #24322f 41%, transparent 45%);
+  opacity: 0.5;
+}
