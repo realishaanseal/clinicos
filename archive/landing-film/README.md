@@ -1,3 +1,26 @@
+> ## Archived — this is not the live site
+>
+> This is the ClinicOS website as it stood until 26 Sep 2026: the film scrubbed
+> by scroll, GSAP, Lenis, the pinned 3D product tour, and the 21 MB of AVIF frame
+> packs behind all of it. It was replaced by a lighter, paper-white site, which is
+> now what `landing/` holds and what Vercel deploys.
+>
+> **It is kept whole and working, as an asset.** Nothing was stripped out: the
+> frame packs, `scripts/backdrop.py`, the readability tables, the scene palette
+> and every component are here exactly as they shipped. Run it with
+> `npm install && npm run dev` on **port 3002** (changed from 3001 so it can run
+> beside the live site), and it behaves as it did.
+>
+> It is excluded from both Vercel projects by the root `.vercelignore`, so it is
+> never uploaded or built by a deploy.
+>
+> **Reusing any of this:** read the Design section below first. The film's
+> playback path, its per-frame readability measurements and the sticky-not-pinned
+> product tour each cost real time to get right, and each has a failure mode that
+> looks like something else. Everything below describes this archived version.
+
+---
+
 # ClinicOS — landing site
 
 A standalone Next.js app. **It has no database, no API routes, and no access to

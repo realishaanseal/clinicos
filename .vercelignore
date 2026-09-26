@@ -37,6 +37,9 @@
 /artifacts
 /brand
 /_to_delete
+# The previous website, kept whole as an asset (archive/landing-film): a second
+# Next.js app and 21 MB of film frames that no deploy should ever upload.
+/archive
 /Claude outputs
 /.claude
 
