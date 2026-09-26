@@ -35,7 +35,8 @@ It is framed differently for different audiences:
 | Path | What it is |
 |---|---|
 | `clinicos-app/` | The clinical app (Next.js 15). SQLite on a clinic computer; Postgres online at vxclinicos.vercel.app/app. `migrations/pg/` is its Postgres schema. |
-| `landing/` | The public website (static Next.js), deployed to Vercel. See `landing/README.md`. Passes `/app` through to the clinic app. |
+| `landing/` | The public website (static Next.js), deployed to Vercel. See `landing/README.md`. Passes `/app` through to the clinic app. Rebuilt 26 Sep 2026: the app's own design tokens, no animation library, no client components. |
+| `archive/landing-film/` | The website before that rebuild, kept whole and runnable as an asset — the scroll-scrubbed film, its 21 MB of frame packs and `scripts/backdrop.py`. `/archive` is in `.vercelignore`, so no deploy uploads it. |
 | `docs/` | Launch plan, 37-item backlog, problem statement, discovery script, consent script, pilot agreement, website brief. |
 | `artifacts/` | Decks, the 61-section startup blueprint (.docx), trackers, briefs, prototype documentation PDF. |
 | `brand/` | Varaxis's official logo, light and dark. The source of truth — see `brand/README.md`. Nothing reads it yet. |
@@ -335,9 +336,13 @@ The clinic app also runs on the clinic computer, exactly as before. Start it wit
   ~10,000 visits, in `.bench/`; nothing of it touches `data/`). On the Windows laptop on
   20 Sep 2026: Today 154 ms, Patients 50 ms, a patient's record 32 ms, Bills 33 ms,
   Follow-ups 79 ms, Clinic admin 225 ms, the whole-clinic export 800 ms for 35 MB.
-- **Website:** `cd landing && npm run build`
-  - Rebuilding the film needs the two AI tools, which are not in the repo; the
-    download names and the command are in `landing/README.md` ("Rebuilding it").
+- **Website:** `cd landing && npm run build`. It has no film and no animation
+  library; what it does have, and the rules for extending it, are in
+  `landing/README.md`.
+  - The old film site still runs: `cd archive/landing-film && npm install &&
+    npm run dev` on port 3002. Rebuilding the film itself needs the two AI tools,
+    which are not in the repo; the download names and the command are in
+    `archive/landing-film/README.md` ("Rebuilding it").
 
 ---
 
@@ -385,7 +390,8 @@ The clinic app also runs on the clinic computer, exactly as before. Start it wit
 | 20 Sep 2026 | A cancel reason stays on the bill, never in the activity log. | It is typed freely and could name the patient; a deleted patient must not survive in the log. |
 | 20 Sep 2026 | **No consent screen per visit or per share.** The clinic accepts ClinicOS's terms once (signup tickbox, or Clinic admin), undertaking to tell every patient and record no one who says no; the server refuses to record until then. The patient accepts the portal's terms once, at first sign-in, after choosing English, Bengali or Hindi. | Ishaan: "the concent thing … is not needed not like the doctor is gonna show evertime … keep this in terms and conditions as a tickbox during login or signup one time … can have a language option at the start", then "Both" (recording and sharing). A tickbox in the portal alone could not cover recording, which happens before a patient sees the portal, so the clinic's own acceptance is the basis for that. Invariant 5 rewritten. |
 | 20 Sep 2026 | `main` is the SaaS web version. `saas` was fast-forwarded into it and went live the same night. | Ishaan: "ye put into main … rn we are focussing on complete saas product web version. so that will be the main". |
-| 20 Sep 2026 | The clinic app carries no animation libraries at all; the website keeps its own. | `motion-lab` was the only thing importing `motion`, `gsap`, `lenis`, `three` and the two React-three packages, and nothing clinical may use 3D. They cost 177 MB in `node_modules` on every clinic computer and every build. |
+| 26 Sep 2026 | **The website is rebuilt light**: one sheet of warm paper on the clinic app's own design tokens, no animation library, no client components, no film. The film version is kept whole and runnable in `archive/landing-film` rather than deleted. | Ishaan: "since its a product, we would put a more premium but light landing page, instead of the device heavy animations", and "keep it as an asset". Premium now comes from restraint — type, hairlines, one teal, the product on the page — instead of 21 MB of frames and three animation libraries running on the visitor's device. The archive is excluded from both Vercel projects. |
+| 20 Sep 2026 | The clinic app carries no animation libraries at all; the website keeps its own. Since 26 Sep 2026 the website has none either. | `motion-lab` was the only thing importing `motion`, `gsap`, `lenis`, `three` and the two React-three packages, and nothing clinical may use 3D. They cost 177 MB in `node_modules` on every clinic computer and every build. |
 | 20 Sep 2026 | Follow-ups stay on the list for 60 days, leave it when the patient is back (a later visit, or put on the day's list) or the desk acts, and the reminder's template has only `{name}`, `{clinic}`, `{doctor}`, `{date}`. | A phone's lock screen shows the message to anyone; there is deliberately no way to put a diagnosis in it. WhatsApp through `wa.me` costs nothing and needs no account or API. |
 | Prototype era | The invariants in CLAUDE.md. | No clinical judgement. Audio deleted at signing. No training on audio. Consent enforced server-side. `draftJson` immutable. Backups via the SQLite backup API. No lock-in. |
 
@@ -733,7 +739,7 @@ and `--scope varaxis` reaches the projects (`demo`, `vxclinicos-app`, `scholar`,
   problem and was not one. The Playwright MCP only reads and writes files under the
   repo root and `.playwright-mcp/`.
 - **ffmpeg** is not installed on the development laptop. `pip install imageio-ffmpeg`
-  brings a static build, which is what `landing/scripts/backdrop.py` uses.
+  brings a static build, which is what `archive/landing-film/scripts/backdrop.py` uses.
 - **The Windows laptop's toolchain, 18 Sep 2026:** Node 24.19.0, npm 11.17.0. Its local
   `main` had fallen two days behind `origin/main` — the whole online copy was missing
   from it — so **`git fetch` before reading the repo**, or the picture is wrong.

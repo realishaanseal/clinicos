@@ -251,6 +251,10 @@ clinicos-app/
   go.sh                   setup and launch
 landing/                  public website. static Next.js, no database, no API
                           routes, no access to clinicos-app. see landing/README.md
+archive/landing-film/     the website before 26 Sep 2026, kept whole and runnable
+                          as an asset: the scroll-scrubbed film, its frame packs
+                          and the pipeline that built them. /archive is in
+                          .vercelignore, so no deploy uploads it
 docs/                     launch plan, backlog, consent script, agreements
 artifacts/                decks, trackers, briefs
 ```
@@ -485,6 +489,13 @@ Built and tested:
   lives in `landing/src/site.ts`. Public copy is Varaxis-branded and international
   (clinics of any size up to hospitals). The Krishnanagar field site stays in
   internal docs and pilots, not on the site.
+  **Rebuilt on 26 Sep 2026** (branch `website-premium-light`, Ishaan's decision:
+  a product needs a premium page that is light on the device, not a heavy one).
+  It is now one sheet of warm paper built from the *app's own* design tokens, with
+  no animation library, no client components and no film — `next`, `react`,
+  `react-dom`, and 147 B of JavaScript per route. The film version is kept whole in
+  `archive/landing-film`. Details and the rules for extending it are in
+  `landing/README.md`.
 - **v0.5 Part A — accounts, roles, permissions, and the activity log (backlog #4).**
   In `main`. Verified by `npm run test:e2e`: the permission matrix over HTTP against
   a seeded prototype-era database (every existing record unchanged), plus the
@@ -588,9 +599,11 @@ belong only on marketing surfaces, behind `next/dynamic` with `ssr: false`.
 `three`, `@react-three/fiber` and `@react-three/drei` were removed with the
 `motion-lab` smoke test that was the only thing importing them: nothing clinical may
 use 3D, and they were 177 MB of `node_modules` on every clinic computer and every
-build. The website (`landing/`) keeps `motion`, `gsap` and `lenis` for its own
-surfaces. Add an animation library to `clinicos-app` only with a reason, and read
-`.claude/skills/clinicos-motion/` first.
+build. **Since 26 Sep 2026 the website has none either**: its rebuild dropped
+`motion`, `gsap` and `lenis` with the film, and everything it animates is CSS
+(`landing/README.md`, "Motion"). `archive/landing-film` still declares them, and is
+never built by a deploy. Add an animation library to either app only with a reason,
+and read `.claude/skills/clinicos-motion/` first.
 
 `globals.css` now carries motion tokens (`--dur-1/2/3`, `--ease-out`, `--ease-in`)
 and a global `prefers-reduced-motion` guard. The guard is a requirement, not a
