@@ -95,7 +95,14 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  overflow-x: hidden;
+  /* `clip`, not `hidden`. Both stop sideways overflow, but `hidden` can make an
+     element a scroll container, and a scroll container between the header and
+     the viewport breaks `position: sticky`, while one between a revealed element
+     and the viewport makes `animation-timeline: view()` resolve against a
+     scrollport that never moves and hold the reveal at opacity 0. `clip` never
+     creates one. The archived site used `clip` on its tour section for the same
+     reason. */
+  overflow-x: clip;
 }
 
 ::selection { background: var(--teal-100); color: var(--teal-900); }
@@ -295,21 +302,28 @@ section h2 { max-width: 24ch; }
   pointer-events: none;
 }
 .hero > * { position: relative; }
-.hero h1 { max-width: 19ch; }
-.hero .lede { margin-top: 1.5rem; max-width: 50ch; }
+/* Centred, with the product directly underneath. Left-aligned copy left the
+   right half of a 1440px screen empty, which reads as unfinished rather than
+   as space. Everything below the hero stays left-aligned. */
+.hero .wrap { text-align: center; }
+.hero h1 { max-width: 20ch; margin-inline: auto; }
+.hero .lede { margin-top: 1.5rem; max-width: 54ch; margin-inline: auto; }
+.hero .cta-row { justify-content: center; }
 
 .hero-facts {
-  display: flex; flex-wrap: wrap; gap: 0.5rem 1.6rem;
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem 1.8rem;
   margin-top: 2.4rem; padding-top: 1.4rem;
   border-top: 1px solid var(--line);
   font-size: 0.86rem; color: var(--faint);
-  max-width: 56rem;
+  max-width: 62rem; margin-inline: auto;
 }
 .hero-facts li { list-style: none; display: flex; align-items: center; gap: 0.5rem; }
 .hero-facts ul { display: contents; }
 .hero-facts svg { width: 14px; height: 14px; flex: none; stroke: var(--teal-600); fill: none; stroke-width: 2.2; }
 
-.hero-shot { margin-top: clamp(2.5rem, 5vw, 3.75rem); }
+/* The centred hero copy must not reach the screen underneath it: a clinical note
+   set centre is not a clinical note. */
+.hero-shot { margin-top: clamp(2.5rem, 5vw, 3.75rem); text-align: left; }
 
 /* ==========================================================================
    Figures — the four numbers, set as an editorial rule table rather than cards
@@ -543,7 +557,7 @@ section h2 { max-width: 24ch; }
     [data-reveal] {
       animation: rise-in auto linear backwards;
       animation-timeline: view();
-      animation-range: entry 3% cover 24%;
+      animation-range: entry 2% cover 20%;
     }
   }
   /* On load: the eyebrow, headline, lede, buttons and screen arrive in that
@@ -650,6 +664,13 @@ section h2 { max-width: 24ch; }
   font-weight: 600;
 }
 .ui-steps .s.on b { background: rgb(255 255 255 / 0.22); color: #fff; }
+/* Three pills and three numbers do not fit across a 390px phone: "Review &
+   sign" was clipped mid-word. The numbers go first, since the active pill
+   already says where you are. */
+@media (max-width: 540px) {
+  .ui-steps .s { font-size: 0.7rem; padding-inline: 0.2rem; }
+  .ui-steps .s b { display: none; }
+}
 
 .ui-rec {
   display: flex; align-items: center; gap: 0.7rem;
@@ -733,13 +754,11 @@ section h2 { max-width: 24ch; }
   border-top: 1px dashed var(--line); padding-top: 0.7rem;
   font-size: 0.73rem; color: var(--faint);
 }
-/* A signature, drawn with gradients rather than shipped as an image. */
-.rx-scribble {
-  width: 86px; height: 24px; flex: none;
-  background:
-    radial-gradient(circle at 12% 70%, transparent 42%, #24322f 43%, transparent 47%),
-    radial-gradient(circle at 38% 30%, transparent 40%, #24322f 41%, transparent 45%),
-    radial-gradient(circle at 66% 72%, transparent 44%, #24322f 45%, transparent 49%),
-    radial-gradient(circle at 88% 34%, transparent 40%, #24322f 41%, transparent 45%);
-  opacity: 0.5;
+/* The signature line. A drawn scribble was tried and read as four unrelated
+   marks at the size the mock-up is shown; the printed prescription carries the
+   doctor's name, so that is what this shows. */
+.rx-sign {
+  flex: none; padding-top: 0.3rem; white-space: nowrap;
+  border-top: 1px solid var(--line); color: var(--ink-700);
 }
+.rx-symbol { letter-spacing: -0.02em; }

@@ -395,14 +395,19 @@ export default function Page() {
         </section>
 
         {/* --- Talk to us, or sign in ------------------------------------- */}
+        {/* No data-reveal in this section. It is the last on the page, and a
+            scroll-driven reveal only finishes once its element has travelled a
+            fifth of the way through the viewport — which, near the end of the
+            document, there is no scrolling left to do. On a tall screen the
+            closing copy and both buttons would simply stay faded. */}
         <section className="ruled tinted" id="contact">
           <div className="wrap">
-            <div data-reveal>
+            <div>
               <div className="eyebrow">Get in touch</div>
               <h2>Start a conversation, <span className="accent">or start a visit.</span></h2>
             </div>
 
-            <div className="close-grid" data-reveal>
+            <div className="close-grid">
               <div className="panel card">
                 <div className="tag">For clinics and hospitals</div>
                 <h3>Tell us where you work</h3>

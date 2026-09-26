@@ -186,7 +186,7 @@ export function PrescriptionScreen() {
           <div><label>Come back on</label>1 Oct 2026</div>
         </div>
         <div className="rx-body">
-          <div className="rx-symbol" aria-hidden="true">&#8478;</div>
+          <div className="rx-symbol" aria-hidden="true">Rx</div>
           <ol>
             <li>Paracetamol 500 mg <i>1 tablet, three times a day, after food &mdash; 3 days</i></li>
             <li>Cetirizine 10 mg <i>1 tablet at night &mdash; 5 days</i></li>
@@ -195,7 +195,7 @@ export function PrescriptionScreen() {
         </div>
         <div className="rx-foot">
           <span>Come back at once if the fever crosses 39&#176;C or breathing gets hard.</span>
-          <div className="rx-scribble" aria-hidden="true" />
+          <div className="rx-sign">Signed &middot; Dr A. Sen</div>
         </div>
       </div>
     </Chrome>
