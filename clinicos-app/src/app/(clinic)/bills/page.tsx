@@ -12,7 +12,14 @@ export default async function BillsPage({ searchParams }: { searchParams: Promis
   const user = await requireUser("billing");
   const today = localDay();
   const { patient: patientId } = await searchParams;
-  const p = patientId ? await getPatient(user.clinicId, patientId) : undefined;
+  const [p, unpaid, paidToday, takings, owed, billing] = await Promise.all([
+    patientId ? getPatient(user.clinicId, patientId) : undefined,
+    unpaidBills(user.clinicId),
+    billsPaidOn(user.clinicId, today),
+    takingsOn(user.clinicId, today),
+    owedTotal(user.clinicId),
+    getBillingSettings(user.clinicId),
+  ]);
 
   return (
     <div className="page">
@@ -22,11 +29,11 @@ export default async function BillsPage({ searchParams }: { searchParams: Promis
         <p className="sub">Make a bill, take payment and print a receipt.</p>
       </div>
       <BillsDesk
-        unpaid={await unpaidBills(user.clinicId)}
-        paidToday={await billsPaidOn(user.clinicId, today)}
-        takings={await takingsOn(user.clinicId, today)}
-        owed={await owedTotal(user.clinicId)}
-        feePaise={(await getBillingSettings(user.clinicId)).feePaise}
+        unpaid={unpaid}
+        paidToday={paidToday}
+        takings={takings}
+        owed={owed}
+        feePaise={billing.feePaise}
         preselect={p ? { id: p.id, name: p.name, age: p.age, sex: p.sex, phone: p.phone } : null}
         canCancel={can(user, "admin")}
       />

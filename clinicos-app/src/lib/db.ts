@@ -413,21 +413,27 @@ export async function clinicNumbers(clinicId: ClinicId): Promise<ClinicNumbers> 
   // The clinic's local day, not the server's: in India a UTC date files
   // everything before 05:30 under yesterday.
   const [start, end] = localDayBounds();
-  const c = await q().get<{ consults: number; consultsToday: number; signed: number; drafted: number }>(
-    `SELECT CAST(COUNT(*) AS INTEGER) AS consults,
-            CAST(COALESCE(SUM(CASE WHEN "createdAt" >= ? AND "createdAt" < ? THEN 1 ELSE 0 END), 0) AS INTEGER) AS "consultsToday",
-            CAST(COALESCE(SUM(CASE WHEN "signedAt" IS NOT NULL THEN 1 ELSE 0 END), 0) AS INTEGER) AS signed,
-            CAST(COALESCE(SUM(CASE WHEN "signedAt" IS NOT NULL AND "draftJson" IS NOT NULL THEN 1 ELSE 0 END), 0) AS INTEGER) AS drafted
-     FROM "Consult" WHERE "clinicId" = ?`,
-    start, end, clinicId
-  );
+  // Three passes, asked together: on Postgres each is its own trip to the
+  // database, and Today waits for all of them before it can be drawn.
+  const [c, patients, edits] = await Promise.all([
+    q().get<{ consults: number; consultsToday: number; signed: number; drafted: number }>(
+      `SELECT CAST(COUNT(*) AS INTEGER) AS consults,
+              CAST(COALESCE(SUM(CASE WHEN "createdAt" >= ? AND "createdAt" < ? THEN 1 ELSE 0 END), 0) AS INTEGER) AS "consultsToday",
+              CAST(COALESCE(SUM(CASE WHEN "signedAt" IS NOT NULL THEN 1 ELSE 0 END), 0) AS INTEGER) AS signed,
+              CAST(COALESCE(SUM(CASE WHEN "signedAt" IS NOT NULL AND "draftJson" IS NOT NULL THEN 1 ELSE 0 END), 0) AS INTEGER) AS drafted
+       FROM "Consult" WHERE "clinicId" = ?`,
+      start, end, clinicId
+    ),
+    countPatients(clinicId),
+    countEdits(clinicId),
+  ]);
   return {
-    patients: await countPatients(clinicId),
+    patients,
     consults: c?.consults ?? 0,
     consultsToday: c?.consultsToday ?? 0,
     signed: c?.signed ?? 0,
     drafted: c?.drafted ?? 0,
-    edits: await countEdits(clinicId),
+    edits,
   };
 }
 
@@ -1528,6 +1534,29 @@ export async function getSomeSettings(clinicId: ClinicId, keys: string[]): Promi
   const rows = await q().all<{ key: string; value: string }>(
     `SELECT key, value FROM "ClinicSetting" WHERE "clinicId" = ? AND key IN (${keys.map(() => "?").join(", ")})`,
     clinicId, ...keys
+  );
+  return Object.fromEntries(rows.map((r) => [r.key, r.value]));
+}
+
+/**
+ * Every setting except the ones named and those whose key starts with a given
+ * prefix. One query for the small settings a screen actually needs, leaving
+ * out the clinic's logo (a data URL of up to 100 KB) and anything a caller
+ * would rather not have in memory — see clinicSettings() in clinic.ts.
+ *
+ * SUBSTR rather than LIKE: LIKE would need an ESCAPE clause for the
+ * underscore, and the two databases spell that differently.
+ */
+export async function getSettingsExcept(
+  clinicId: ClinicId,
+  skip: string[],
+  skipPrefix?: string
+): Promise<Record<string, string>> {
+  const rows = await q().all<{ key: string; value: string }>(
+    `SELECT key, value FROM "ClinicSetting" WHERE "clinicId" = ?` +
+      (skip.length ? ` AND key NOT IN (${skip.map(() => "?").join(", ")})` : "") +
+      (skipPrefix ? ` AND SUBSTR(key, 1, ${skipPrefix.length}) <> ?` : ""),
+    clinicId, ...skip, ...(skipPrefix ? [skipPrefix] : [])
   );
   return Object.fromEntries(rows.map((r) => [r.key, r.value]));
 }

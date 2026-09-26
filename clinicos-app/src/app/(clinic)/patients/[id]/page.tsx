@@ -4,6 +4,7 @@ import { parseNote } from "@/lib/types";
 import Link from "next/link";
 import NewConsultButton from "@/components/NewConsultButton";
 import { IcDoc, IcArrow } from "@/components/Icons";
+import LinkHint from "@/components/LinkHint";
 import { can, requireUser } from "@/lib/auth";
 import DeletePatientButton from "@/components/DeletePatientButton";
 import { fmtDate } from "@/lib/time";
@@ -17,12 +18,14 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const patient = await getPatient(user.clinicId, id);
   if (!patient) notFound();
-  const consults = await consultsForPatient(user.clinicId, id);
-  const signed = consults.filter((c) => c.signedAt);
   // What the doctor needs before the patient sits down (backlog #24): what was
   // written at the last signed visit. Said as that, not as "current
   // medicines" — whether the patient is still taking them is not ours to claim.
-  const household = await samePhonePatients(user.clinicId, patient.id, patient.phone);
+  const [consults, household] = await Promise.all([
+    consultsForPatient(user.clinicId, id),
+    samePhonePatients(user.clinicId, patient.id, patient.phone),
+  ]);
+  const signed = consults.filter((c) => c.signedAt);
   const last = signed[0];
   const lastNote = last ? parseNote(last.finalJson) : null;
   const lastMeds = lastNote?.medications.filter((m) => m.name.trim()) ?? [];
@@ -131,6 +134,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
                     </div>
                     <Link href={`/consult/${c.id}`} className="muted" style={{ display: "flex", alignItems: "center", gap: 5 }}>
                       {c.signedAt ? "View" : "Continue"} <IcArrow size={14} />
+                      <LinkHint />
                     </Link>
                   </div>
 

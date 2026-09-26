@@ -1132,13 +1132,92 @@ file in one go) has no caller left in the UI. If it ever gets one, `writeWhole()
 only the parts matching the *new* extension, so a chunked `<id>.part2.webm` would outlive
 an `<id>.mp4` upload and survive signing. Worth closing if that route is ever revived.
 
+### Speed, clarity, and the second recording (26 Sep 2026, branch `speed-and-clarity`)
+
+Built off `main` (`c3d3e6d`), so it is independent of `sign-in-doors`, which is still
+unmerged. Both suites pass: `npm run test:e2e` 363, `npm run test:e2e:pg` 549, `npx tsc
+--noEmit` and `npm run check:paths` clean.
+
+**The second recording now reaches the note.** `onStop()` only transcribed when the
+transcript was empty — a guard from when re-transcribing replaced everything and threw
+away the doctor's corrections. Since recordings are kept in parts (24 Sep) the server
+only adds the part just recorded, so the guard protected nothing and cost the second
+recording: press *Record again*, stop, sign, and its words were never in the note.
+CONTEXT called this "the obvious next change"; it is done.
+
+Closing it exposed the same failure one step later, which was never written down: after
+*Record again* the transcript grows but the **note on screen is still the one drafted
+from the first part**, and signing files half the visit. The transcript card's button now
+says *Write the note again* once a note exists, and when transcription adds words after a
+note was written, a notice stands between the transcript and the note saying so. It is
+set only by a transcription that changed the text — not by the doctor editing the
+transcript by hand, which would nag — and clears when the note is written again.
+Exercised in the sandbox with the ASR and LLM replies stubbed in the browser: warning
+appears, transcript holds both parts, warning clears on redraft.
+
+**Access time.** Every function in `db.ts` is async and online each call is its own trip
+to Supabase, but the pages awaited them one after another — Clinic admin made sixteen
+round trips in a row before it could draw. Today, Clinic admin, the consultation screen,
+Bills, a patient's record and Follow-ups now ask in one `Promise.all`, chaining only
+where an answer really depends on an earlier one. `clinicNumbers()` does its three passes
+together. `clinicSettings()` in `clinic.ts` reads the clinic's small settings once per
+request with React's `cache()`, so the navigation's clinic name, the terms, the fee and
+the letterhead are one query instead of four; it leaves out the logo and the `ai_` keys,
+which are fetched by name where they are wanted — a hosted provider's key has no reason
+to sit in memory on every screen.
+
+**Be honest about what this bought locally: nothing measurable.** `npm run bench` on the
+Mac is unchanged within noise (Today 55 → 50 ms, Clinic admin 56 → 57 ms), and that is
+the expected result — SQLite answers in the same process, so ordering barely matters. The
+work is for the online copy, where the round trips are real. Do not point `bench` at this
+and conclude it did nothing.
+
+**Patients, searched as you type.** The list is still server-rendered and the form still
+works without JavaScript, but each pause in typing now asks `/api/patients` instead of
+reloading the screen, keeping the caret where it is; the address bar follows with
+`replaceState` so a refresh or a shared link finds the same people. It is the one screen
+`bench` did move: **22 → 10 ms and 118 → 71 KB**, because the row buttons are no longer
+serialised into the flight payload once per row.
+
+**A tap that has been heard.** Every clinic screen renders on the server with the day's
+real numbers, so a tap used to leave the old page sitting there until the database
+answered. `LinkHint.tsx` (`useLinkStatus`, Next 15.3+) puts a spinner inside the tapped
+link until the next screen arrives — in the navigation, on patient rows, on *Resume*,
+*Continue* and *View full history*.
+
+**`loading.tsx` was tried first and taken out again, which is worth knowing.** A loading
+boundary makes Next stream at once, so the status is already sent when a page calls
+`notFound()`: `/patients/no-such-patient` answered **200**. Boundaries cascade, so one at
+`(clinic)/` reached every screen and one at `patients/` would reach `patients/[id]`.
+Streaming also interleaves the flight payload through the HTML, which broke a
+`workflow-test.cjs` check that slices the admin page between two markers — and only on
+Postgres, where the page is slow enough to flush early. Both failures were real
+regressions the suites caught. There is now no `loading.tsx` in the app, and the gotcha
+is in CLAUDE.md.
+
+**Backlog #14 is not finished, deliberately.** Its repeat rate and revenue per day are
+built; the missing piece is "top conditions", and it was left out rather than built
+badly. Counting diagnoses means either reading every signed note's JSON into the page
+(megabytes on a clinic with years of records) or JSON extraction that SQLite and Postgres
+spell differently, breaking the one-SQL rule — and the audience the backlog names for it,
+the clinic's owner, is exactly the account that must never see a diagnosis. If it is ever
+wanted, the honest design is a `diagnosis` column written at signing, on both databases,
+in `sync.ts`'s COLUMNS, and shown only to an account with `clinical`.
+
+**On the Mac's sandbox:** `.sandbox/` now has six made-up patients and one in-progress
+visit, and the `sandbox` account's password was reset to sign in for the checks above. It
+is git-ignored and throwaway; delete the folder and `npm run dev:sandbox` rebuilds it.
+
 ### Where to pick up
 
-**For the next session:** `main` is the SaaS web version and is live; work continues on
-branch **`saas`** and is fast-forwarded into `main` once both test runs pass (`git fetch`,
-then `git checkout saas`). Every item in Ishaan's order of work is built, and so is
-everything of the backlog that can be built without a hosted AI key or a storage bill:
-#10–#14, #20, #21 (the phone-number half), #24, #25, #34.
+**For the next session:** `main` is the SaaS web version and is live. Two branches are
+waiting on Ishaan to merge, and they do not touch the same files:
+**`sign-in-doors`** (the patient's door first, 24 Sep) and **`speed-and-clarity`**
+(26 Sep, above), both built off `main` and both passing on SQLite and Postgres. Every
+item in Ishaan's order of work is built, and so is everything of the backlog that can be
+built without a hosted AI key or a storage bill: #10–#13, #20, #21 (the phone-number
+half), #24, #25, #34. #14 is built except "top conditions", left out on purpose — the
+reasoning is in the 26 Sep entry above.
 
 **What the night of 20 September left, in order of what it cost:** billing and follow-up
 recall; consent replaced by one-time terms (the clinic's, and the patient's in three

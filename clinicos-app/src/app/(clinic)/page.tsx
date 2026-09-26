@@ -18,6 +18,7 @@ import WaitingPanel from "@/components/WaitingPanel";
 import Link from "next/link";
 import { parseNote } from "@/lib/types";
 import { IcDoc, IcArrow, IcAlert, IcCalendar } from "@/components/Icons";
+import LinkHint from "@/components/LinkHint";
 import { requireUser } from "@/lib/auth";
 import { clinicDayAt, fmt, fmtDate, fmtTime } from "@/lib/time";
 import { getBillingSettings, getClinicName } from "@/lib/clinic";
@@ -29,22 +30,44 @@ import { ONLINE } from "@/lib/deployment";
 export const dynamic = "force-dynamic";
 
 /**
- * The day in one message for whoever runs the clinic (backlog #13), and what
- * the follow-up list is worth (#11). Counts and money; never a patient.
+ * Everything both halves of Today need about the day: the money, the clinic's
+ * name and the follow-ups due now and tomorrow. Counts and money; never a
+ * patient.
+ *
+ * Asked in one go rather than one after another. On a clinic computer the
+ * database answers in the same process and the order hardly matters; online
+ * each of these is its own trip to Mumbai, and Today is the screen a clinic
+ * opens most.
  */
-async function dayInOneMessage(user: { clinicId: ClinicId }, queue: QueueRow[]) {
+async function dayNumbers(clinicId: ClinicId) {
   const today = localDay();
-  const { ownerPhone } = await getBillingSettings(user.clinicId);
+  const tomorrow = localDay(clinicDayAt(1));
+  const [billing, clinicName, collected, owed, dueTomorrow, dueNow] = await Promise.all([
+    getBillingSettings(clinicId),
+    getClinicName(clinicId),
+    takingsOn(clinicId, today),
+    owedTotal(clinicId),
+    followUpsDue(clinicId, tomorrow, tomorrow),
+    followUpsDue(clinicId, today, localDay(clinicDayAt(-RECALL_DAYS))),
+  ]);
+  return { today, billing, clinicName, collected, owed, dueTomorrow, dueNow };
+}
+
+type DayNumbers = Awaited<ReturnType<typeof dayNumbers>>;
+
+/** The day in one message for whoever runs the clinic (backlog #13), and what
+ *  the follow-up list is worth (#11). */
+function dayInOneMessage(day: DayNumbers, queue: QueueRow[]) {
   const text = daySummaryText({
-    clinicName: await getClinicName(user.clinicId),
-    day: today,
+    clinicName: day.clinicName,
+    day: day.today,
     seen: queue.filter((r) => r.status === "done").length,
     waiting: queue.filter((r) => r.status === "waiting" || r.status === "with-doctor").length,
-    collected: await takingsOn(user.clinicId, today),
-    owed: await owedTotal(user.clinicId),
-    followUpsTomorrow: (await followUpsDue(user.clinicId, localDay(clinicDayAt(1)), localDay(clinicDayAt(1)))).length,
+    collected: day.collected,
+    owed: day.owed,
+    followUpsTomorrow: day.dueTomorrow.length,
   });
-  return { text, link: waMessageLink(ownerPhone, text) };
+  return { text, link: waMessageLink(day.billing.ownerPhone, text) };
 }
 
 export default async function Home() {
@@ -59,8 +82,8 @@ export default async function Home() {
   // The front desk's Today. It returns before a single clinical query runs,
   // so nothing clinical can leak into this render by accident.
   if (user.role !== "doctor") {
-    const queue = await todaysQueue(user.clinicId);
-    const summary = await dayInOneMessage(user, queue);
+    const [queue, day] = await Promise.all([todaysQueue(user.clinicId), dayNumbers(user.clinicId)]);
+    const summary = dayInOneMessage(day, queue);
     return (
       <div className="page">
         <div className="page-head">
@@ -68,22 +91,22 @@ export default async function Home() {
           <h1>Today</h1>
           <p className="sub">Find or register patients, and keep the day&apos;s list moving.</p>
         </div>
-        <FrontDeskToday
-          initial={queue}
-          collectedPaise={(await takingsOn(user.clinicId, localDay())).total}
-          followUpsDue={(await followUpsDue(user.clinicId, localDay(), localDay(clinicDayAt(-RECALL_DAYS)))).length}
-        />
+        <FrontDeskToday initial={queue} collectedPaise={day.collected.total} followUpsDue={day.dueNow.length} />
         <DaySummary text={summary.text} link={summary.link} />
       </div>
     );
   }
 
-  const queue = await todaysQueue(user.clinicId);
-  const summary = await dayInOneMessage(user, queue);
-  const consults = await recentConsults(user.clinicId, 20);
-  const unfinished = await unfinishedConsults(user.clinicId);
-  const numbers = await clinicNumbers(user.clinicId);
-  const dueNow = (await followUpsDue(user.clinicId, localDay(), localDay(clinicDayAt(-RECALL_DAYS)))).length;
+  // The doctor's Today: every question at once rather than eleven in a row.
+  const [queue, day, consults, unfinished, numbers] = await Promise.all([
+    todaysQueue(user.clinicId),
+    dayNumbers(user.clinicId),
+    recentConsults(user.clinicId, 20),
+    unfinishedConsults(user.clinicId),
+    clinicNumbers(user.clinicId),
+  ]);
+  const summary = dayInOneMessage(day, queue);
+  const dueNow = day.dueNow.length;
   // Per AI-drafted note: a note written by hand had no draft to correct.
   const editsPerNote = numbers.drafted ? (numbers.edits / numbers.drafted).toFixed(1) : "—";
   const saved = minutesSavedFrom(numbers);
@@ -129,7 +152,7 @@ export default async function Home() {
           <IcCalendar size={17} />
           <span>
             {dueNow} patient{dueNow === 1 ? " you asked" : "s you asked"} back {dueNow === 1 ? "has" : "have"} not been
-            in. <Link href="/followups">Open Follow-ups →</Link>
+            in. <Link href="/followups">Open Follow-ups →<LinkHint /></Link>
           </span>
         </div>
       )}
@@ -154,7 +177,10 @@ export default async function Home() {
                 <div className="why">{c.reason}</div>
               </div>
               <Link href={`/consult/${c.id}`}>
-                <button className="ghost small">Resume</button>
+                <button className="ghost small">
+                  Resume
+                  <LinkHint />
+                </button>
               </Link>
             </div>
           ))}
@@ -170,6 +196,7 @@ export default async function Home() {
           <span className="title">Recent consultations</span>
           <Link href="/patients" className="muted">
             All patients →
+            <LinkHint />
           </Link>
         </div>
 
@@ -197,7 +224,10 @@ export default async function Home() {
                 return (
                   <tr key={c.id}>
                     <td style={{ fontWeight: 580 }}>
-                      <Link href={`/patients/${c.patientId}`}>{c.patient.name}</Link>
+                      <Link href={`/patients/${c.patientId}`}>
+                        {c.patient.name}
+                        <LinkHint />
+                      </Link>
                       {c.patient.age !== null && <span className="dim" style={{ fontWeight: 400 }}> · {c.patient.age}</span>}
                     </td>
                     <td className="dim">
@@ -216,6 +246,7 @@ export default async function Home() {
                     <td style={{ textAlign: "right" }}>
                       <Link href={`/consult/${c.id}`} aria-label="Open consultation">
                         <IcArrow size={16} />
+                        <LinkHint />
                       </Link>
                     </td>
                   </tr>

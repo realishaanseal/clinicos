@@ -70,6 +70,10 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic, l
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [restored, setRestored] = useState<string | null>(null);
+  // Set when more of the consultation was transcribed after a note already
+  // existed: the note on screen is then missing whatever was just said, and
+  // signing it would file half the visit. Cleared by writing the note again.
+  const [noteBehind, setNoteBehind] = useState(false);
   // Set when the prescription has just been shared: printed on it, this once.
   const [portal, setPortal] = useState<{ address: string; code: string } | null>(null);
 
@@ -127,10 +131,15 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic, l
     await rec.stop();
     setHaveAudio(true);
     // The speed pass (#3): transcription starts by itself when recording
-    // stops, rather than waiting for a second tap. Not when a transcript is
-    // already there — the doctor may have corrected it, and re-transcribing
-    // stays a deliberate choice.
-    if (!transcript.trim()) await transcribe();
+    // stops, rather than waiting for a second tap.
+    //
+    // It used to skip this whenever a transcript was already on screen,
+    // because re-transcribing replaced the whole thing and threw away the
+    // doctor's corrections. Since recordings are kept in parts, the server
+    // only transcribes the part just recorded and adds it to what the doctor
+    // has — so the guard now protected nothing and cost the second recording:
+    // press Record again, stop, sign, and its words were never in the note.
+    await transcribe();
   }
 
   async function transcribe() {
@@ -147,6 +156,9 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic, l
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
+      // Words arriving after the note was written leave the note behind. Say
+      // so rather than letting it be signed as if it covered the whole visit.
+      if (hasNote && !manual && data.transcript.trim() !== transcript.trim()) setNoteBehind(true);
       setTranscript(data.transcript);
       setStats((s) => ({ ...s, asrModel: data.model, asrSeconds: data.seconds }));
     } catch (e) {
@@ -165,6 +177,7 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic, l
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setNote(data.note);
+      setNoteBehind(false);
       setStats((s) => ({ ...s, llmModel: data.model, llmSeconds: data.seconds }));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -378,11 +391,24 @@ export default function ConsultWorkflow({ consultId, patient, initial, clinic, l
             {!manual && (
               <div className="btnrow" style={{ marginTop: 12 }}>
                 <button onClick={generateNote} disabled={!transcript.trim() || !!busy}>
-                  <IcDoc size={15} /> Generate clinical note
+                  <IcDoc size={15} /> {hasNote ? "Write the note again" : "Generate clinical note"}
                 </button>
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* The rest of the consultation was transcribed after the note was
+          written, so the note below does not cover it. Said here, between the
+          transcript and the note, because signing it would file half a visit. */}
+      {noteBehind && !manual && (
+        <div className="note info noprint" role="status">
+          <IcAlert size={17} />
+          <span>
+            <strong>The note is behind the transcript.</strong> What you recorded just now is in the transcript
+            above but not in the note below. Write the note again, or add the rest yourself before signing.
+          </span>
         </div>
       )}
 

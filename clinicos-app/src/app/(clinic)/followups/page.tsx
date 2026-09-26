@@ -10,8 +10,11 @@ export const dynamic = "force-dynamic";
 export default async function FollowUpsPage() {
   const user = await requireUser("frontdesk");
   const today = localDay();
-  const due = await followUpsDue(user.clinicId, today, localDay(clinicDayAt(-RECALL_DAYS)));
-  const billing = await getBillingSettings(user.clinicId);
+  const [due, billing, clinicName] = await Promise.all([
+    followUpsDue(user.clinicId, today, localDay(clinicDayAt(-RECALL_DAYS))),
+    getBillingSettings(user.clinicId),
+    getClinicName(user.clinicId),
+  ]);
 
   return (
     <div className="page">
@@ -27,7 +30,7 @@ export default async function FollowUpsPage() {
       <FollowUps
         initial={due.map(({ signedAt, ...r }) => (void signedAt, r))}
         today={today}
-        clinicName={await getClinicName(user.clinicId)}
+        clinicName={clinicName}
         template={billing.recallMessage}
         feePaise={billing.feePaise}
       />

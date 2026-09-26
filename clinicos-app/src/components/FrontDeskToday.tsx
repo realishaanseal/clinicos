@@ -9,6 +9,7 @@ import { IcAlert, IcCalendar, IcCheck, IcUsers } from "./Icons";
 import { fmtTime } from "@/lib/time";
 import { appPath } from "@/lib/base-path";
 import { formatPaise } from "@/lib/money";
+import LinkHint from "./LinkHint";
 
 type Found = { id: string; name: string; age: number | null; sex: string | null; phone: string | null; consultCount: number };
 
@@ -70,7 +71,7 @@ export default function FrontDeskToday({
           <IcCalendar size={17} />
           <span>
             {followUpsDue} patient{followUpsDue === 1 ? " is" : "s are"} due a follow-up and {followUpsDue === 1 ? "hasn't" : "haven't"} been
-            back. <Link href="/followups">Open Follow-ups →</Link>
+            back. <Link href="/followups">Open Follow-ups →<LinkHint /></Link>
           </span>
         </div>
       )}

@@ -8,6 +8,7 @@ import { describeAccess, type Role } from "@/lib/users";
 import { ONLINE } from "@/lib/deployment";
 import { appPath } from "@/lib/base-path";
 import QuickSearch, { openSearch } from "./QuickSearch";
+import LinkHint from "./LinkHint";
 
 type NavUser = { name: string; role: Role; isAdmin: boolean };
 
@@ -79,6 +80,7 @@ export default function SideNav({ user, clinicName }: { user: NavUser; clinicNam
         {links.map((l) => (
           <Link key={l.href} href={l.href} className={`navlink ${activeHref === l.href ? "active" : ""}`}>
             {l.icon} {l.label}
+            <LinkHint />
           </Link>
         ))}
 
@@ -119,6 +121,7 @@ export default function SideNav({ user, clinicName }: { user: NavUser; clinicNam
         {links.map((l) => (
           <Link key={l.href} href={l.href} className={activeHref === l.href ? "active" : ""}>
             {l.label}
+            <LinkHint />
           </Link>
         ))}
         <span className="spacer" />

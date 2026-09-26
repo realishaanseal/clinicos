@@ -7,6 +7,7 @@ import type { QueueRow } from "@/lib/db";
 import { elapsed, useQueue } from "@/lib/useQueue";
 import { IcAlert, IcArrow } from "./Icons";
 import { appPath } from "@/lib/base-path";
+import LinkHint from "./LinkHint";
 
 /**
  * The doctor's view of today's list: who is waiting, and a button that calls
@@ -65,6 +66,7 @@ export default function WaitingPanel({ initial, doctorId }: { initial: QueueRow[
           </div>
           <Link href={`/consult/${r.consultId}`} className="muted" style={{ display: "flex", alignItems: "center", gap: 5 }}>
             Continue <IcArrow size={14} />
+            <LinkHint />
           </Link>
         </div>
       ))}

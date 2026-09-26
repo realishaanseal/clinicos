@@ -1,6 +1,34 @@
-import { FIRST_CLINIC_ID, getSetting, getSettings, getSomeSettings, recordAudit, setConsent, setSettings, type ClinicId } from "./db";
+import { cache } from "react";
+import { FIRST_CLINIC_ID, getSetting, getSettingsExcept, recordAudit, setConsent, setSettings, type ClinicId } from "./db";
 import { parseCardLanguage, type CardLanguage } from "./rx-card";
 import { CLINIC_TERMS_VERSION, parseClinicTerms, termsInForce, type ClinicTerms } from "./terms";
+
+/**
+ * The clinic's settings, read once per request.
+ *
+ * One screen asks for the clinic's name in the navigation, its terms, its fee
+ * and its letterhead, and each of those used to be its own trip to the
+ * database — cheap on a clinic computer, four round trips to Mumbai online.
+ * They are all rows of one small table for one clinic, so read them together
+ * and let the request share the answer.
+ *
+ * The logo is left out and fetched on its own (below): it is a data URL of up
+ * to 100 KB, and only the prescription's letterhead has any use for it. So are
+ * the ai_ settings, which hold a hosted provider's key: ai-settings.ts asks
+ * for those by name, and there is no reason for every page in the clinic to
+ * carry a key it will never use.
+ *
+ * Caching is per request, so a screen never shows a value older than the page
+ * it is on. Nothing writes a setting and reads it back within one request.
+ */
+export const clinicSettings = cache(
+  (clinicId: ClinicId): Promise<Record<string, string>> => getSettingsExcept(clinicId, ["clinic_logo"], "ai_")
+);
+
+/** The letterhead's logo, separately, for the same reason. */
+export const clinicLogo = cache(
+  async (clinicId: ClinicId): Promise<string> => (await getSetting(clinicId, "clinic_logo")) ?? ""
+);
 
 /**
  * Clinic identity printed on every prescription.
@@ -22,13 +50,13 @@ export type ClinicIdentity = {
 };
 
 export async function getClinic(clinicId: ClinicId): Promise<ClinicIdentity> {
-  const s = await getSettings(clinicId);
+  const [s, logo] = await Promise.all([clinicSettings(clinicId), clinicLogo(clinicId)]);
   const env: Record<string, string | undefined> = clinicId === FIRST_CLINIC_ID ? process.env : {};
   return {
     name: s.clinic_name || env.CLINIC_NAME || "Demo Clinic",
     address: s.clinic_address ?? env.CLINIC_ADDRESS ?? "",
     phone: s.clinic_phone ?? env.CLINIC_PHONE ?? "",
-    logo: s.clinic_logo ?? "",
+    logo,
     cardLanguage: parseCardLanguage(s.rx_card_language),
   };
 }
@@ -37,7 +65,7 @@ export async function getClinic(clinicId: ClinicId): Promise<ClinicIdentity> {
  *  the identity carries the logo, which is too large to load everywhere. */
 export async function getClinicName(clinicId: ClinicId): Promise<string> {
   const env: Record<string, string | undefined> = clinicId === FIRST_CLINIC_ID ? process.env : {};
-  return (await getSetting(clinicId, "clinic_name")) || env.CLINIC_NAME || "Demo Clinic";
+  return (await clinicSettings(clinicId)).clinic_name || env.CLINIC_NAME || "Demo Clinic";
 }
 
 /** The consultation fee that starts every new bill (in paise, or null when the
@@ -46,9 +74,7 @@ export async function getClinicName(clinicId: ClinicId): Promise<string> {
 export async function getBillingSettings(
   clinicId: ClinicId
 ): Promise<{ feePaise: number | null; recallMessage: string; ownerPhone: string }> {
-  // Named keys only: getSettings would carry the clinic's logo, up to 100 KB
-  // of data URL, into every Today and Follow-ups render.
-  const s = await getSomeSettings(clinicId, ["clinic_fee", "clinic_recall_message", "clinic_owner_phone"]);
+  const s = await clinicSettings(clinicId);
   const fee = Number(s.clinic_fee || "");
   return {
     feePaise: Number.isInteger(fee) && fee > 0 ? fee : null,
@@ -100,7 +126,7 @@ export async function prescriptionIdentity(
  * too, and one acceptance covers every copy of the clinic.
  */
 export async function getClinicTerms(clinicId: ClinicId): Promise<ClinicTerms | null> {
-  return parseClinicTerms(await getSetting(clinicId, "clinic_terms"));
+  return parseClinicTerms((await clinicSettings(clinicId)).clinic_terms);
 }
 
 export async function clinicMayRecord(clinicId: ClinicId): Promise<boolean> {

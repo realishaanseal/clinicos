@@ -7,6 +7,7 @@ import { can, requireUser } from "@/lib/auth";
 import { getClinicTerms } from "@/lib/clinic";
 import { termsInForce } from "@/lib/terms";
 import Link from "next/link";
+import LinkHint from "@/components/LinkHint";
 import { getShare } from "@/lib/share";
 import { BACKEND } from "@/lib/sql";
 import { portalReady, PORTAL_NOT_READY } from "@/lib/portal-crypto";
@@ -21,15 +22,25 @@ export default async function ConsultPage({ params }: { params: Promise<{ id: st
   const c = await getConsultWithPatient(user.clinicId, id);
   if (!c) notFound();
 
-  // The letterhead names the doctor who signed. While unsigned, that is the
-  // doctor working on it now. Notes signed before accounts existed have no
-  // doctor recorded and keep the old .env doctor.
-  const signer = c.doctorId ? await getUserPublic(user.clinicId, c.doctorId) ?? null : null;
+  // Everything else this screen needs, at once. It is the screen opened
+  // between one patient and the next, and online every await is its own trip
+  // to the database — asking in sequence made the doctor wait for the sum.
+  const [signer, previous, terms, share, syncStatus, favourites] = await Promise.all([
+    // The letterhead names the doctor who signed. While unsigned, that is the
+    // doctor working on it now. Notes signed before accounts existed have no
+    // doctor recorded and keep the old .env doctor.
+    c.doctorId ? getUserPublic(user.clinicId, c.doctorId).then((u) => u ?? null) : null,
+    // The patient's last signed visit, for "repeat these medicines". Only what
+    // the doctor signed then — never anything from its draft or transcript.
+    c.signedAt ? [] : previousSignedConsults(user.clinicId, c.patientId, c.id, 1),
+    c.signedAt ? null : getClinicTerms(user.clinicId),
+    c.signedAt ? getShare(user.clinicId, c.id) : null,
+    c.signedAt && BACKEND === "sqlite" ? getSyncStatus() : null,
+    c.signedAt ? [] : listFavourites(user.id),
+  ]);
   const identity = await prescriptionIdentity(user.clinicId, c.signedAt ? signer : user);
 
-  // The patient's last signed visit, for "repeat these medicines". Only what
-  // the doctor signed then — never anything from its draft or transcript.
-  const [last] = c.signedAt ? [] : await previousSignedConsults(user.clinicId, c.patientId, c.id, 1);
+  const [last] = previous;
   const lastNote = last ? parseNote(last.finalJson) : null;
   const lastVisit = last && lastNote
     ? {
@@ -39,14 +50,12 @@ export default async function ConsultPage({ params }: { params: Promise<{ id: st
       }
     : null;
 
-  const terms = c.signedAt ? null : await getClinicTerms(user.clinicId);
-
   // Sharing with the patient happens online, where the portal is: directly
   // there, or through the clinic online from a connected clinic computer.
   let sharing = { share: null as { sharedAt: string; revokedAt: string | null } | null, available: false, reason: null as string | null };
   if (c.signedAt) {
-    const s = await getShare(user.clinicId, c.id);
-    const connected = BACKEND === "sqlite" && (await getSyncStatus()).connected;
+    const s = share;
+    const connected = !!syncStatus?.connected;
     sharing = {
       share: s ? { sharedAt: s.sharedAt, revokedAt: s.revokedAt } : null,
       available: BACKEND === "postgres" ? portalReady() : connected,
@@ -71,7 +80,10 @@ export default async function ConsultPage({ params }: { params: Promise<{ id: st
             c.patient.phone,
           ].filter(Boolean).join(" · ") || "No details recorded"}
           {" · "}
-          <Link href={`/patients/${c.patientId}`}>View full history</Link>
+          <Link href={`/patients/${c.patientId}`}>
+            View full history
+            <LinkHint />
+          </Link>
         </p>
       </div>
 

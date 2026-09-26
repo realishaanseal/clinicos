@@ -1,9 +1,5 @@
 import { searchPatients } from "@/lib/db";
-import Link from "next/link";
-import { IcUsers, IcArrow } from "@/components/Icons";
-import AddToQueueButton from "@/components/AddToQueueButton";
-import DeletePatientButton from "@/components/DeletePatientButton";
-import { ONLINE } from "@/lib/deployment";
+import PatientSearch from "@/components/PatientSearch";
 import { can, requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -29,79 +25,22 @@ export default async function PatientsPage({
       <div className="page-head">
         <div className="eyebrow">Records</div>
         <h1>Patients</h1>
-        <p className="sub">
-          {patients.length} record{patients.length === 1 ? "" : "s"}
-          {ONLINE ? "." : " on this machine."}
-          {!q && patients.length === 50 && " Showing the 50 most recently registered — search to find anyone else."}
-          {q && patients.length === 50 && " Showing the first 50 matches — narrow the search to find someone else."}
-        </p>
       </div>
 
-      <form className="card" style={{ padding: 14 }}>
-        <input
-          name="q"
-          type="search"
-          defaultValue={q || ""}
-          placeholder="Search by name or phone number…"
-          aria-label="Search patients by name or phone number"
-        />
-      </form>
-
-      <div className="card flush">
-        {patients.length === 0 ? (
-          <div className="empty">
-            <IcUsers size={26} />
-            <div className="big" style={{ marginTop: 10 }}>
-              {q ? "Nobody matches that search" : "No patients yet"}
-            </div>
-            <div>
-              {q
-                ? "Try part of the name, or the last few digits of their phone number."
-                : canOpen
-                ? "Start a consultation from Today."
-                : "Register the first patient from Today."}
-            </div>
-          </div>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Age</th>
-                <th>Phone</th>
-                <th>Visits</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {patients.map((p) => (
-                <tr key={p.id}>
-                  <td style={{ fontWeight: 580 }}>
-                    {canOpen ? <Link href={`/patients/${p.id}`}>{p.name}</Link> : p.name}
-                  </td>
-                  <td className="dim">{p.age ?? "—"}</td>
-                  <td className="dim">{p.phone || "—"}</td>
-                  <td className="dim">{p.consultCount}</td>
-                  <td style={{ textAlign: "right" }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-                      {(isAdmin || p.consultCount === 0) && (
-                        <DeletePatientButton patient={{ id: p.id, name: p.name, consultCount: p.consultCount }} />
-                      )}
-                      {canOpen ? (
-                        <Link href={`/patients/${p.id}`} aria-label={`Open ${p.name}`}>
-                          <IcArrow size={16} />
-                        </Link>
-                      ) : (
-                        <AddToQueueButton patientId={p.id} name={p.name} />
-                      )}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      {/* The first list is rendered here, on the server. Searching from then
+          on happens in the browser, so the desk keeps its place in the box. */}
+      <PatientSearch
+        initial={patients.map((p) => ({
+          id: p.id,
+          name: p.name,
+          age: p.age,
+          phone: p.phone,
+          consultCount: p.consultCount,
+        }))}
+        initialQuery={q || ""}
+        canOpen={canOpen}
+        isAdmin={isAdmin}
+      />
     </div>
   );
 }

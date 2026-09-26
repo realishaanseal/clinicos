@@ -12,20 +12,20 @@ export default async function ClinicLayout({ children }: { children: React.React
   // Not signed in: the page's own requireUser() sends them to sign in.
   if (!user) return <>{children}</>;
 
-  // Lazy daily backup. Cheap when a recent one exists, and it cannot be
-  // "switched off" by accident the way a separate scheduler can. It runs here,
-  // for every signed-in page, so it happens whichever role uses the app that day.
-  await maybeAutoBackup();
   // The same idea for a clinic computer that keeps in step with its clinic
   // online: never awaited, so a slow or absent internet never slows a page.
   maybeSync();
 
+  // Lazy daily backup. Cheap when a recent one exists, and it cannot be
+  // "switched off" by accident the way a separate scheduler can. It runs here,
+  // for every signed-in page, so it happens whichever role uses the app that
+  // day — alongside the clinic's name rather than in front of it, so checking
+  // the backups folder is not something every page waits for on its own.
+  const [, clinicName] = await Promise.all([maybeAutoBackup(), getClinicName(user.clinicId)]);
+
   return (
     <div className="shell">
-      <SideNav
-        user={{ name: user.name, role: user.role, isAdmin: user.isAdmin }}
-        clinicName={await getClinicName(user.clinicId)}
-      />
+      <SideNav user={{ name: user.name, role: user.role, isAdmin: user.isAdmin }} clinicName={clinicName} />
       <div className="main">
         {PROTOTYPE && (
           // Patients have not been told their records are kept online, and the

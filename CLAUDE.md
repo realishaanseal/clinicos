@@ -210,7 +210,8 @@ clinicos-app/
     money.ts         bills in whole paise: parsing rupees, ₹ with Indian grouping, bill lines
     recall.ts        the follow-up reminder: its template and the wa.me link the desk taps
     day-summary.ts   the day in one message for the owner: counts and money, never a patient
-    clinic.ts        clinic identity: ClinicSetting first, .env as fallback (first clinic only)
+    clinic.ts        clinic identity: ClinicSetting first, .env as fallback (first clinic only).
+                     clinicSettings() reads the clinic's small settings once per request
     useRecorder.ts   streams 5-second audio chunks to disk while recording
     useAutosave.ts   debounced server save + localStorage mirror
     useQueue.ts      polls today's list every 5 seconds while the tab is visible
@@ -228,6 +229,8 @@ clinicos-app/
     WaitingPanel.tsx      the doctor's "Waiting now" and Start visit
     Favourites.tsx        the doctor's own saved prescriptions, in the note editor
     QuickSearch.tsx       Ctrl+K / ⌘K search from any screen (a native <dialog>)
+    PatientSearch.tsx     the Patients list, searched as the desk types (no page reload)
+    LinkHint.tsx          a spinner inside a tapped link until the next screen arrives
     BackupPanel.tsx       clinic admin: backup, restore, export
     DeletePatient.tsx     type-the-name-to-confirm deletion
     UsersAdmin.tsx        clinic admin: add people, manage access, reset passwords
@@ -347,6 +350,19 @@ cancelled: `admin`, a reason, and typed `CANCEL`. The reason stays on the bill, 
 the activity log, because it is free text and could name the patient. In sync, a payment or
 a cancellation recorded on either copy stands (`mergeBill()` in `sync.ts`).
 
+**A screen asks the database everything at once.** Every function in `db.ts` is async,
+and online each call is its own trip to Supabase, so a page that awaits sixteen things in
+a row makes the doctor wait for the sum of sixteen round trips. Pages gather what they
+need in one `Promise.all` and only chain where an answer really depends on an earlier one
+(the consultation screen needs its visit before it knows whether to ask about sharing).
+On a clinic computer this changes nothing measurable — SQLite answers in the same
+process — so don't expect `npm run bench` to show it; it is for the online copy. The
+clinic's own settings are a special case: `clinicSettings()` in `clinic.ts` reads them
+once per request with React's `cache()`, because the navigation, the terms, the fee and
+the letterhead used to be four separate queries for four rows of one small table. It
+leaves out the logo (100 KB of data URL) and the `ai_` keys (a provider's key has no
+business on every screen), both of which are fetched by name where they are wanted.
+
 **Nothing shows a stack trace.** `src/app/error.tsx` and `src/app/not-found.tsx` say what
 happened in plain words, say that nothing saved was lost, and offer the way back. A
 patient's record opens with the last signed visit "at a glance" — the medicines *given
@@ -462,6 +478,19 @@ is never the control:
 - **Tombstone ids include the clinic** (`<clinicId>:<table>:<rowId>`). Without it, one
   clinic's computer could record a deletion under another clinic's row id and stand in
   the way of that clinic's real deletion reaching its computers.
+- **A `loading.tsx` costs the 404 below it, and cascades.** Next starts streaming the
+  response as soon as a loading boundary exists, so the status is already sent by the
+  time the page calls `notFound()` — `/patients/no-such-patient` answered 200. A
+  boundary applies to every segment underneath it, so one at `(clinic)/` reached every
+  screen, and `patients/loading.tsx` would reach `patients/[id]`. Streaming also
+  interleaves Next's flight payload through the HTML, which broke a `workflow-test.cjs`
+  check that slices the admin page between two markers — and only on Postgres, where the
+  page is slow enough to flush early. There is now no `loading.tsx` in the app:
+  `LinkHint.tsx` (`useLinkStatus`) gives the same feedback at the tap instead, on every
+  route, without touching the response.
+- **Never `Promise.all` inside `tx()`.** Both drivers run a transaction on one
+  connection; concurrent statements on it are not safe. Parallel queries belong on page
+  and route paths, which is where they are.
 
 ---
 

@@ -105,26 +105,38 @@ async function stepTimes(clinicId: ClinicId, sinceIso: string) {
 export default async function AdminPage() {
   const user = await requireUser("admin");
 
-  const numbers = await clinicNumbers(user.clinicId);
+  // Clinic admin is the widest screen in ClinicOS: it asks the database
+  // sixteen separate questions. Asked one after another they added up to the
+  // slowest page in the app; none of them depends on another's answer, so they
+  // all go at once and the page waits for the slowest rather than the sum.
+  const [
+    numbers, backups, patients, people, week, steps, clinic, billing, terms, ai, collected, cameBack, tenant, syncStatus,
+  ] = await Promise.all([
+    clinicNumbers(user.clinicId),
+    listBackups(),
+    searchPatients(user.clinicId, ""),
+    listUsers(user.clinicId),
+    signedByDoctor(user.clinicId),
+    stepTimes(user.clinicId, localDayBounds(clinicDayAt(-6))[0]),
+    getClinic(user.clinicId),
+    getBillingSettings(user.clinicId),
+    getClinicTerms(user.clinicId),
+    // Temporary: the AI service is normally set by Varaxis outside the app.
+    getAiConfigView(user.clinicId),
+    collectedByDay(user.clinicId),
+    patientsWhoCameBack(user.clinicId),
+    MULTI_CLINIC ? getTenant(user.clinicId) : undefined,
+    SYNC_CLIENT_ENABLED ? getSyncStatus() : null,
+  ]);
   const stats = await databaseStats(user.clinicId, numbers);
-  const backups = await listBackups();
-  const patients = await searchPatients(user.clinicId, "");
-  const activePeople = (await listUsers(user.clinicId)).filter((u) => u.active).length;
-  const week = await signedByDoctor(user.clinicId);
-  const steps = await stepTimes(user.clinicId, localDayBounds(clinicDayAt(-6))[0]);
-  const clinic = await getClinic(user.clinicId);
-  const billing = await getBillingSettings(user.clinicId);
-  const terms = await getClinicTerms(user.clinicId);
-  // Temporary: the AI service is normally set by Varaxis outside the app.
-  const ai = await getAiConfigView(user.clinicId);
-  const collected = await collectedByDay(user.clinicId);
-  const cameBack = await patientsWhoCameBack(user.clinicId);
-  const tenant = MULTI_CLINIC ? await getTenant(user.clinicId) : undefined;
-  const address = tenant ? `${await publicAppUrl()}${clinicPath(tenant.slug)}` : null;
-  // Online, a clinic whose plan includes it can connect its own computers; on a
-  // clinic computer, this is where it connects to its clinic online.
-  const devices = tenant && parseFeatures(tenant.features).localSync ? await listDevices(user.clinicId) : null;
-  const syncStatus = SYNC_CLIENT_ENABLED ? await getSyncStatus() : null;
+  const activePeople = people.filter((u) => u.active).length;
+  // These two need the clinic's own row first.
+  const [address, devices] = await Promise.all([
+    tenant ? publicAppUrl().then((base) => `${base}${clinicPath(tenant.slug)}`) : null,
+    // Online, a clinic whose plan includes it can connect its own computers; on
+    // a clinic computer, this is where it connects to its clinic online.
+    tenant && parseFeatures(tenant.features).localSync ? listDevices(user.clinicId) : null,
+  ]);
 
   // What a new clinic still has to do (backlog #34). It goes away by itself.
   const todo: Step[] = [
