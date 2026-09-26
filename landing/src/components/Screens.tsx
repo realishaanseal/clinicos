@@ -80,7 +80,7 @@ export function ReviewScreen() {
             </div>
           </div>
           <div className="ui-sign">
-            <span>The recording is deleted when you sign.</span>
+            <span className="cap">The recording is deleted when you sign.</span>
             <span className="ui-btn">Sign and print</span>
           </div>
         </div>
@@ -121,7 +121,7 @@ export function TodayScreen() {
             </div>
           </div>
           <div className="ui-sign">
-            <span>Nothing recorded before it stopped was lost.</span>
+            <span className="cap">Nothing recorded before it stopped was lost.</span>
             <span className="pill pill-ok">Continue</span>
           </div>
         </div>
@@ -159,7 +159,7 @@ export function RecordScreen() {
             <p><b>Patient</b> Dry cough at night. No throat pain.</p>
           </div>
           <div className="ui-sign">
-            <span>Audio is written to disk in five-second pieces as you talk.</span>
+            <span className="cap">Audio is written to disk in five-second pieces as you talk.</span>
             <span className="pill pill-quiet">Stop</span>
           </div>
         </div>

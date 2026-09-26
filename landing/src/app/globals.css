@@ -726,7 +726,10 @@ section h2 { max-width: 24ch; }
   gap: 0.75rem; flex-wrap: wrap;
   padding-top: 0.85rem; border-top: 1px solid var(--line-soft);
 }
-.ui-sign span { font-size: 0.74rem; color: var(--faint); }
+/* .cap, not a bare `span`: `.ui-sign span` is more specific than `.ui-btn` and
+   `.pill-*`, and it was repainting the button's white label and the pills'
+   colours in --faint — grey on teal, at about 2:1. */
+.ui-sign .cap { font-size: 0.74rem; color: var(--faint); }
 .ui-btn {
   font-size: 0.78rem; font-weight: 600; color: #fff;
   background: linear-gradient(135deg, var(--teal-700), var(--teal-600));
