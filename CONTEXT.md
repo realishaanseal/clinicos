@@ -38,7 +38,7 @@ It is framed differently for different audiences:
 | `landing/` | The public website (static Next.js), deployed to Vercel. See `landing/README.md`. Passes `/app` through to the clinic app. Rebuilt 26 Sep 2026: the app's own design tokens, no animation library, no client components. |
 | `archive/landing-film/` | The website before that rebuild, kept whole and runnable as an asset — the scroll-scrubbed film, its 21 MB of frame packs and `scripts/backdrop.py`. `/archive` is in `.vercelignore`, so no deploy uploads it. |
 | `docs/` | Launch plan, 37-item backlog, problem statement, discovery script, consent script, pilot agreement, website brief. |
-| `artifacts/` | Decks, the 61-section startup blueprint (.docx), trackers, briefs, prototype documentation PDF. |
+| `artifacts/` | Decks, the 61-section startup blueprint (.docx), trackers, briefs, prototype documentation PDF, and the design-thinking report (.docx and .pdf, Oct 2026) with screenshots of the prototype. |
 | `brand/` | Varaxis's official logo, light and dark. The source of truth — see `brand/README.md`. Nothing reads it yet. |
 | `CLAUDE.md` | Invariants, architecture, gotchas, house style — for every assistant. |
 | `CONTEXT.md` | This file. |
