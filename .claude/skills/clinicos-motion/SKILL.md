@@ -114,7 +114,7 @@ If a 3D scene is going on a marketing surface, it has to earn ~600KB:
   waveform resolving into a written prescription is the pitch.
 - **Cap the device cost.** `<Canvas dpr={[1, 1.5]} gl={{ antialias: false }}>` and
   `frameloop="demand"` when the scene is static. The target audience includes
-  low-end laptops in Krishnanagar — test as if the GPU is bad, because it is.
+  low-end clinic laptops — test as if the GPU is bad, because it often is.
 - **Pause offscreen.** Use an IntersectionObserver or drei's `<AdaptiveDpr />`;
   never leave a render loop running under the fold.
 - **Always ship a static fallback** for reduced-motion, WebGL failure, and the

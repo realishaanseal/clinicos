@@ -3,22 +3,25 @@
 | | |
 |---|---|
 | **Course** | Design Thinking · B.Tech CSE (AI & ML), Semester 1 |
-| **Project** | ClinicOS — a consultation-documentation assistant for single-doctor rural clinics |
-| **Field site** | Krishnanagar, Nadia district, West Bengal |
+| **Project** | ClinicOS — a consultation-documentation assistant for clinics and medical institutions of every size |
+| **Scope** | Single-doctor clinics first, then multi-doctor clinics, hospitals and health systems, then international |
 
 ---
 
 ## 1. Context
 
-India's rural primary care runs on very small units. As of 31 March 2023, the country had
-1,69,615 sub-centres, 31,882 Primary Health Centres and 6,359 Community Health Centres,
-staffed by 40,583 doctors at PHC level — roughly **1.3 doctors per PHC** (Health Dynamics of
-India 2022–23, MoHFW). Alongside this public network sits a much larger, largely uncounted
-layer of private single-doctor chambers: one room, one doctor, a register, and a queue.
+Outpatient care everywhere is under time pressure, and in India it is extreme. As of
+31 March 2023 the public network alone had 31,882 Primary Health Centres staffed by 40,583
+doctors — roughly **1.3 doctors per centre** (Health Dynamics of India 2022–23, MoHFW) — and
+far more patients are seen in private practice: solo chambers, multi-doctor clinics and the
+outpatient departments of hospitals.
 
-The unit of study for this project is that last one — the **one-doctor, one-room clinic** —
-because it is the setting where the largest number of Indian patients are actually seen, and
-the setting almost no health software is designed for.
+The unit of study for this project is the **outpatient consultation itself**, wherever it
+happens. It starts with the one-doctor clinic, because that is where the whole visit —
+reception, history, examination, prescription and record — rests on one person and the
+problem is easiest to see. The same consultation repeats, at larger scale and with more
+people around it, in multi-doctor clinics, hospital OPDs and health systems, and in other
+countries; the product is designed to grow into each of them.
 
 ## 2. The observed situation
 
@@ -48,14 +51,14 @@ of the record it produces but by **whether it costs the doctor less attention th
 
 ## 4. An assumption we had to discard
 
-Our initial framing assumed rural clinics were offline and that connectivity was the binding
+Our initial framing assumed clinics were offline and that connectivity was the binding
 constraint. The 80th round of the National Sample Survey (Comprehensive Modular Survey on
-Telecom, Jan–Mar 2025) reports **83.3% of rural households with internet access against 91.6%
-urban** — a real gap, but far smaller than assumed.
+Telecom, Jan–Mar 2025) reports internet access in a large majority of Indian households —
+the gap is far smaller than assumed.
 
 The constraint is therefore not the *absence* of connectivity but its *unreliability and
 consequence*: a dropped connection in the middle of a consultation, with a patient in the
-chair and a queue outside, is an unrecoverable failure regardless of average national access
+chair and a queue outside, is an unrecoverable failure regardless of average access
 statistics. This reframing moved the design target from "works without internet" to
 **"never loses a consultation, for any reason."**
 
@@ -78,7 +81,7 @@ Both push in the same direction: the system should **carry** the record, not **j
 
 ## 6. Problem statement
 
-> In single-doctor rural clinics in and around Krishnanagar, a consultation lasting roughly two
+> In busy outpatient practice — starting with the single-doctor clinic — a consultation lasting roughly two
 > minutes must produce both care and a record, and the record is routinely the part that is
 > sacrificed. Existing clinical software addresses this by asking the doctor to type structured
 > data during the consultation, which measurably consumes more clinician attention than paper
@@ -90,7 +93,7 @@ Both push in the same direction: the system should **carry** the record, not **j
 
 ## 7. Point of view
 
-**Dr. Roy, a solo practitioner seeing 40–60 patients a day, needs a way to end each consultation
+**Dr. Roy, a practitioner seeing 40–60 patients a day, needs a way to end each consultation
 with a usable written record without spending consultation time producing it — because the two
 minutes he has belong to the patient, and every second the record takes is taken from care.**
 
@@ -127,5 +130,5 @@ minutes he has belong to the patient, and every second the record takes is taken
 1. Ministry of Health & Family Welfare, *Health Dynamics of India (Infrastructure and Human Resources) 2022–23* — PIB release, 2024.
 2. Irving G. et al., "International variations in primary care physician consultation time: a systematic review of 67 countries," *BMJ Open* 7(10), 2017.
 3. Sinsky C. et al., "Allocation of Physician Time in Ambulatory Practice: A Time and Motion Study in 4 Specialties," *Annals of Internal Medicine*, 2016.
-4. National Sample Survey Office, *Comprehensive Modular Survey: Telecom, 80th Round* (Jan–Mar 2025), MoSPI — as analysed by CEDA, Ashoka University.
+4. National Sample Survey Office, *Comprehensive Modular Survey: Telecom, 80th Round* (Jan–Mar 2025), MoSPI.
 5. The Digital Personal Data Protection Act, 2023 (No. 22 of 2023), MeitY; Digital Personal Data Protection Rules, 2025.

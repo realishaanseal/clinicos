@@ -2,7 +2,16 @@
 
 **A 16-week launch plan for a part-time student founder with near-zero capital**
 
-Prepared August 2026 · Krishnanagar, Nadia, West Bengal
+Prepared August 2026 · revised October 2026
+
+---
+
+## Where this goes
+
+ClinicOS is planned as one product that grows with the institution using it: single-doctor
+and small clinics first, then multi-doctor clinics, hospitals and health systems, and finally
+an internationally scalable product. The sixteen weeks below are the first rung — proving the
+consultation flow where it is easiest to put in front of a doctor — not the ceiling.
 
 ---
 
@@ -41,13 +50,13 @@ Nothing in the next four months requires a company. Incorporate when one of thes
 
 ## Phase 0 — Weeks 1–4: Twenty conversations, no selling
 
-**Goal:** find out whether documentation is actually the pain for a doctor running a ₹500 OPD.
+**Goal:** find out whether documentation is actually the pain for doctors — from a solo practice running a ₹500 OPD to a hospital outpatient department.
 
 This is the single most important phase in the plan, and it is the one you will be most tempted to skip because it feels like it isn't progress. It is the only phase that can save you two years.
 
 **What to do**
 
-- Twenty doctors in Krishnanagar and around Nadia. Face-to-face, not a form.
+- Twenty doctors across practice sizes: solo practitioners, multi-doctor clinics and hospital outpatient departments. Face-to-face, not a form.
 - **Do not open your laptop for the first fifteen minutes.** The moment you demo, the conversation becomes about your product and you stop learning anything.
 - Use the attached discovery script. It is deliberately non-leading.
 
@@ -62,7 +71,7 @@ This is the single most important phase in the plan, and it is the one you will 
 
 - Start with your own family's doctor. Ask each doctor at the end for two introductions to colleagues. Chain referral is the only method that scales here.
 - Go at the hours medical representatives go — early morning before OPD, or the dead hour after lunch. Reps have already trained doctors to give a stranger five minutes in those windows.
-- Your local **IMA (Indian Medical Association) branch** in Nadia holds meetings. One introduction there is worth ten cold visits.
+- Your local **IMA (Indian Medical Association) branch** holds meetings. One introduction there is worth ten cold visits.
 - Being a student is an asset in this conversation, not a liability. "I'm building something and I need to understand your day before I build the wrong thing" gets doors opened that a salesperson's pitch does not. Use it honestly.
 
 **Cost:** ₹0. **Time:** ~12 hrs/week.

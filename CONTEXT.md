@@ -7,7 +7,7 @@
 >
 > **Keep it current.** When you finish something, update §3, §6, §7 and §10.
 >
-> Last updated: 20 September 2026.
+> Last updated: 13 October 2026.
 
 ---
 
@@ -21,12 +21,11 @@ signs. A branded prescription prints from the signed note.
   every recommendation cheap in time and money.
 - **Company:** Varaxis.
 
-It is framed differently for different audiences:
-
-| Audience | Framing |
-|---|---|
-| **Public** (website, anything a buyer sees) | A Varaxis product for clinics of every size, up to hospitals, internationally. Never mention Krishnanagar, and never name the founder. |
-| **Internal** (docs, pilots, planning) | Field site Krishnanagar, Nadia, West Bengal. Single-doctor clinics first. |
+**The plan, from the start:** one product that grows with the institution using it —
+single-doctor and small clinics first, then multi-doctor clinics, hospitals and health
+systems, and finally an internationally scalable product. Discovery interviews and
+pilots cover that whole range of practice sizes; no town or region is the starting
+point. Public copy is Varaxis-branded and never names the founder.
 
 ---
 
@@ -350,7 +349,8 @@ The clinic app also runs on the clinic computer, exactly as before. Start it wit
 
 | When | Decision | Why, or the detail |
 |---|---|---|
-| 13 Sep 2026 | Public positioning: Varaxis, international, clinics of every size up to hospitals. | No Krishnanagar and no founder name on anything public. |
+| 13 Sep 2026 | Public positioning: Varaxis, international, clinics of every size up to hospitals. | No founder name on anything public. |
+| 13 Oct 2026 | **Positioning everywhere, internal docs included:** single-doctor clinics, then larger institutions and health systems, then international. No field-site town or region as the starting point anywhere in the repo. | Ishaan: that was the initial plan; the field site was only for the first data collection. |
 | 13 Sep 2026 | The website uses a free `vercel.app` address. | `vxclinicos.vercel.app` since 17 Sep 2026, matching `vxscholar.com`. It was `clinicos-varaxis.vercel.app` until then, and that address now 404s. A real domain can be added later without rebuilding. |
 | 13 Sep 2026 | The website has no pilot offer; it ends with "Get in touch". | Ishaan wants the product, not pilots. Contact goes through the Tally form and email. |
 | 13 Sep 2026 | Build the v0.5 product now, before the doctor interviews. | Zero of 20 interviews done. The risk stays recorded in CLAUDE.md's "gate". |

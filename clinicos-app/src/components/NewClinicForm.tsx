@@ -8,7 +8,7 @@ import { appPath } from "@/lib/base-path";
 type Draft = { name: string; slug: string; plan: string; localSync: boolean; paidUntil: string; notes: string };
 const EMPTY: Draft = { name: "", slug: "", plan: "cloud", localSync: false, paidUntil: "", notes: "" };
 
-/** "Sharma Clinic, Krishnanagar" → "sharma-clinic-krishnanagar". A suggestion
+/** "Sharma Clinic, Kolkata" → "sharma-clinic-kolkata". A suggestion
  *  only; the operator can change it before creating. */
 function suggestSlug(name: string): string {
   return name
