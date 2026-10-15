@@ -637,6 +637,31 @@ the times are measured (§3). Cutting them further needs real consultations to m
 
 ## 7. Waiting on Ishaan
 
+**The online database is gone (noticed 15 Oct 2026). Nothing online works until it is
+back.** Every screen at vxclinicos.vercel.app/app stops on the generic error card,
+because the first thing any of them does is ask the database who is signing in.
+Supabase project `qifibsektuldruiagabm` is no longer there: its pooler answers
+`FATAL XX000 "(ENOTFOUND) tenant/user postgres.qifibsektuldruiagabm not found"`, and
+the project's own address no longer resolves in DNS. Nothing of ours changed when it
+started failing on 11 Oct — `DATABASE_URL` on the `vxclinicos-app` project has not been
+edited since 17 Sep, and the last production deploy was 26 Sep. A free Supabase project
+left paused long enough is deleted, which fits what the evidence shows; the Supabase
+dashboard will say for certain.
+
+To bring it back: create a Supabase project in Mumbai, put its **transaction pooler**
+string (port 6543) into `DATABASE_URL` on `vxclinicos-app`, and redeploy — the build
+runs `migrate-pg.mjs --deploy`, so the whole schema lands before the app starts. It
+comes back **empty**: no clinics, no accounts, no operator, and the made-up patients in
+the old one are not recoverable, because the online copy keeps no backups (invariant 2).
+Item 0 below then has to be done again from the top. `/api/health` is how to tell: it
+answers `{"ok":false,"db":"unreachable"}` with a 503 while this lasts, and `{"ok":true}`
+once it is fixed.
+
+Since 15 Oct the three screens anyone can reach — sign-in, a clinic's own address and
+setup — say "ClinicOS can't reach your records" in plain words instead of "This screen
+stopped", so an outage like this no longer reads as a bug in the sign-in page. It does
+not make the app work; only the database coming back does that.
+
 0. **Done 20 Sep 2026: `saas` is in `main` and live** at vxclinicos.vercel.app/app; the
    production build applied the migrations itself.
    **Now add the two portal keys**: run `npm run portal:keys` in `clinicos-app` and paste

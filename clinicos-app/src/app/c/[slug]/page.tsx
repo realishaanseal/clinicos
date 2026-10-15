@@ -2,16 +2,25 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, homeFor } from "@/lib/auth";
 import { countUsers, getTenantBySlug } from "@/lib/db";
 import SignInCard from "@/components/SignInCard";
+import { orRecordsUnavailable } from "@/components/DatabaseDown";
+import { appPath } from "@/lib/base-path";
 import { Mark } from "@/components/Icons";
 
 export const dynamic = "force-dynamic";
+
+type Props = { params: Promise<{ slug: string }> };
 
 /**
  * A clinic's own address: vxclinicos.vercel.app/app/c/<slug>. The link
  * Varaxis gives a clinic, and the one its people bookmark. It opens setup
  * until the clinic's first account exists, and its sign-in after that.
  */
-export default async function ClinicAddressPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function ClinicAddressPage(props: Props) {
+  const { slug } = await props.params;
+  return orRecordsUnavailable(appPath(`/c/${encodeURIComponent(slug)}`), () => clinicDoor(props));
+}
+
+async function clinicDoor({ params }: Props) {
   const { slug } = await params;
   const clinic = await getTenantBySlug(slug);
 

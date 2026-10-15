@@ -7,10 +7,18 @@ import { Mark } from "@/components/Icons";
 import { MULTI_CLINIC, resolveClinic } from "@/lib/tenant";
 import ConnectAtSetup from "@/components/ConnectAtSetup";
 import { SYNC_CLIENT_ENABLED } from "@/lib/sync-client";
+import { orRecordsUnavailable } from "@/components/DatabaseDown";
+import { appPath } from "@/lib/base-path";
 
 export const dynamic = "force-dynamic";
 
-export default async function SetupPage({ searchParams }: { searchParams: Promise<{ clinic?: string }> }) {
+type Props = { searchParams: Promise<{ clinic?: string }> };
+
+export default async function SetupPage(props: Props) {
+  return orRecordsUnavailable(appPath("/setup"), () => setUpClinic(props));
+}
+
+async function setUpClinic({ searchParams }: Props) {
   const { clinic: slug } = await searchParams;
   const clinic = await resolveClinic(slug);
 

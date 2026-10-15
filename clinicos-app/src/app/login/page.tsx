@@ -2,15 +2,19 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, homeFor, safeNextPath } from "@/lib/auth";
 import { countUsers } from "@/lib/db";
 import { MULTI_CLINIC, resolveClinic } from "@/lib/tenant";
+import { appPath } from "@/lib/base-path";
 import SignInCard from "@/components/SignInCard";
+import { orRecordsUnavailable } from "@/components/DatabaseDown";
 
 export const dynamic = "force-dynamic";
 
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ next?: string; clinic?: string; choose?: string }>;
-}) {
+type Props = { searchParams: Promise<{ next?: string; clinic?: string; choose?: string }> };
+
+export default async function LoginPage(props: Props) {
+  return orRecordsUnavailable(appPath("/login"), () => signIn(props));
+}
+
+async function signIn({ searchParams }: Props) {
   const { next, clinic: slug, choose } = await searchParams;
   // ?choose=1 is "sign in to another clinic": ignore the one remembered.
   const clinic = choose ? null : await resolveClinic(slug);
