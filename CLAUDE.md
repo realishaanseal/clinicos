@@ -13,10 +13,12 @@ other tools here.
 
 ## What this is
 
-A local-first consultation-documentation assistant for single-doctor rural clinics
-in India. Field site: Krishnanagar, Nadia, West Bengal.
+A consultation-documentation assistant for clinics and medical institutions of every
+size: the single-doctor practice first, then multi-doctor clinics, hospitals and health
+systems, and an internationally scalable product. That has been the plan from the start.
 
-The doctor gets roughly two minutes per patient. In that time they must greet,
+In a busy outpatient consultation the doctor gets a few minutes per patient — roughly
+two in India. In that time they must greet,
 take a history, examine, explain, prescribe **and** record. The record is what gets
 dropped. ClinicOS records the consultation that was already happening, transcribes
 it locally, drafts a structured clinical note, and asks the doctor only to review
@@ -487,8 +489,7 @@ Built and tested:
   with Root Directory `landing`. It holds no patient data and cannot reach the
   clinical app. Enquiries go to a Tally contact form; every address the site uses
   lives in `landing/src/site.ts`. Public copy is Varaxis-branded and international
-  (clinics of any size up to hospitals). The Krishnanagar field site stays in
-  internal docs and pilots, not on the site.
+  (clinics of every size, hospitals and health systems).
   **Rebuilt on 26 Sep 2026** (branch `website-premium-light`, Ishaan's decision:
   a product needs a premium page that is light on the device, not a heavy one).
   It is now one sheet of warm paper built from the *app's own* design tokens, with

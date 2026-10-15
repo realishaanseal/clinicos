@@ -25,7 +25,7 @@ Both are 2000 × 2000 JPEG.
   which is that tile plus type, not these files. Nothing on the website or in the
   clinic app reads this folder today.
 - **Public copy is Varaxis, international, clinics of every size.** Wherever these
-  go, the surrounding words follow that; no Krishnanagar, no founder's name. See
+  go, the surrounding words follow that; no founder's name. See
   CONTEXT.md §1.
 
 ## Deploys
