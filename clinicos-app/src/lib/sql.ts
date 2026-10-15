@@ -46,6 +46,46 @@ export function isUniqueViolation(e: unknown): boolean {
   return code === "23505" || code === "SQLITE_CONSTRAINT_UNIQUE" || code === "SQLITE_CONSTRAINT_PRIMARYKEY";
 }
 
+/** The database was never reached, or the connection died under the query. */
+const UNREACHABLE_CODES = new Set([
+  // the socket, reported by Node
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "ECONNREFUSED",
+  "ECONNRESET",
+  "EHOSTUNREACH",
+  "ENETUNREACH",
+  "EPIPE",
+  "ETIMEDOUT",
+  // postgres.js's own
+  "CONNECTION_CLOSED",
+  "CONNECTION_DESTROYED",
+  "CONNECTION_ENDED",
+  "CONNECT_TIMEOUT",
+  // the file on a clinic computer: a drive not mounted, or no permission
+  "SQLITE_CANTOPEN",
+  "SQLITE_IOERR",
+]);
+
+/**
+ * The database could not be reached at all, as against a query that failed.
+ *
+ * The screens that are a clinic's front door say so in plain words instead of
+ * falling into the generic "this screen stopped": someone who cannot sign in
+ * needs to know that it is not their doing, that nothing saved has been lost,
+ * and that there is nothing here for them to fix. Each driver reports it its
+ * own way, and Supabase's pooler reports a database that is no longer there
+ * as a FATAL of its own — XX000, "tenant/user ... not found" — before any
+ * query runs, rather than as a socket error.
+ */
+export function isDatabaseUnreachable(e: unknown): boolean {
+  const err = e as { code?: string; severity_local?: string } | null | undefined;
+  if (!err?.code) return false;
+  if (UNREACHABLE_CODES.has(err.code)) return true;
+  // The server answered, but only to refuse the connection outright.
+  return err.code === "XX000" && err.severity_local === "FATAL";
+}
+
 // Queries made inside tx() must use the transaction's connection. Rather than
 // threading a handle through every function in db.ts, the open transaction is
 // kept here, so a helper called from inside a transaction joins it
