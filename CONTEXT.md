@@ -637,25 +637,30 @@ the times are measured (§3). Cutting them further needs real consultations to m
 
 ## 7. Waiting on Ishaan
 
-**The online database is gone (noticed 15 Oct 2026). Nothing online works until it is
-back.** Every screen at vxclinicos.vercel.app/app stops on the generic error card,
-because the first thing any of them does is ask the database who is signing in.
-Supabase project `qifibsektuldruiagabm` is no longer there: its pooler answers
-`FATAL XX000 "(ENOTFOUND) tenant/user postgres.qifibsektuldruiagabm not found"`, and
-the project's own address no longer resolves in DNS. Nothing of ours changed when it
-started failing on 11 Oct — `DATABASE_URL` on the `vxclinicos-app` project has not been
-edited since 17 Sep, and the last production deploy was 26 Sep. A free Supabase project
-left paused long enough is deleted, which fits what the evidence shows; the Supabase
-dashboard will say for certain.
+**The online copy was down from 11 to 15 Oct 2026: Supabase had paused the database.**
+Resumed on 15 Oct and everything came back — same project, same records, nothing
+recreated. Worth knowing because it will happen again on a free plan, and because the
+first reading of the evidence was wrong.
 
-To bring it back: create a Supabase project in Mumbai, put its **transaction pooler**
-string (port 6543) into `DATABASE_URL` on `vxclinicos-app`, and redeploy — the build
-runs `migrate-pg.mjs --deploy`, so the whole schema lands before the app starts. It
-comes back **empty**: no clinics, no accounts, no operator, and the made-up patients in
-the old one are not recoverable, because the online copy keeps no backups (invariant 2).
-Item 0 below then has to be done again from the top. `/api/health` is how to tell: it
-answers `{"ok":false,"db":"unreachable"}` with a 503 while this lasts, and `{"ok":true}`
-once it is fixed.
+What it looked like: every screen at vxclinicos.vercel.app/app stopped on the generic
+error card, since the first thing any of them does is ask the database who is signing
+in. The pooler answered `FATAL XX000 "(ENOTFOUND) tenant/user
+postgres.qifibsektuldruiagabm not found"`, and `qifibsektuldruiagabm.supabase.co` had
+no DNS record at all. **A paused Supabase project drops its DNS, exactly as a deleted
+one does** — that is not evidence of deletion, and was read as such here. Nothing of
+ours had changed: `DATABASE_URL` untouched since 17 Sep, last deploy 26 Sep, failures
+from 11 Oct.
+
+**A paused database also blocks every deploy.** The build command runs
+`migrate-pg.mjs --deploy` before `next build`, so the migration cannot connect, the
+build fails, and the previous version keeps serving — working as designed, but it means
+no code change of any kind can ship until the database is back. Three merges to `main`
+(PRs #1, #2 and #3) failed this way before anyone noticed. Resume the database first,
+then redeploy; a redeploy before that just fails again.
+
+`/api/health` is how to tell, and it needs no sign-in: `{"ok":false,"db":"unreachable"}`
+with a 503 while it is down, `{"ok":true,"db":"ok"}` with the serving commit once it is
+back.
 
 Since 15 Oct the three screens anyone can reach — sign-in, a clinic's own address and
 setup — say "ClinicOS can't reach your records" in plain words instead of "This screen
